@@ -82,6 +82,9 @@ runtib <- runlist |>
 
 ```{r}
 
+# To test, cut down to only a few
+runtib <- runtib[c(1:2, 401:402)]
+
 
 # with runlist as a tibble, this could actually be furrr_imap.
 with_progress({
