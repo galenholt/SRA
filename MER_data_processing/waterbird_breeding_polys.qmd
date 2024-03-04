@@ -1,0 +1,152 @@
+---
+title: "Waterbird building"
+format: html
+editor: visual
+---
+
+This doc is to make sure we do things correctly for the main analyses.
+
+## Understanding the spatial layers
+
+```{r}
+library(CC2)
+library(sf)
+library(ggplot2)
+```
+
+```{r}
+source('directorySet.R')
+```
+
+We should only use the complexes defined as contributing to breeding in Asset_site_list.xlsx.
+
+```{r}
+asset_list <- readxl::read_xlsx(path = file.path(datDir, 'MDBA_complex', 'Asset_site_list.xlsx'), sheet = 'Waterbird Assets')
+```
+
+That needs to have its names cleaned up. And the 'MDBA Environmental Assets' col seems to match the wrpa names.
+
+```{r}
+asset_list <- asset_list |> 
+  dplyr::select(-1) |> 
+  dplyr::rename(SWWRPAName = 'MDBA Environmental Assets') |> 
+  dplyr::rename(hab_function = 'Habitat function')
+```
+
+Filter to just the breeding assets
+
+```{r}
+breeding_assets <- asset_list |> 
+  dplyr::filter(grepl('breed', hab_function))
+```
+
+Now, do the SWWRAPAnames actually match, and do the wetlands match the mdba_bird_complexes?
+
+Fix some things so they do
+
+```{r}
+breeding_assets <- breeding_assets |> 
+  dplyr::mutate(SWWRPAName = dplyr::case_when(SWWRPAName == 'Victoria Murray' ~ 'Victorian Murray',
+                   SWWRPAName == 'Intersecting streams' ~ 'Intersecting Streams',
+                   SWWRPAName == 'NSW Lower Murray and Lower Darling' ~ 'New South Wales Murray and Lower Darling',
+                   SWWRPAName == 'Wimmera-Mallee' ~ 'Wimmera-Mallee (surface water)',
+                   SWWRPAName == 'River Murray' ~ 'South Australian River Murray',
+                   .default = SWWRPAName))
+```
+
+Any that don't match?
+
+```{r}
+nowrpamatch <- which(!breeding_assets$SWWRPAName %in% unique(wrpa$SWWRPAName))
+
+breeding_assets$SWWRPAName[nowrpamatch]
+```
+
+For the most part, the wetland differences are just typos, but Lake Alex is a subwetland. So I think when we build the polygons to use, pull that one in separatelty.
+
+```{r}
+breeding_assets <- breeding_assets |> 
+  dplyr::mutate(Wetland = dplyr::case_when(Wetland == 'Gwydir wetlands' ~ 'Gwydir Wetlands',
+                   Wetland == 'Macquarie-Marshes' ~ 'Macquarie Marshes',
+                   Wetland == 'Fivebough and Tuckerbil swamps' ~ 'Fivebough Swamp',
+                   Wetland == 'Koondrook–Perricoota Forest' ~ 'Gunbower-Koondrook-Perricoota',
+                   Wetland == 'Gunbower–Koondrook–Perricoota Forest' ~ 'Gunbower-Koondrook-Perricoota',
+                   Wetland == 'Corop Wetlands' ~ 'Corop Wetlands Complex',
+                   # There is a sub-wetland for just Lake Alex. I wonder if we should use that.
+                   # Wetland == 'Lake Alexandrina' ~ 'Coorong, Lower Lakes and Murray Mouth', 
+                   Wetland == 'Lindsay–Walpolla–Chowilla Floodplain' ~ 'Lindsay-Walpolla-Chowilla',
+                   .default = Wetland))
+```
+
+```{r}
+nowetmatch <- which(!breeding_assets$Wetland %in% unique(mdba_bird_wetlands$Wetland))
+breeding_assets$Wetland[nowetmatch]
+```
+
+Make the polygons we want to use for the breeding assets
+
+```{r}
+breeding_polys <- mdba_bird_wetlands |> 
+  dplyr::filter(Wetland %in% breeding_assets$Wetland)
+
+subalex <- mdba_bird_subwetlands |> 
+  dplyr::filter(SubWetland == 'Lake Alexandrina') |> 
+  dplyr::select(Wetland = SubWetland)
+
+breeding_polys <- breeding_polys |> 
+  dplyr::bind_rows(subalex)
+```
+
+Those overlap the actual wrpas
+
+```{r}
+
+ggplot() +
+  geom_sf(data = wrpa) +
+  geom_sf(data = breeding_polys, aes(fill = Wetland), alpha = 0.6) +
+  theme(legend.position = 'none')
+```
+
+```{r}
+# How which of those hit > 1 WRPA?
+bird_wrpa <- st_intersection(breeding_polys, wrpa)
+nintersects <- table(bird_wrpa$Wetland, bird_wrpa$SWWRPAName) > 0
+
+nintersects |> rowSums() |> knitr::kable()
+```
+
+So, how should we assign condition at a complex to the wrpas?
+
+-   Use the assignment in `breeding_assets`, rather than do it spatially.
+-   If we did it spatially, we could intersect or assign ANAEs separately, but the best move is just to use the mapping in the assets.
+
+Get those SWWRPANames on the assets.
+
+```{r}
+breeding_polys <- breeding_polys |> 
+  dplyr::left_join(dplyr::select(breeding_assets, -hab_function))
+```
+
+For this particular analysis we can JUST deal with the ANAEs in the `breeding_polys` and ignore all those outside them.
+
+Do we want to actually cut the ANAEs, or just grab the ones that are entirely or partially within the complexes and go with that. That seems easiest.
+
+### overlapping complexes
+
+Do any of the complexes overlap? No
+
+```{r}
+overcomplex <- st_intersection(breeding_polys, breeding_polys)
+
+nrow(overcomplex) == nrow(breeding_polys)
+```
+
+Save those out- they're not canonical, but we don't want to have to make them over and over.
+
+```{r}
+outDir <- file.path(datOut, 'SRA', 'waterbird_breeding')
+if (!dir.exists(outDir)) {dir.create(outDir, recursive = TRUE)}
+saveRDS(breeding_polys, file = file.path(outDir, 'breeding_polys.rds'))
+```
+
+
