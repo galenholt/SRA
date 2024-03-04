@@ -3,7 +3,7 @@
 
 # run_R_hpc <- function(comargs = commandArgs()) {
   # First, we source in the directory management parameters
-  # source('directorySet.R') # This typically gets called in the script itself.
+  source('directorySet.R') # This typically gets called in the script itself.
 
 
   rlang::inform(c("command args are ", glue::glue("{comargs}")))
