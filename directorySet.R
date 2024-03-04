@@ -3,7 +3,11 @@
 #   # this function
 # }
 # print(paste0('opened directoryset, time is ', Sys.time(), ', run is ', dataWhere))
-print(Sys.info())
+# print(Sys.info())
+
+# This gets sent to stderr when non-interactive (ie. hpc)
+rlang::inform(c("Sys.info is ", glue::glue("{Sys.info()}")))
+
 
 # Rather than a function, I want this to set a few things, so building as a script instead
 # Set directory structure for pearcey (or petrichor)
