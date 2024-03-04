@@ -25,7 +25,7 @@ doFuture::registerDoFuture()
 
 This notebook will sometimes be run locally, but may be run on the HPC through purl, so set up the future plans appropriately.
 
-Here, we set the local plan to a simple multisession, while the HPC sends the loops here to nodes, and the inner loops in rastPolyJoin should go to cores. This lets us change the slurm commands- time is minutes, ntasks.per.node is cores, and mem is per job, I think.
+Here, we set the local plan to a simple multisession, while the HPC sends the loops here to nodes, and the inner loops in rastPolyJoin should go to cores. This lets us change the slurm commands- time is minutes, ntasks.per.node is cores, and mem is per node, I think.
 
 ```{r}
 if (parSet == 'local') {
@@ -35,9 +35,9 @@ if (parSet == 'local') {
 if (parSet == 'gandalf') {
   plan(list(tweak(batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
-                resources = list(time = 5,
+                resources = list(time = 10,
                                  ntasks.per.node = 12, 
-                                 mem = 1000,
+                                 mem = "70GB",
                                  job.name = 'area_inundated')),
           multicore))
 }
