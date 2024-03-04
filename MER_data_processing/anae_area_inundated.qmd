@@ -1,0 +1,181 @@
+---
+title: "Area inundated"
+format: html
+editor: visual
+---
+
+## Calculating the area inundated in each ANAE
+
+First, set directories and set up for parallel
+
+```{r}
+source('directorySet.R')
+library(CC2)
+```
+
+```{r}
+library(foreach)
+library(doFuture)
+library(progressr)
+# make the handlers call in the console.
+# handlers(global = TRUE)
+# Not supposed to need this, but it seems to help
+doFuture::registerDoFuture()
+```
+
+This notebook will sometimes be run locally, but may be run on the HPC through purl, so set up the future plans appropriately.
+
+Here, we set the local plan to a simple multisession, while the HPC sends the loops here to nodes, and the inner loops in rastPolyJoin should go to cores. This lets us change the slurm commands- time is minutes, ntasks.per.node is cores, and mem is per job, I think.
+
+```{r}
+if (parSet == 'local') {
+  plan(multisession)
+}
+
+if (parSet == 'gandalf') {
+  plan(list(tweak(batchtools_slurm,
+                template = "batchtools.slurm.tmpl",
+                resources = list(time = 5,
+                                 ntasks.per.node = 12, 
+                                 mem = 1000,
+                                 job.name = 'area_inundated')),
+          multicore))
+}
+```
+
+## Set the function
+
+The data comes in in mm, and there are an awful lot of 1mm datapoints. Assume those are artifacts, so make a depth limit of 0.5 cm. Units of depth are in m. Following new conventions (dplyr \> 1.1), we hardcode area in not as an argument.
+
+```{r}
+areaInun05cm <- function(x) {
+  sum(ifelse(x > 0.005, area, 0), na.rm = TRUE)
+}
+```
+
+### Check what needs to happen
+
+I should make this a cleaner function in eFlowEval once I confirm this approach works.
+
+```{r}
+# I've modified makeSHfails to give me a list
+# I don't like the 'processed' on here, but it's hardcoded somewhere and I just need this to run.
+runlist <- makeSHfails(outerDir = file.path(datOut, 'inundation'),
+            summaryFuns = 'areaInun05cm',
+            varName = 'areaInun05cm',
+            nchunks = 100,
+            lengthOrChunk = c('short', 'long'), # , 'long', 'chunk'
+            runImmediate = FALSE,
+            forceAllCatchments = TRUE,
+            returnForR = TRUE, produce_sh = FALSE)
+```
+
+```{r}
+# making a tibble eliminates some problematic loop nesting
+# Run over the catchments and chunks 
+runtib <- runlist |>  
+  tibble::as_tibble() |> 
+  tidyr::pivot_longer(cols = everything())
+```
+
+## Set up the runs
+
+```{r}
+
+
+# with runlist as a tibble, this could actually be furrr_imap.
+with_progress({
+  p <- progressor(steps = nrow(runtib))
+  alltimes <- foreach(nl = 1:nrow(runtib), 
+          .combine = rbind,
+          .options.future = list(seed = TRUE,
+                                 globals = structure(TRUE, add = "areaInun05cm"))) %dofuture% {
+                                          
+                                   w = runtib$name[nl]
+                                   i = runtib$value[nl]
+   
+   inuntab <- processData(dataname = 'inundation',
+                          data_dir = file.path(datDir,
+                                               'Inundation_new',
+                                               'data',
+                                               'MDB_Water_Depth_v3.6_4326'),
+                          poly_path = file.path(datOut, 'ANAEcatchment'),
+                          summaryFun = 'areaInun05cm',
+                          out_dir = datOut,
+                          catchment = w,
+                          thischunk = i)
+
+   p(glue::glue('catchment {w} chunk {i} finished'))
+   inuntab
+      
+
+
+}
+})
+```
+
+```{r}
+# y <- foreach(i = 1:3, .combine = rbind) %:%
+#        foreach(j = 3:5, .combine = rbind, .options.future = list(seed = TRUE)) %dofuture% {
+#          writeLines('test', paste0('test', as.character(i), '_', as.character(j), '.txt'))
+#   data.frame(i = i, j = j, random = runif(n = 1L)) 
+# }
+```
+
+### Timings
+
+The timings are saved in alltimes
+
+```{r}
+alltimes
+```
+
+## Concatenate
+
+We could do this automatically, but it's dangerous. Better to look and check.
+
+```{r}
+runlist_end <- makeSHfails(outerDir = file.path(datOut, 'inundation'),
+            summaryFuns = 'areaInun05cm',
+            varName = 'areaInun05cm',
+            nchunks = 100,
+            lengthOrChunk = c('short', 'long'), # , 'long', 'chunk'
+            runImmediate = FALSE,
+            forceAllCatchments = TRUE,
+            returnForR = TRUE, produce_sh = FALSE)
+
+if (is.null(runlist_end)) {
+  cattime <- system.time(concatANAEchunks(
+    outerDir = file.path(datOut,
+                         'inundation'),
+    summaryFuns = c('areaInun05cm')))
+  print(cattime)
+} else {
+  print("Not all runs completed, did not concatenate")
+}
+
+
+```
+
+### Error checks
+
+There are errors that typically arise with old data and versions of sf that cause ANAE duplication. But safest to always check.
+
+```{r}
+if (is.null(runlist_end)) {
+ check_aggs <- test_anae_agg(catchments = 'all', datDir = datOut, 
+                            variableDir = 'inundation', 
+                            summaryFun = 'areaInun05cm') 
+ check_aggs
+}
+
+```
+
+This should yield 0 rows unless there are unexpected errors and warnings.
+
+```{r}
+if (is.null(runlist_end)) {
+  check_aggs |> filter(passfail != 'pass' & !grepl('Assigning based on position', passfail))
+}
+
+```
