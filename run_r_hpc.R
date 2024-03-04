@@ -6,7 +6,8 @@
   source('directorySet.R') # This typically gets called in the script itself.
 
 
-  rlang::inform(c("command args are ", glue::glue("{comargs}")))
+  rlang::inform(c("command args are ", glue::glue("{commandArgs()}")))
+
 
   # Then, we build the R from qmd if needed.
   # infile <- comargs[6]
