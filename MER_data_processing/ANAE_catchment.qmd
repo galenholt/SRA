@@ -1,0 +1,27 @@
+---
+title: "Process ANAEs to catchment"
+format: html
+editor: visual
+---
+
+```{r}
+# devtools::load_all()
+# directorySet has load_all in it
+source('directorySet.R')
+```
+
+Here, I want to just process the ANAEs into each catchment and do the standard cleanups
+
+```{r}
+system.time(
+  process_anae(datIn = datDir, 
+             outDir = file.path(datOut, 'ANAEcatchment'),
+                        outname = 'ANAEcatchment',
+                        intersections = 'ltimNoNorth',
+                        commonCRS = 3577,
+                        chunksave = 'ValleyName')
+)
+
+```
+
+785 seconds
