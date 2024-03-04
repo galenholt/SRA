@@ -13,7 +13,7 @@
 # timing
 begin=`date +%s`
 
-module load R
+module load R/4.3
 
 Rscript $*
 
