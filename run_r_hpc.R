@@ -6,7 +6,7 @@
   source('directorySet.R') # This typically gets called in the script itself.
 
 
-  rlang::inform(c("command args are ", glue::glue("{commandArgs()}")))
+  rlang::inform(c("command args are ", glue::glue("{commandArgs()}")), .file = stdout())
 
 
   # Then, we build the R from qmd if needed.
