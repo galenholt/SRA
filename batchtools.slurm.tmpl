@@ -1,0 +1,26 @@
+#!/bin/bash
+######################################################################
+# A batchtools launch script template for Slurm
+#
+# Minor changes by: Galen Holt 
+# Original template from: Henrik Bengtsson (slurm.tmpl from future.batchtools)
+######################################################################
+
+# These are defaults, they can get overwritten by the below
+#SBATCH --job-name=<%= job.name %>
+#SBATCH --output=<%= log.file %>
+#SBATCH --nodes=1
+#SBATCH --time=00:05:00
+
+## Resources needed:
+<% if (length(resources) > 0) {
+  opts <- unlist(resources, use.names = TRUE)
+  opts <- sprintf("--%s=%s", names(opts), opts)
+  # pass use '.' in place of '-' in slurm argument names, switch back here.
+  opts <- gsub('\\.', '-', opts)
+  opts <- paste(opts, collapse = " ") %>
+#SBATCH <%= opts %>
+<% } %>
+
+## Launch R and evaluated the batchtools R job
+Rscript -e 'batchtools::doJobCollection("<%= uri %>")'
