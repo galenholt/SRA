@@ -60,22 +60,13 @@ I should make this a cleaner function in eFlowEval once I confirm this approach 
 ```{r}
 # I've modified makeSHfails to give me a list
 # I don't like the 'processed' on here, but it's hardcoded somewhere and I just need this to run.
-runlist <- makeSHfails(outerDir = file.path(datOut, 'inundation'),
-            summaryFuns = 'areaInun05cm',
-            varName = 'areaInun05cm',
-            nchunks = 100,
-            lengthOrChunk = c('short', 'long'), # , 'long', 'chunk'
-            runImmediate = FALSE,
-            forceAllCatchments = TRUE,
-            returnForR = TRUE, produce_sh = FALSE)
-```
-
-```{r}
-# making a tibble eliminates some problematic loop nesting
-# Run over the catchments and chunks 
-runtib <- runlist |>  
-  tibble::as_tibble() |> 
-  tidyr::pivot_longer(cols = everything())
+runlist <- chunks_to_process(out_dir = datOut,
+                             dataname = 'inundation', 
+                             summaryFun = 'areaInun05cm',
+                             nchunks = 100,
+                             catchment = 'all',
+                             returnForR = TRUE,
+                             filetype = '.rds')
 ```
 
 ## Set up the runs
@@ -83,21 +74,13 @@ runtib <- runlist |>
 ```{r}
 
 # To test, cut down to only a few
-runtib <- runtib[c(1:2, 401:402)]
+# runtib <- runtib[c(1:2, 401:402)]
 
 
 # with runlist as a tibble, this could actually be furrr_imap.
 with_progress({
-  p <- progressor(steps = nrow(runtib))
-  alltimes <- foreach(nl = 1:nrow(runtib), 
-          .combine = rbind,
-          .options.future = list(seed = TRUE,
-                                 globals = structure(TRUE, add = "areaInun05cm"))) %dofuture% {
-                                          
-                                   w = runtib$name[nl]
-                                   i = runtib$value[nl]
-   
-   inuntab <- processData(dataname = 'inundation',
+  alltimes <- parallel_data(runframe = runlist,
+                            dataname = 'inundation',
                           data_dir = file.path(datDir,
                                                'Inundation_new',
                                                'data',
@@ -105,16 +88,36 @@ with_progress({
                           poly_path = file.path(datOut, 'ANAEcatchment'),
                           summaryFun = 'areaInun05cm',
                           out_dir = datOut,
-                          catchment = w,
-                          thischunk = i)
-
-   p(glue::glue('catchment {w} chunk {i} finished'))
-   inuntab
-      
-
-
-}
+                          nchunks = 100)
 })
+
+#   p <- progressor(steps = nrow(runtib))
+#   alltimes <- foreach(nl = 1:nrow(runtib), 
+#           .combine = rbind,
+#           .options.future = list(seed = TRUE,
+#                                  globals = structure(TRUE, add = "areaInun05cm"))) %dofuture% {
+#                                           
+#                                    w = runtib$name[nl]
+#                                    i = runtib$value[nl]
+#    
+#    inuntab <- processData(dataname = 'inundation',
+#                           data_dir = file.path(datDir,
+#                                                'Inundation_new',
+#                                                'data',
+#                                                'MDB_Water_Depth_v3.6_4326'),
+#                           poly_path = file.path(datOut, 'ANAEcatchment'),
+#                           summaryFun = 'areaInun05cm',
+#                           out_dir = datOut,
+#                           catchment = w,
+#                           thischunk = i)
+# 
+#    p(glue::glue('catchment {w} chunk {i} finished'))
+#    inuntab
+#       
+# 
+# 
+# }
+# })
 ```
 
 ```{r}
@@ -138,20 +141,18 @@ alltimes
 We could do this automatically, but it's dangerous. Better to look and check.
 
 ```{r}
-runlist_end <- makeSHfails(outerDir = file.path(datOut, 'inundation'),
-            summaryFuns = 'areaInun05cm',
-            varName = 'areaInun05cm',
-            nchunks = 100,
-            lengthOrChunk = c('short', 'long'), # , 'long', 'chunk'
-            runImmediate = FALSE,
-            forceAllCatchments = TRUE,
-            returnForR = TRUE, produce_sh = FALSE)
+runlist_end <- chunks_to_process(out_dir = datOut,
+                             dataname = 'inundation', 
+                             summaryFun = 'areaInun05cm',
+                             catchment = 'all',
+                             nchunks = 100,
+                             returnForR = TRUE,
+                             filetype = '.rds')
 
-if (is.null(runlist_end)) {
-  cattime <- system.time(concatANAEchunks(
-    outerDir = file.path(datOut,
-                         'inundation'),
-    summaryFuns = c('areaInun05cm')))
+if (nrow(runlist_end) == 0) {
+  cattime <- system.time(concat_chunks(out_dir = datOut,
+                             dataname = 'inundation', 
+                             summaryFun = 'areaInun05cm'))
   print(cattime)
 } else {
   print("Not all runs completed, did not concatenate")
@@ -166,9 +167,11 @@ There are errors that typically arise with old data and versions of sf that caus
 
 ```{r}
 if (is.null(runlist_end)) {
- check_aggs <- test_anae_agg(catchments = 'all', datDir = datOut, 
-                            variableDir = 'inundation', 
-                            summaryFun = 'areaInun05cm') 
+ check_aggs <- test_anae_agg(out_dir = datOut,
+                             dataname = 'inundation', 
+                             summaryFun = 'areaInun05cm',
+                             catchment = 'all',
+                             filetype = '.rds') 
  check_aggs
 }
 
@@ -178,7 +181,10 @@ This should yield 0 rows unless there are unexpected errors and warnings.
 
 ```{r}
 if (is.null(runlist_end)) {
-  check_aggs |> filter(passfail != 'pass' & !grepl('Assigning based on position', passfail))
+  check_aggs |> 
+    dplyr::filter(passfail != 'pass' & 
+                    !grepl('Assigning based on position', passfail))
 }
 
 ```
+

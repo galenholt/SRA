@@ -59,6 +59,10 @@ if (grepl('^petrichor', Sys.info()["nodename"]) |
   datOut <- 'datOut'
 
   parset <- 'gandalf'
+
+  renvpaths <- .libPaths()
+  .libPaths(new = c(renvpaths,'/ceph-g/opt/R/4.3/lib/R/library' ))
+
 }
 
 # Make the out directory, in case it doesn't exist
