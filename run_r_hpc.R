@@ -10,7 +10,7 @@
 
 
   # Then, we build the R from qmd if needed.
-  infile <- comargs[6]
+  infile <- commandArgs()[6]
   rfile <- stringr::str_replace(infile, '.qmd', '.R')
 
   knitr::purl(input = infile, output = rfile)
