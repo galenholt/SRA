@@ -41,7 +41,7 @@ if (grepl('^petrichor', Sys.info()["nodename"]) |
   source('renvHPC.R')
 
   # set the future plan to actually use the CPUS
-  parSet <- 'hpc'
+  parset <- 'hpc'
 
 } else if (grepl('^Windows', Sys.info()["sysname"])) {
   # myhome <- stringr::str_remove(path.expand("~"), "/Documents")
@@ -52,7 +52,7 @@ if (grepl('^petrichor', Sys.info()["nodename"]) |
 
   # Set up a multisession plan by default
   # The default workers argument works locally, so no need to specify
-  parSet = 'local'
+  parset = 'local'
 
 } else if (grepl('^gandalf', Sys.info()["nodename"])) {
   datDir <- file.path('..', 'dataBase')
