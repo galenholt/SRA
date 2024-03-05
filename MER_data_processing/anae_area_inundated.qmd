@@ -14,6 +14,7 @@ library(CC2)
 ```
 
 ```{r}
+library(sf)
 library(foreach)
 library(doFuture)
 library(progressr)
@@ -76,6 +77,10 @@ runlist <- chunks_to_process(out_dir = datOut,
 # To test, cut down to only a few
 # runtib <- runtib[c(1:2, 401:402)]
 
+runlist <- runlist |> 
+  dplyr::filter(catchment %in% c('Avoca', 'Campaspe')) |> 
+  dplyr::slice(1:2, .by = catchment)
+  
 
 # with runlist as a tibble, this could actually be furrr_imap.
 with_progress({
