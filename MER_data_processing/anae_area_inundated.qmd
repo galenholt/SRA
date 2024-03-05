@@ -33,7 +33,7 @@ if (parset == 'local') {
 }
 
 if (parset == 'gandalf') {
-  plan(list(tweak(batchtools_slurm,
+  plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
                 resources = list(time = 10,
                                  ntasks.per.node = 12, 
