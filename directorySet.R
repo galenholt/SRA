@@ -59,9 +59,9 @@ if (grepl('^petrichor', Sys.info()["nodename"]) |
   datOut <- 'datOut'
 
   parset <- 'gandalf'
-
-  renvpaths <- .libPaths()
-  .libPaths(new = c(renvpaths,'/ceph-g/opt/R/4.3/lib/R/library' ))
+#
+#   renvpaths <- .libPaths()
+#   .libPaths(new = c(renvpaths,'/ceph-g/opt/R/4.3/lib/R/library' ))
 
 }
 
