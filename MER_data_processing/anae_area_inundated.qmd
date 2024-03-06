@@ -75,11 +75,11 @@ runlist <- chunks_to_process(out_dir = datOut,
 ```{r}
 
 # To test, cut down to only a few
-catchleft <- unique(runlist$catchment)
-runlist <- runlist |>
-  dplyr::filter(catchment %in% catchleft[1:2]) |>
-  dplyr::slice(1:2, .by = catchment)
-  
+# catchleft <- unique(runlist$catchment)
+# runlist <- runlist |>
+#   dplyr::filter(catchment %in% catchleft[1:2]) |>
+#   dplyr::slice(1:2, .by = catchment)
+#   
 
 # with runlist as a tibble, this could actually be furrr_imap.
 with_progress({
