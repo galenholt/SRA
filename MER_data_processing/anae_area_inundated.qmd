@@ -127,11 +127,12 @@ if (nrow(runlist_end) == 0) {
 There are errors that typically arise with old data and versions of sf that cause ANAE duplication. But safest to always check.
 
 ```{r}
-if (is.null(runlist_end)) {
+if (nrow(runlist_end) == 0) {
  check_aggs <- test_anae_agg(out_dir = datOut,
                              dataname = 'inundation', 
                              summaryFun = 'areaInun05cm',
                              catchment = 'all',
+                             poly_path = file.path(datOut, 'ANAEcatchment'),
                              filetype = '.rds') 
  check_aggs
 }
@@ -141,7 +142,7 @@ if (is.null(runlist_end)) {
 This should yield 0 rows unless there are unexpected errors and warnings.
 
 ```{r}
-if (is.null(runlist_end)) {
+if (nrow(runlist_end) == 0) {
   check_aggs |> 
     dplyr::filter(passfail != 'pass' & 
                     !grepl('Assigning based on position', passfail))
