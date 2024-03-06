@@ -74,14 +74,6 @@ runlist <- chunks_to_process(out_dir = datOut,
 
 ```{r}
 
-# To test, cut down to only a few
-# catchleft <- unique(runlist$catchment)
-# runlist <- runlist |>
-#   dplyr::filter(catchment %in% catchleft[1:2]) |>
-#   dplyr::slice(1:2, .by = catchment)
-#   
-
-# with runlist as a tibble, this could actually be furrr_imap.
 with_progress({
   alltimes <- parallel_data(runframe = runlist,
                             dataname = 'inundation',
@@ -95,41 +87,6 @@ with_progress({
                           nchunks = 100)
 })
 
-#   p <- progressor(steps = nrow(runtib))
-#   alltimes <- foreach(nl = 1:nrow(runtib), 
-#           .combine = rbind,
-#           .options.future = list(seed = TRUE,
-#                                  globals = structure(TRUE, add = "areaInun05cm"))) %dofuture% {
-#                                           
-#                                    w = runtib$name[nl]
-#                                    i = runtib$value[nl]
-#    
-#    inuntab <- processData(dataname = 'inundation',
-#                           data_dir = file.path(datDir,
-#                                                'Inundation_new',
-#                                                'data',
-#                                                'MDB_Water_Depth_v3.6_4326'),
-#                           poly_path = file.path(datOut, 'ANAEcatchment'),
-#                           summaryFun = 'areaInun05cm',
-#                           out_dir = datOut,
-#                           catchment = w,
-#                           thischunk = i)
-# 
-#    p(glue::glue('catchment {w} chunk {i} finished'))
-#    inuntab
-#       
-# 
-# 
-# }
-# })
-```
-
-```{r}
-# y <- foreach(i = 1:3, .combine = rbind) %:%
-#        foreach(j = 3:5, .combine = rbind, .options.future = list(seed = TRUE)) %dofuture% {
-#          writeLines('test', paste0('test', as.character(i), '_', as.character(j), '.txt'))
-#   data.frame(i = i, j = j, random = runif(n = 1L)) 
-# }
 ```
 
 ### Timings

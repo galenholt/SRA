@@ -48,7 +48,7 @@ if (grepl('^petrichor', Sys.info()["nodename"]) |
   myhome <- paste0('C:/Users/', Sys.getenv("USERNAME"))
   datDir <- file.path(myhome, "Deakin University/QAEL - MER/Model/dataBase")
 
-  datOut <- "datOut"
+  datOut <- file.path(myhome, "Deakin University/QAEL - SRA - SRA/data_out")
 
   # Set up a multisession plan by default
   # The default workers argument works locally, so no need to specify
@@ -59,24 +59,9 @@ if (grepl('^petrichor', Sys.info()["nodename"]) |
   datOut <- 'datOut'
 
   parset <- 'gandalf'
-#
-#   renvpaths <- .libPaths()
-#   .libPaths(new = c(renvpaths,'/ceph-g/opt/R/4.3/lib/R/library' ))
 
 }
 
 # Make the out directory, in case it doesn't exist
 if (!dir.exists(datOut)) {dir.create(datOut, recursive = TRUE)}
 # The in directory has to exist, or there won't be anything to use
-
-# # source everything in the functions folder. This really is turning into a package
-# funfiles <- list.files('R', pattern = '.R$')
-# # funfiles
-# for (s in 1:length(funfiles)) {
-#   # print(s)
-#   source(file.path('R', funfiles[s]))
-# }
-# This is now better, or just build the package and library it.
-# path_to_efloweval <- '../eFlowEval'
-# devtools::load_all(path_to_efloweval)
-# progressr::handlers(global = TRUE)
