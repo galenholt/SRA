@@ -1,26 +1,20 @@
 ---
-title: "Area inundated"
+title: "Bird breeding inundation"
 format: html
 editor: visual
 ---
 
-## Calculating the area inundated in each ANAE
+## Calculating breeding inundation in each ANAE
 
-First, set directories and set up for parallel
+Set directories and set up for parallel
 
 ```{r}
 source('directorySet.R')
 library(CC2)
-```
-
-```{r}
 library(sf)
 library(foreach)
 library(doFuture)
 library(progressr)
-# make the handlers call in the console.
-# handlers(global = TRUE)
-# Not supposed to need this, but it seems to help
 doFuture::registerDoFuture()
 ```
 
@@ -39,47 +33,50 @@ if (parset == 'gandalf') {
                 resources = list(time = 10,
                                  ntasks.per.node = 12, 
                                  mem = "70GB",
-                                 job.name = 'area_inundated')),
+                                 job.name = 'bird_breeding')),
           multicore))
 }
 ```
 
 ## Set the function
 
-The data comes in in mm, and there are an awful lot of 1mm datapoints. Assume those are artifacts, so make a depth limit of 0.5 cm. Units of depth are in m. Following new conventions (dplyr \> 1.1), we hardcode area in not as an argument.
+Water needs to be between 0.5 and 1.5m deep. The data comes in in mm, but gets changed to m for consistency inside process_data. Following new conventions (dplyr \> 1.1), we hardcode area in not as an argument.
 
 ```{r}
-areaInun05cm <- function(x) {
-  sum(ifelse(x > 0.005, area, 0), na.rm = TRUE)
-}
+ areaBirdBreed <- function(x, limitShallow = 0.5, limitDeep = 1.5) {
+      sum(ifelse(x >= limitShallow & x <= limitDeep, area, 0))
+ }
 ```
 
-### Check what needs to happen
+There is a stricture here about time of year. I suppose for speed, I could only read in those inundation files. But it will be much more flexible to get the inundation assessment in all of them, and then use the breeding period as a stricture in the next step.
 
-I should make this a cleaner function in eFlowEval once I confirm this approach works.
+### Set up the chunks
+
+The following is typically indexed to catchments, but we should be able to use any set of polygon-based groupings. Use the breeding polys created in [waterbird_breeding_polys.qmd](waterbird_breeding_polys.qmd).
+
+```{r}
+breeding_polys <- readRDS(file.path(datOut, 'waterbird_breeding', 'breeding_polys.rds'))
+```
+
+This just looks for a directory/file structure, so doesn't need the polys, just the names. Use the 'clean' wetland names without spaces.
 
 ```{r}
 # I've modified makeSHfails to give me a list
 # I don't like the 'processed' on here, but it's hardcoded somewhere and I just need this to run.
 runlist <- chunks_to_process(out_dir = datOut,
                              dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm',
+                             summaryFun = 'areaBirdBreed',
                              nchunks = 100,
-                             catchment = 'all',
+                             catchment = breeding_polys$wetland_clean,
                              returnForR = TRUE,
                              filetype = '.rds')
 ```
 
 ## Set up the runs
 
+Send it the ANAEs we've cut down to the breeding polys (in ANAE_birdbreeding.qmd)
+
 ```{r}
-
-# To test, cut down to only a few
-runlist <- runlist |>
-  dplyr::filter(catchment %in% c('Avoca', 'Campaspe')) |>
-  dplyr::slice(1:2, .by = catchment)
-  
-
 # with runlist as a tibble, this could actually be furrr_imap.
 with_progress({
   alltimes <- parallel_data(runframe = runlist,
@@ -88,47 +85,12 @@ with_progress({
                                                'Inundation_new',
                                                'data',
                                                'MDB_Water_Depth_v3.6_4326'),
-                          poly_path = file.path(datOut, 'ANAEcatchment'),
-                          summaryFun = 'areaInun05cm',
+                          poly_path = file.path(datOut, 'ANAEbirdbreed'),
+                          summaryFun = 'areaBirdBreed',
                           out_dir = datOut,
                           nchunks = 100)
 })
 
-#   p <- progressor(steps = nrow(runtib))
-#   alltimes <- foreach(nl = 1:nrow(runtib), 
-#           .combine = rbind,
-#           .options.future = list(seed = TRUE,
-#                                  globals = structure(TRUE, add = "areaInun05cm"))) %dofuture% {
-#                                           
-#                                    w = runtib$name[nl]
-#                                    i = runtib$value[nl]
-#    
-#    inuntab <- processData(dataname = 'inundation',
-#                           data_dir = file.path(datDir,
-#                                                'Inundation_new',
-#                                                'data',
-#                                                'MDB_Water_Depth_v3.6_4326'),
-#                           poly_path = file.path(datOut, 'ANAEcatchment'),
-#                           summaryFun = 'areaInun05cm',
-#                           out_dir = datOut,
-#                           catchment = w,
-#                           thischunk = i)
-# 
-#    p(glue::glue('catchment {w} chunk {i} finished'))
-#    inuntab
-#       
-# 
-# 
-# }
-# })
-```
-
-```{r}
-# y <- foreach(i = 1:3, .combine = rbind) %:%
-#        foreach(j = 3:5, .combine = rbind, .options.future = list(seed = TRUE)) %dofuture% {
-#          writeLines('test', paste0('test', as.character(i), '_', as.character(j), '.txt'))
-#   data.frame(i = i, j = j, random = runif(n = 1L)) 
-# }
 ```
 
 ### Timings
@@ -146,16 +108,16 @@ We could do this automatically, but it's dangerous. Better to look and check.
 ```{r}
 runlist_end <- chunks_to_process(out_dir = datOut,
                              dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm',
-                             catchment = 'all',
+                             summaryFun = 'areaBirdBreed',
                              nchunks = 100,
+                             catchment = breeding_polys$wetland_clean,
                              returnForR = TRUE,
                              filetype = '.rds')
 
 if (nrow(runlist_end) == 0) {
   cattime <- system.time(concat_chunks(out_dir = datOut,
                              dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm'))
+                             summaryFun = 'areaBirdBreed'))
   print(cattime)
 } else {
   print("Not all runs completed, did not concatenate")
@@ -172,8 +134,8 @@ There are errors that typically arise with old data and versions of sf that caus
 if (is.null(runlist_end)) {
  check_aggs <- test_anae_agg(out_dir = datOut,
                              dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm',
-                             catchment = 'all',
+                             summaryFun = 'areaBirdBreed',
+                             catchment = breeding_polys$wetland_clean,
                              filetype = '.rds') 
  check_aggs
 }

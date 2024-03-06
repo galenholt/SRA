@@ -141,12 +141,17 @@ overcomplex <- st_intersection(breeding_polys, breeding_polys)
 nrow(overcomplex) == nrow(breeding_polys)
 ```
 
+Several of the scripts and directory structures don't like spaces, so have a no-space name
+
+```{r}
+breeding_polys <- breeding_polys |> 
+  dplyr::mutate(wetland_clean = stringr::str_remove_all(Wetland, ' '))
+```
+
 Save those out- they're not canonical, but we don't want to have to make them over and over.
 
 ```{r}
-outDir <- file.path(datOut, 'SRA', 'waterbird_breeding')
+outDir <- file.path(datOut, 'waterbird_breeding')
 if (!dir.exists(outDir)) {dir.create(outDir, recursive = TRUE)}
 saveRDS(breeding_polys, file = file.path(outDir, 'breeding_polys.rds'))
 ```
-
-
