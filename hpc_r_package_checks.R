@@ -1,28 +1,28 @@
 # I don't think the renv install is necessary-it should auto-install since there's a project skeleton
 
 # This bit is needed for gandalf, or it stuffs up the install because of sf
-#
-# renvpaths <- .libPaths()
-# .libPaths(new = c(renvpaths,'/ceph-g/opt/R/4.3/lib/R/library' ))
-# Sys.setenv('R_LIBS' = '/ceph-g/opt/R/4.3/lib/R/library')
-# # TESTING DELETE
-# library(foreach)
-# library(doFuture)
-#
-# plan(list(tweak(future.batchtools::batchtools_slurm,
-#                 template = "batchtools.slurm.tmpl",
-#                 resources = list(time = 10,
-#                                  ntasks.per.node = 12,
-#                                  mem = "70GB",
-#                                  job.name = 'area_inundated')),
-#           multicore))
-#
-# mi <- list(rver = getRversion(), libs = .libPaths())
-# wi %<-% list(rver = getRversion(), libs = .libPaths())
-#
-# mi
-# wi
-# # END TESTING
+
+renvpaths <- .libPaths()
+.libPaths(new = c(renvpaths,'/ceph-g/opt/R/4.3/lib/R/library' ))
+Sys.setenv('R_LIBS' = '/ceph-g/opt/R/4.3/lib/R/library')
+# TESTING DELETE
+library(foreach)
+library(doFuture)
+
+plan(list(tweak(future.batchtools::batchtools_slurm,
+                template = "batchtools.slurm.tmpl",
+                resources = list(time = 10,
+                                 ntasks.per.node = 12,
+                                 mem = "70GB",
+                                 job.name = 'area_inundated')),
+          multicore))
+
+mi <- list(rver = getRversion(), libs = .libPaths())
+wi %<-% list(rver = getRversion(), libs = .libPaths())
+
+mi
+wi
+# END TESTING
 
 renv::install('git@github.com:galenholt/CC2.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 # renv::install('git@github.com:galenholt/CC2.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)

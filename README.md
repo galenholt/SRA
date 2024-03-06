@@ -16,6 +16,17 @@ But because we use notebooks, we need to `knitr::purl` them to R scripts.
 So any_R.sh calls `run_r_hpc.R`, which purls a notebook or passes through a script, and then runs it.
 Then, that script should start a bunch of jobs.
 
+HPCs often have to have some set of packages already installed that need compiled C libraries (especially sf). To access those, we need to add to libPaths, but that doesn't propagate through {future}s if it's done in a script. So, in the .Rprofile, add
+
+```
+if (grepl('^HPCNAME', Sys.info()["nodename"])) {
+  renvpaths <- .libPaths()
+  .libPaths(new = c(renvpaths,'/path/to/hpc/R/library' ))
+}
+```
+
+where you get the path to the HPC R library by opening R outside the renv and typing `.libPaths()`.
+
 ### HPC instructions
 
 clone this to an HPC system. 
