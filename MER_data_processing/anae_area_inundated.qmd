@@ -75,8 +75,9 @@ runlist <- chunks_to_process(out_dir = datOut,
 ```{r}
 
 # To test, cut down to only a few
+catchleft <- unique(runlist$catchment)
 runlist <- runlist |>
-  dplyr::filter(catchment %in% c('Avoca', 'Campaspe')) |>
+  dplyr::filter(catchment %in% catchleft[1:2]) |>
   dplyr::slice(1:2, .by = catchment)
   
 

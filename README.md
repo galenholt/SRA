@@ -27,6 +27,16 @@ if (grepl('^HPCNAME', Sys.info()["nodename"])) {
 
 where you get the path to the HPC R library by opening R outside the renv and typing `.libPaths()`.
 
+### Typical run
+
+Once everything's set up, use something like 
+
+```
+sbatch any_R.sh run_r_hpc.R "MER_data_processing/anae_area_inundated.qmd"
+```
+
+To start a master process in run_r_hpc that then fires off sub-slurms (presumably) in anae_area_inundated.qmd.
+
 ### HPC instructions
 
 clone this to an HPC system. 
@@ -42,7 +52,7 @@ R
 renv::status()
 ```
 
-Renv struggles to install git packages from the lockfile for some reason.
+Renv struggles to install git packages from the lockfile for some reason. The following should be done initially, and whenever we want to update the package.
 
 ```
 renv::install('git@github.com:galenholt/CC2.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
