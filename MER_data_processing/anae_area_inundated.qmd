@@ -33,10 +33,11 @@ if (parset == 'local') {
   plan(multisession)
 }
 
+# There's a couple in the condamine that time out at 60. Nearly everything else finishes in 10-30.
 if (parset == 'gandalf') {
   plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
-                resources = list(time = 60,
+                resources = list(time = 120,
                                  ntasks.per.node = 12, 
                                  mem = "70GB",
                                  job.name = 'area_inundated')),
