@@ -10,8 +10,10 @@ Set directories and set up for parallel
 
 ```{r}
 source('directorySet.R')
+# library(stars)
+# library(dplyr)
 library(CC2)
-library(sf)
+# library(sf)
 library(foreach)
 library(doFuture)
 library(progressr)
@@ -58,97 +60,37 @@ The following is typically indexed to catchments, but we should be able to use a
 breeding_polys <- readRDS(file.path(datOut, 'waterbird_breeding', 'breeding_polys.rds'))
 ```
 
-This just looks for a directory/file structure, so doesn't need the polys, just the names. Use the 'clean' wetland names without spaces.
-
-```{r}
-# I've modified makeSHfails to give me a list
-# I don't like the 'processed' on here, but it's hardcoded somewhere and I just need this to run.
-runlist <- chunks_to_process(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaBirdBreed',
-                             nchunks = 100,
-                             catchment = breeding_polys$wetland_clean,
-                             returnForR = TRUE,
-                             filetype = '.rds')
-```
-
-## Set up the runs
+I now have a function that can find the chunks, process them, check, and return.
 
 Send it the ANAEs we've cut down to the breeding polys (in ANAE_birdbreeding.qmd)
 
 ```{r}
 # with runlist as a tibble, this could actually be furrr_imap.
 with_progress({
-  alltimes <- parallel_data(runframe = runlist,
-                            dataname = 'inundation',
+  birdout <- process_with_checks(dataname = 'inundation',
                           data_dir = file.path(datDir,
                                                'Inundation_new',
                                                'data',
                                                'MDB_Water_Depth_v3.6_4326'),
                           poly_path = file.path(datOut, 'ANAEbirdbreed'),
                           summaryFun = 'areaBirdBreed',
+                          catchment = breeding_polys$wetland_clean,
                           out_dir = datOut,
                           nchunks = 100)
 })
 
 ```
 
-### Timings
+### Timings and check results
 
-The timings are saved in alltimes
-
-```{r}
-alltimes
-```
-
-## Concatenate
-
-We could do this automatically, but it's dangerous. Better to look and check.
+The timings and check results are returned
 
 ```{r}
-runlist_end <- chunks_to_process(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaBirdBreed',
-                             nchunks = 100,
-                             catchment = breeding_polys$wetland_clean,
-                             returnForR = TRUE,
-                             filetype = '.rds')
-
-if (nrow(runlist_end) == 0) {
-  cattime <- system.time(concat_chunks(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaBirdBreed'))
-  print(cattime)
-} else {
-  print("Not all runs completed, did not concatenate")
-}
-
-
+birdout$timings
 ```
 
 ### Error checks
 
-There are errors that typically arise with old data and versions of sf that cause ANAE duplication. But safest to always check.
-
 ```{r}
-if (is.null(runlist_end)) {
- check_aggs <- test_anae_agg(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaBirdBreed',
-                             catchment = breeding_polys$wetland_clean,
-                             filetype = '.rds') 
- check_aggs
-}
-
-```
-
-This should yield 0 rows unless there are unexpected errors and warnings.
-
-```{r}
-if (is.null(runlist_end)) {
-  check_aggs |> 
-    dplyr::filter(passfail != 'pass' & 
-                    !grepl('Assigning based on position', passfail))
-}
-
+birdout$failures
 ```

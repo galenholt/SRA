@@ -54,72 +54,30 @@ areaInun05cm <- function(x) {
 }
 ```
 
-### Check what needs to happen
+## Run and check
 
-I should make this a cleaner function in eFlowEval once I confirm this approach works.
-
-```{r}
-# I've modified makeSHfails to give me a list
-# I don't like the 'processed' on here, but it's hardcoded somewhere and I just need this to run.
-runlist <- chunks_to_process(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm',
-                             nchunks = 100,
-                             catchment = 'all',
-                             returnForR = TRUE,
-                             filetype = '.rds')
-```
-
-## Set up the runs
+The setup, run, and post-checks are now one wrapper function, since they use the same syntax
 
 ```{r}
-
 with_progress({
-  alltimes <- parallel_data(runframe = runlist,
-                            dataname = 'inundation',
+  areaout <- process_with_checks(dataname = 'inundation',
                           data_dir = file.path(datDir,
                                                'Inundation_new',
                                                'data',
                                                'MDB_Water_Depth_v3.6_4326'),
                           poly_path = file.path(datOut, 'ANAEcatchment'),
                           summaryFun = 'areaInun05cm',
+                          catchment = 'all',
                           out_dir = datOut,
                           nchunks = 100)
 })
-
 ```
 
 ### Timings
 
-The timings are saved in alltimes
+The timings
 
-```{r}
-alltimes
-```
-
-## Concatenate
-
-We could do this automatically, but it's dangerous. Better to look and check.
-
-```{r}
-runlist_end <- chunks_to_process(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm',
-                             catchment = 'all',
-                             nchunks = 100,
-                             returnForR = TRUE,
-                             filetype = '.rds')
-
-if (nrow(runlist_end) == 0) {
-  cattime <- system.time(concat_chunks(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm'))
-  print(cattime)
-} else {
-  print("Not all runs completed, did not concatenate")
-}
-
-
+```{areaout$timings}
 ```
 
 ### Error checks
@@ -127,25 +85,5 @@ if (nrow(runlist_end) == 0) {
 There are errors that typically arise with old data and versions of sf that cause ANAE duplication. But safest to always check.
 
 ```{r}
-if (nrow(runlist_end) == 0) {
- check_aggs <- test_anae_agg(out_dir = datOut,
-                             dataname = 'inundation', 
-                             summaryFun = 'areaInun05cm',
-                             catchment = 'all',
-                             poly_path = file.path(datOut, 'ANAEcatchment'),
-                             filetype = '.rds') 
- check_aggs
-}
-
-```
-
-This should yield 0 rows unless there are unexpected errors and warnings.
-
-```{r}
-if (nrow(runlist_end) == 0) {
-  check_aggs |> 
-    dplyr::filter(passfail != 'pass' & 
-                    !grepl('Assigning based on position', passfail))
-}
-
+areaout$failures
 ```
