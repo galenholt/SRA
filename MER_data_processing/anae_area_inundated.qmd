@@ -78,7 +78,8 @@ with_progress({
 
 The timings
 
-```{areaout$timings}
+```{r}
+areaout$timings
 ```
 
 ### Error checks
