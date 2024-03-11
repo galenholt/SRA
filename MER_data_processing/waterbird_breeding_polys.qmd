@@ -127,6 +127,35 @@ breeding_polys <- breeding_polys |>
   dplyr::left_join(dplyr::select(breeding_assets, -hab_function))
 ```
 
+There is duplication in Gunbower because it matches to two states and SWWRPANames.
+
+```{r}
+gunbower <- breeding_polys |> 
+  filter(grepl('Gunbower', Wetland))
+
+gunbower
+```
+
+What should we do with that? Give it to one, or split it? It's the same polygon, we just duplicated it with the join. Let's look at a spatial join and see if that makes it clearer.
+
+```{r}
+gunstate <- st_intersection(gunbower |> slice(1) |> select(Wetland), wrpa |> select(-Area, -Dams)) |> mutate(area = st_area(geometry))
+gunstate
+```
+
+```{r}
+ggplot(gunstate, aes(fill = SWWRPAName)) + geom_sf()
+```
+
+That's pretty even. We don't want to actually divide gunbower though, because we want to treat it as a polygon. So, can we either give it to one state/SWWRPA or the other and divide in half later, or let it duplicate as above? I think the duplication is more dangerous than the dividing.
+
+So, let's give it to Vic, the area is a bit larger there than NSW, and we'll just have to make sure we give credit to NSW when we do state-based analyses.
+
+```{r}
+breeding_polys <- breeding_polys |> 
+  filter(!(Wetland == 'Gunbower-Koondrook-Perricoota' & State == 'NSW'))
+```
+
 For this particular analysis we can JUST deal with the ANAEs in the `breeding_polys` and ignore all those outside them.
 
 Do we want to actually cut the ANAEs, or just grab the ones that are entirely or partially within the complexes and go with that. That seems easiest.

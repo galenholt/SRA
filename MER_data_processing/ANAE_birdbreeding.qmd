@@ -15,7 +15,7 @@ Here, I want to just process the ANAEs into each breeding polygon
 The breeding polygons aren't exported by eFlowEval, but are created by [their own notebook](waterbird_breeding_polys.qmd). So load them in.
 
 ```{r}
-breeding_polys <- readRDS(file.path(datOut, 'SRA', 'waterbird_breeding', 'breeding_polys.rds'))
+breeding_polys <- readRDS(file.path(datOut, 'waterbird_breeding', 'breeding_polys.rds'))
 
 ```
 
