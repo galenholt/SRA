@@ -92,6 +92,28 @@ anae_diversity <- function(out_dir,
   ## Now we can get at diversity metrics
     # And these will be done at the catchment scale, so add that polygon on, typically.
 
+  # Targeted at the ANAEs
+  diversity_anae_summary <- diversity_yearly_sf |>
+    mutate(poly_area = as.numeric(st_area(geometry))) |>
+    st_drop_geometry() |>
+    group_by(ANAE_DESC, time, ValleyName) |>
+    mutate(total_area = sum(poly_area),
+           n_anaes = n(),
+           inundated = as.numeric(areaInun05cm_from_depth > 0)) |>
+    ungroup() |>
+    group_by(ANAE_DESC, time, ValleyName) |>
+    summarise(area_inundated = sum(areaInun05cm_from_depth),
+              total_area = unique(total_area),
+              n_inundated = sum(inundated),
+              n_anaes = unique(n_anaes)) |>
+    ungroup() |>
+    mutate(area_fraction = area_inundated/total_area,
+           n_fraction = n_inundated/n_anaes) |>
+    arrange(time, ValleyName) |>
+    rename(name_clean = ValleyName) |>
+    left_join(catches, by = 'name_clean')
+
+
   # diversity_richness- get it for both type and unique wetland
   diversity_richness <- diversity_yearly_sf |>
     st_drop_geometry() |>
@@ -175,6 +197,7 @@ anae_diversity <- function(out_dir,
                                      diversity_catch_area, # aggregated area to catchment (stars)
                                      diversity_catch_number, # aggregated number ANAEs to catchment (stars)
                                      diversity_yearly_sf, # an sf with all the anaes. Huge but powerful
+                                     diversity_anae_summary, # an sf summarised to each ANAE type so we can see how they change through time and space
                                      diversity_richness, # number of distinct types of ANAE (sf)
                                      diversity_shannon_number, # shannon diversity of number of wetted ANAES of each type (sf)
                                      diversity_shannon_area, # shannon diversity of area of wetted ANAEs of each type (sf)

@@ -4,6 +4,22 @@ format: html
 editor: visual
 ---
 
+```{r}
+source('directorySet.R')
+library(CC2)
+library(ggplot2)
+library(foreach)
+library(patchwork)
+```
+
+```{r}
+# Making these up for now, we'll want to be consistent
+currenttimestart <- lubridate::ymd('20190101')
+currenttimeend <- lubridate::ymd('20240301')
+preBPtimestart <- lubridate::ymd('20070101')
+preBPtimeend <- lubridate::ymd('20120101')
+```
+
 ## What is the diversity of wetlands inundated?
 
 Splitting that up into a few analyses:
@@ -27,3 +43,11 @@ Splitting that up into a few analyses:
     -   Just use binary is inundated? Or use area or proportional area?
 
     -   Temporal scale? If we want yearly, will want to `tempaggregate` everything.
+
+## Analyses
+
+I'm going to try to avoid actually reading in any stars, but it might be unavoidable.
+
+```{r}
+
+```
