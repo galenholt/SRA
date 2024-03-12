@@ -18,6 +18,10 @@ currenttimestart <- lubridate::ymd('20190101')
 currenttimeend <- lubridate::ymd('20240301')
 preBPtimestart <- lubridate::ymd('20070101')
 preBPtimeend <- lubridate::ymd('20120101')
+
+# Need a clean name to bring in data
+catchments <- ltimNoNorth |> 
+  mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
 ```
 
 ## What is the diversity of wetlands inundated?
@@ -25,8 +29,6 @@ preBPtimeend <- lubridate::ymd('20120101')
 Splitting that up into a few analyses:
 
 -   In each catchment
-
-    -   `catchAggW` in eFlowEval (but might need modifications?)
 
 -   A plot of inundation (%?) in each wetland type
 
@@ -36,7 +38,7 @@ Splitting that up into a few analyses:
 
 -   Temporal diversity- are different wetlands inundated in different years? Or always the same ones?
 
-    -   `tempaggregate` in eFlowEval (but might need modifications)
+-   The things in the workplan basically build on the above- the range/total range stuff, and the timeseries analysis
 
 -   For each:
 
@@ -48,6 +50,22 @@ Splitting that up into a few analyses:
 
 I'm going to try to avoid actually reading in any stars, but it might be unavoidable.
 
-```{r}
+### Inundation in each ANAE type
 
+```{r}
+diversity_anae_summary <- foreach(i = catchments$name_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'diversity', 'diversity_anae_summary', 
+                                 paste0(i, '_', 'diversity_anae_summary.rds')))
+                                  }
+```
+
+make a couple quick plots. Not worrying too much about making them pretty
+
+```{r}
+ggplot(diversity_anae_summary, 
+       aes(x = time, y = area_inundated/10000, color = ValleyName)) +
+  geom_line() + geom_point() +
+  facet_wrap('ANAE_DESC')
 ```

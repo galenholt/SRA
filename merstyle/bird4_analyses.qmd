@@ -26,6 +26,8 @@ library(patchwork)
 
 -   Do we want anything at the ANAE level?
 
+-   The things in the workplan basically build on the above- the range/total range stuff, and the timeseries analysis
+
 ### Data
 
 Data for each ANAE as stars

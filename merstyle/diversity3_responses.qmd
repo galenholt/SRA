@@ -24,7 +24,7 @@ if (parset == 'gandalf') {
                 resources = list(time = 60,
                                  ntasks.per.node = 12,
                                  mem = "70GB",
-                                 job.name = 'bird_breeding')),
+                                 job.name = 'eco_diversity')),
           multicore))
 }
 ```

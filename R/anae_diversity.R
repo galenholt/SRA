@@ -110,7 +110,8 @@ anae_diversity <- function(out_dir,
     mutate(area_fraction = area_inundated/total_area,
            n_fraction = n_inundated/n_anaes) |>
     arrange(time, ValleyName) |>
-    rename(name_clean = ValleyName) |>
+    mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
+    select(-ValleyName) |>
     left_join(catches, by = 'name_clean')
 
 
@@ -126,7 +127,8 @@ anae_diversity <- function(out_dir,
               UID_proportion = UID_diversity_richness/unique(n_UIDs),
               .by = c(ValleyName, time)) |>
     arrange(time, ValleyName) |>
-    rename(name_clean = ValleyName) |>
+    mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
+    select(-ValleyName) |>
     left_join(catches, by = 'name_clean')
 
   # Shannon
@@ -147,7 +149,8 @@ anae_diversity <- function(out_dir,
     filter(n_anaes_type > 0) |> # otherwise the log dies, and they don't count anyway.
     summarise(shannon_binary = calc_shan(n_anaes_type), .by = c(time, ValleyName)) |>
     arrange(time, ValleyName) |>
-    rename(name_clean = ValleyName) |>
+    mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
+    select(-ValleyName) |>
     left_join(catches, by = 'name_clean')
 
   # Shannon (based on area)
@@ -157,7 +160,8 @@ anae_diversity <- function(out_dir,
     filter(total_area > 0) |> # otherwise the log dies, and they don't count anyway.
     summarise(diversity_shannon_area = calc_shan(total_area), .by = c(time, ValleyName)) |>
     arrange(time, ValleyName) |>
-    rename(name_clean = ValleyName) |>
+    mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
+    select(-ValleyName) |>
     left_join(catches, by = 'name_clean')
 
   # Beta- if this means turnover/dissimilarity between catchments, we can't do
@@ -188,7 +192,10 @@ anae_diversity <- function(out_dir,
               alpha_diversity_UID = mean(UID_diversity_richness),
               gamma_diversity_UID = mean(gamma_diversity_UID),
               beta_diversity_UID = gamma_diversity_UID/alpha_diversity_UID) |>
-    ungroup()
+    ungroup() |>
+    mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
+    select(-ValleyName) |>
+    left_join(catches, by = 'name_clean')
 
 
 
