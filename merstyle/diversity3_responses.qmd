@@ -1,0 +1,72 @@
+---
+title: "ANAE diversity responses"
+format: html
+editor: visual
+---
+
+```{r}
+source('directorySet.R')
+library(CC2)
+library(foreach)
+library(doFuture)
+library(progressr)
+doFuture::registerDoFuture()
+```
+
+```{r}
+if (parset == 'local') {
+  plan(multisession)
+}
+
+if (parset == 'gandalf') {
+  plan(list(tweak(future.batchtools::batchtools_slurm,
+                template = "batchtools.slurm.tmpl",
+                resources = list(time = 60,
+                                 ntasks.per.node = 12,
+                                 mem = "70GB",
+                                 job.name = 'bird_breeding')),
+          multicore))
+}
+```
+
+Set up. I'm still trying to decide how much of this is general and how much bespoke.
+
+```{r}
+runlist <- chunks_to_process(out_dir = datOut,
+                               dataname = '',# Short circuit, just test the full list
+                               summaryFun = 'diversity', 
+                               nchunks = 1,
+                               catchment = 'all',
+                               returnForR = TRUE,
+                               filetype = '.rds')
+```
+
+Do the runs
+
+```{r}
+source('R/anae_diversity.R')
+
+with_progress({
+p <- progressor(steps = nrow(runlist))
+diversity_all <- foreach(nl = 1:nrow(runlist),
+                  .combine = rbind,
+                  .errorhandling = 'remove',
+                  .options.future = list(
+                    seed = TRUE)) %dofuture% { 
+
+                          # get the looplevels
+  w <- runlist$catchment[nl]
+    diversity_responses <- anae_diversity(out_dir = datOut, 
+                                strictname = 'diversity',
+                          dataname = 'inundation',
+                          summaryFun = 'areaInun05cm',
+                          catchment = w,
+                          thischunk = 1, 
+                          nchunks = 1,
+                          saveout = TRUE, 
+                          returnForR = FALSE)
+    
+    p(glue::glue('catchment {w}'))
+                    }
+})
+```
