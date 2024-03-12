@@ -1,0 +1,328 @@
+---
+title: "Waterbird analyses"
+format: html
+editor: visual
+---
+
+```{r}
+source('directorySet.R')
+library(CC2)
+library(ggplot2)
+library(foreach)
+library(patchwork)
+```
+
+## Analyses to do
+
+-   How much breeding area in each year in each wetland?
+
+    -   Attributable to each ANAE type
+
+-   How much breeding area in each WRPA?
+
+    -   Don't forget to split Gunbower-Koondrook-Perricoota with st_intersects
+
+-   Do we want to do anything with the sub-strictures? e.g. pre-area cutoffs, etc?
+
+-   Do we want anything at the ANAE level?
+
+### Data
+
+Data for each ANAE as stars
+
+-   bird_season_year
+
+    -   Season stricture
+
+-   bird_season_anae
+
+    -   Season and anae type
+
+Indexed to the larger wetland asset as sf object
+
+-   bird_asset
+
+    -   Summary of area inundated for each anae type within the asset
+
+-   bird_asset_anae
+
+    -   Same, but limited to only the relevant anae types
+
+-   bird_asset_anae_amount
+
+    -   Same, but now only those anae types given they're over the thresholds.
+
+-   bird_breed_area
+
+    -   Final amount- total area in the wetland (in given ANAE types above threshold)
+
+### Relevant information
+
+Set the anae types and thresholds here too in case we need them.
+
+```{r}
+  breedtypes <- c('Freshwater meadow', 
+                  'Temporary tall emergent marsh',
+                  'River cooba woodland riparian zone or floodplain', 
+                  'Temporary stream')
+  
+    areathreshold <- tibble::tibble(ANAE_DESC = breedtypes,
+                                  area_min_hectares = c(10.67, 0.98, 5.57, 0.04),
+                                  area_min_m2 = area_min_hectares*10000)
+    
+    breeding_polys <- readRDS(file.path(datOut, 'waterbird_breeding', 'breeding_polys.rds'))
+    
+# Making these up for now, we'll want to be consistent
+currenttimestart <- lubridate::ymd('20190101')
+currenttimeend <- lubridate::ymd('20240301')
+preBPtimestart <- lubridate::ymd('20070101')
+preBPtimeend <- lubridate::ymd('20120101')
+```
+
+## Analyses
+
+I think I can do much of what I need with just these two datasets.
+
+```{r}
+# Should I make this a function in eFlowEval? It's conceptually similar to catchAggW, but it's really just reading and glueing sfs, not doing an agg.
+
+bird_asset_anae_amount <- foreach(i = breeding_polys$wetland_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'waterbirds', 'bird_asset_anae_amount', 
+                                 paste0(i, '_', 'bird_asset_anae_amount.rds')))
+                                  }
+
+bird_breed_area <- foreach(i = breeding_polys$wetland_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'waterbirds', 'bird_breed_area', 
+                                 paste0(i, '_', 'bird_breed_area.rds')))
+                                  }
+
+```
+
+### Breeding in each year in each wetland
+
+Breeding in each Wetland
+
+```{r}
+wetland_breeding <- ggplot(bird_breed_area, 
+                           aes(x = time, y = breeding_area/10000, color = Wetland)) +
+  geom_line() + geom_point() +
+  labs(y = 'Breeding area\n(hectares)')
+
+wetland_breeding
+```
+
+A table would be possible, would just want timeframes to summarise probably.
+
+```{r}
+
+```
+
+A map
+
+```{r}
+
+bba_timecut <- bird_breed_area |>
+  filter((time > currenttimestart & time < currenttimeend) | 
+                                 (time > preBPtimestart & 
+                                    time < preBPtimeend))
+
+wetland_breeding_map <- ggplot(bba_timecut, 
+                           aes(fill = (breeding_area/10000) + 1)) +
+  geom_sf(data = basin, fill = 'cornsilk') +
+  geom_sf() + 
+  facet_wrap('time') + 
+  scale_fill_viridis_c(trans = 'log10') +
+  labs(fill = 'Breeding area\nlog(hectares + 1)')
+  
+
+wetland_breeding_map
+```
+
+### Pre-post BP
+
+This makes display easier, especially when looking at contribution of different ANAE types. But we could certainly look at that in a more analytical way.
+
+I'm not spending a ton of time making these pretty.
+
+```{r}
+ggplot(bird_asset_anae_amount, aes(x = time, y = area_given_threshold/10000, color = ANAE_DESC)) +
+  geom_line() + geom_point() +
+  labs('Breeding area\n(hectares)') +
+  facet_wrap('Wetland')
+```
+
+Summarise that into a table over a couple timeperiods.
+
+```{r}
+bird_asset_anae_summary <- bird_asset_anae_amount |> 
+  mutate(timeperiod = case_when((time > currenttimestart & 
+                                   time < currenttimeend) ~ 'Current',
+                                (time > preBPtimestart & 
+                                    time < preBPtimeend) ~ 'Pre-BP',
+                                .default = 'other')) |> 
+  filter(timeperiod != 'other') |> 
+  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
+  group_by(ANAE_DESC, Wetland, timeperiod) |> 
+  summarise(breeding_area = mean(area_given_threshold)) |> 
+  ungroup()
+```
+
+Over all wetlands, in hectares
+
+```{r}
+bird_asset_anae_summary |> 
+  st_drop_geometry() |> 
+  group_by(ANAE_DESC, timeperiod) |> 
+  summarise(breeding_area = sum(breeding_area)/10000) |> 
+  ungroup() |> 
+  tidyr::pivot_wider(id_cols = ANAE_DESC, names_from = timeperiod, values_from = breeding_area) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  mutate(across(is.numeric, round, 2)) |> 
+  select(ANAE_DESC, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
+  knitr::kable()
+```
+
+Over all anaes, per wetland
+
+```{r}
+bird_asset_anae_summary |> 
+  st_drop_geometry() |> 
+  group_by(Wetland, timeperiod) |> 
+  summarise(breeding_area = sum(breeding_area)/10000) |> 
+  ungroup() |> 
+  tidyr::pivot_wider(id_cols = Wetland, names_from = timeperiod, 
+                     values_from = breeding_area) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  mutate(across(is.numeric, round, 2)) |> 
+  select(Wetland, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
+  knitr::kable()
+```
+
+A map, pre-post bp
+
+```{r}
+bird_asset_anae_summary |> 
+  group_by(Wetland, timeperiod) |> 
+  summarise(breeding_area = sum(breeding_area)/10000) |> 
+  ungroup() |> 
+  tidyr::pivot_wider(id_cols = c(Wetland, geometry), names_from = timeperiod, 
+                     values_from = breeding_area) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  ggplot(aes(fill = Difference)) + 
+  geom_sf(data = basin, fill = 'cornsilk')+
+  geom_sf() +
+  scale_fill_viridis_c() +
+  labs(fill = 'Change in breeding area\n(hectares)')
+```
+
+## WRPA scale
+
+We can mostly just join to the wrpas by name, but gunbower should be split.
+
+Just do it with the full wetland dataset; would be easy enough to do with the ANAE-level
+
+```{r}
+wrpa_birds <- bird_breed_area |> 
+  st_drop_geometry() |> 
+  select(-State) |> # gets confusing
+  filter(!grepl('Gunbower', Wetland)) |> # Drop, will add later
+  left_join(wrpa, by = 'SWWRPAName') |> 
+  st_as_sf()
+
+wrpa_gunbower <- bird_breed_area |> 
+  select(-State, -SWWRPAName) |> # gets confusing
+  filter(grepl('Gunbower', Wetland)) |> 
+  mutate(gunarea = st_area(geometry)) |> # set up to modify areas
+  st_intersection(wrpa) |> 
+  filter(SWWRPAName != 'Northern Victoria') |> # This is tiny
+  mutate(newarea = st_area(geometry),
+         adjustment = newarea/gunarea,
+         breeding_area = as.numeric(breeding_area * adjustment)) |> 
+  select(-newarea, -gunarea, -adjustment)
+
+wrpa_birds <- bind_rows(wrpa_birds, wrpa_gunbower)
+
+wrpa_birds_total <- wrpa_birds |> 
+  group_by(SWWRPAName, time) |> 
+  summarise(breeding_area = sum(breeding_area)) |> 
+  ungroup()
+
+wrpa_birds_prepost <- wrpa_birds_total |> 
+  mutate(timeperiod = case_when((time > currenttimestart & 
+                                   time < currenttimeend) ~ 'Current',
+                                (time > preBPtimestart & 
+                                    time < preBPtimeend) ~ 'Pre-BP',
+                                .default = 'other')) |> 
+  filter(timeperiod != 'other') |> 
+    mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
+
+  group_by(SWWRPAName, timeperiod) |> 
+  summarise(breeding_area = mean(breeding_area)) |> 
+  ungroup()
+```
+
+```{r}
+ggplot(wrpa_birds_total, 
+                           aes(x = time, y = breeding_area/10000, color = SWWRPAName)) +
+  geom_line() + geom_point() +
+  labs(y = 'Breeding area\n(hectares)')
+```
+
+Table
+
+```{r}
+wrpa_birds_prepost |> 
+  st_drop_geometry() |> 
+  group_by(SWWRPAName, timeperiod) |> 
+  summarise(breeding_area = sum(breeding_area)/10000) |> 
+  ungroup() |> 
+  tidyr::pivot_wider(id_cols = SWWRPAName, names_from = timeperiod, 
+                     values_from = breeding_area) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  mutate(across(is.numeric, round, 2)) |> 
+  select(SWWRPAName, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
+  knitr::kable()
+```
+
+And a couple maps
+
+```{r}
+wrpa_map <- ggplot(wrpa_birds_prepost, aes(fill = (breeding_area/10000) + 1)) +
+  geom_sf(data = basin, fill = 'cornsilk') +
+  geom_sf() +
+  scale_fill_viridis_c(trans = 'log10') +
+  facet_wrap('timeperiod') +
+  labs(fill = 'Breeding area\nlog(hectares+1)')
+
+wrpa_map
+```
+
+```{r}
+wrpachange_map <- wrpa_birds_prepost |> 
+  group_by(SWWRPAName, timeperiod) |> 
+  summarise(breeding_area = sum(breeding_area)/10000) |> 
+  ungroup() |> 
+  tidyr::pivot_wider(id_cols = c(SWWRPAName, geometry), names_from = timeperiod, 
+                     values_from = breeding_area) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  ggplot(aes(fill = Difference)) +
+  geom_sf(data = basin, fill = 'cornsilk') +
+  geom_sf() +
+  scale_fill_viridis_c() +
+  labs(fill = 'Change in breeding area\n(hectares)')
+
+wrpachange_map
+```
+
+```{r}
+wrpa_map / wrpachange_map + plot_layout(guides = 'collect')
+```
