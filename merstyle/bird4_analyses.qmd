@@ -182,7 +182,7 @@ bird_asset_anae_summary |>
   tidyr::pivot_wider(id_cols = ANAE_DESC, names_from = timeperiod, values_from = breeding_area) |> 
   mutate(Difference = Current - `Pre-BP`,
          'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
-  mutate(across(is.numeric, round, 2)) |> 
+  mutate(across(where(is.numeric), round, 2)) |> 
   select(ANAE_DESC, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
   knitr::kable()
 ```
@@ -300,7 +300,7 @@ wrpa_map <- ggplot(wrpa_birds_prepost, aes(fill = (breeding_area/10000) + 1)) +
   geom_sf() +
   scale_fill_viridis_c(trans = 'log10') +
   facet_wrap('timeperiod') +
-  labs(fill = 'Breeding area\nlog(hectares+1)')
+  labs(fill = 'Breeding area\n(hectares+1)')
 
 wrpa_map
 ```
@@ -329,4 +329,66 @@ wrpa_map / wrpachange_map + plot_layout(guides = 'collect')
 
 ## Basin scale
 
-Just do it like wrpa, bring in all the bird_breed_areas and then calculate some things overall.
+I'll just do this basically like the WRPAs, using `bird_breed_area`. That uses the Wetland (asset) as the base unit, not ANAE, because that's where we assess things like sufficient area.
+
+```{r}
+basin_birds <- basin |> 
+  bind_cols(bird_breed_area |> st_drop_geometry()) |> 
+  group_by(time, LEVEL2NAME) |> 
+  summarise(breeding_area = sum(breeding_area)) |> 
+  ungroup()
+
+basin_birds_prepost <- basin_birds |> 
+  mutate(timeperiod = case_when((time > currenttimestart & 
+                                   time < currenttimeend) ~ 'Current',
+                                (time > preBPtimestart & 
+                                    time < preBPtimeend) ~ 'Pre-BP',
+                                .default = 'other')) |> 
+  filter(timeperiod != 'other') |> 
+    mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
+
+  group_by(LEVEL2NAME, timeperiod) |> 
+  summarise(breeding_area = mean(breeding_area)) |> 
+  ungroup()
+```
+
+```{r}
+basin_birds_prepost |> 
+  st_drop_geometry() |> 
+  mutate(breeding_area = breeding_area/10000) |> 
+  tidyr::pivot_wider(id_cols = LEVEL2NAME, names_from = timeperiod, 
+                     values_from = breeding_area) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  mutate(across(is.numeric, round, 2)) |> 
+  select(' ' = LEVEL2NAME, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
+  knitr::kable()
+```
+
+```{r}
+ggplot(basin_birds, aes(x = time, y = breeding_area/10000)) +
+  geom_point() +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+  labs(y = 'Breeding area\n(hectares)')
+```
+
+```{r}
+bbdiff <- basin_birds_prepost
+bbdiff$timeperiod <- as.character(bbdiff$timeperiod)
+bbdiff[3, ] <- bbdiff[1, ]
+bbdiff[3, 2] <- 'Difference'
+bbdiff[3, 3] <- bbdiff$breeding_area[2] - bbdiff$breeding_area[3]
+
+bbdiff$timeperiod <- factor(bbdiff$timeperiod, levels = c('Pre-BP', 'Current', 'Difference'))
+
+
+  
+basin_map <- ggplot(bbdiff, aes(fill = breeding_area/10000)) +
+  geom_sf() +
+  scale_fill_viridis_c(trans = 'log10') +
+  facet_wrap('timeperiod') +
+  labs(fill = 'Breeding area\n(hectares)')
+
+basin_map
+```
