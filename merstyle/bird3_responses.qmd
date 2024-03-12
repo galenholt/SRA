@@ -31,8 +31,6 @@ if (parset == 'gandalf') {
 
 Calculate the strictures for each asset. Do we want to do the aggregation to the asset *inside* here? I'm tempted not to, but it is part of the requirements, so I might. I'm not sure I like the dataname/summaryfun here, since we might want several and do different htings with them- it is inherently bespoke, and that's OK.
 
-For testing, set up with a single loop, this will be wrapped in a foreach dofuture once I'm sorted.
-
 I could do that future in a function, but I might just do it here- unlike the raster data, it's not clear to me that these will be consistent enough to allow a single parallel_responses function like with `parallel_data`. So, I'll basically go back to calling the setup and runs myself here. And maybe I'll see a way forward after doing it a couple times.
 
 ```{r}

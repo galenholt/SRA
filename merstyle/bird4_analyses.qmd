@@ -326,3 +326,7 @@ wrpachange_map
 ```{r}
 wrpa_map / wrpachange_map + plot_layout(guides = 'collect')
 ```
+
+## Basin scale
+
+Just do it like wrpa, bring in all the bird_breed_areas and then calculate some things overall.
