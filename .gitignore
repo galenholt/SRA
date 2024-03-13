@@ -5,3 +5,8 @@
 
 # Data
 datOut/
+
+# Quarto render products
+*_cache
+*_files
+*.html

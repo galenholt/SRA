@@ -4,6 +4,10 @@ format: html
 editor: visual
 ---
 
+```{r setup}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
 ```{r}
 source('directorySet.R')
 library(CC2)
@@ -25,6 +29,8 @@ catchments <- ltimNoNorth |>
 ```
 
 I'm making myself crazy with all the copy-pasting and not writing functions to do a lot of the data manipulations, but just trying to make sure everything works.
+
+And I'm not putting any time into writing figure captions or cross-referencing. Easy to do in quarto though.
 
 ## What is the diversity of wetlands inundated?
 

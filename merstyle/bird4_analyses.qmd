@@ -4,6 +4,10 @@ format: html
 editor: visual
 ---
 
+```{r setup}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
 ```{r}
 source('directorySet.R')
 library(CC2)
