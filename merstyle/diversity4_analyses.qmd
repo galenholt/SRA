@@ -24,6 +24,8 @@ catchments <- ltimNoNorth |>
   mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
 ```
 
+I'm making myself crazy with all the copy-pasting and not writing functions to do a lot of the data manipulations, but just trying to make sure everything works.
+
 ## What is the diversity of wetlands inundated?
 
 Splitting that up into a few analyses:
@@ -59,13 +61,240 @@ diversity_anae_summary <- foreach(i = catchments$name_clean,
   thiscatch <- readRDS(file.path(datOut, 'diversity', 'diversity_anae_summary', 
                                  paste0(i, '_', 'diversity_anae_summary.rds')))
                                   }
+
+# Why did this lose sf? 
+diversity_anae_summary <- st_as_sf(diversity_anae_summary)
 ```
 
-make a couple quick plots. Not worrying too much about making them pretty
+make a couple quick plots. Not worrying too much about making them pretty, just mostly making sure the data is there.
+
+Could also make this plot as the area fraction or number fraction with appropriate columns. Likely we'll want to collapse these down or look at some reasonable subset.
 
 ```{r}
 ggplot(diversity_anae_summary, 
        aes(x = time, y = area_inundated/10000, color = ValleyName)) +
   geom_line() + geom_point() +
   facet_wrap('ANAE_DESC')
+```
+
+### Richness in each catchment
+
+The number of anae types
+
+```{r}
+diversity_richness <- foreach(i = catchments$name_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'diversity', 'diversity_richness', 
+                                 paste0(i, '_', 'diversity_richness.rds')))
+                                  }
+
+diversity_richness <- st_as_sf(diversity_richness)
+```
+
+```{r}
+ggplot(diversity_richness, aes(x = time, y = anae_diversity_richness, color = ValleyName)) +
+  geom_line() + geom_point()
+```
+
+And since valleys differ in the number of ANAE types, the proportion of ANAEs that exist in each valley
+
+```{r}
+ggplot(diversity_richness, aes(x = time, y = diversity_richness_proportion, color = ValleyName)) +
+  geom_line() + geom_point()
+```
+
+And we can look at individual wetlands rather than type- what proportion of the wetlands in each catchment get inundated?
+
+```{r}
+ggplot(diversity_richness, aes(x = time, y = UID_proportion, color = ValleyName)) +
+  geom_line() + geom_point()
+```
+
+Make a pre-post BP map
+
+```{r}
+richness_prepost <- diversity_richness |> 
+  mutate(timeperiod = case_when((time > currenttimestart & 
+                                   time < currenttimeend) ~ 'Current',
+                                (time > preBPtimestart & 
+                                    time < preBPtimeend) ~ 'Pre-BP',
+                                .default = 'other')) |> 
+  filter(timeperiod != 'other') |> 
+  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
+  group_by(ValleyName, timeperiod) |> 
+  summarise(diversity_richness_proportion = mean(diversity_richness_proportion),
+            UID_proportion = mean(UID_proportion)) |> 
+  ungroup()
+```
+
+A table
+
+```{r}
+richness_prepost |> 
+  st_drop_geometry() |> 
+  tidyr::pivot_wider(id_cols = ValleyName, 
+                     names_from = timeperiod, 
+                     values_from = diversity_richness_proportion) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  mutate(across(where(is.numeric), round, 2)) |> 
+  select(ValleyName, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
+  knitr::kable()
+```
+
+```{r}
+ggplot(richness_prepost, aes(fill = diversity_richness_proportion)) +
+  geom_sf() +
+  facet_wrap('timeperiod') +
+  scale_fill_viridis_c(option = 'magma')
+```
+
+### Diversity in each catchment
+
+I did this with number and with area, just doing area as a demo
+
+```{r}
+diversity_shannon_area <- foreach(i = catchments$name_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'diversity', 'diversity_shannon_area', 
+                                 paste0(i, '_', 'diversity_shannon_area.rds')))
+                                  }
+
+diversity_shannon_area <- st_as_sf(diversity_shannon_area)
+```
+
+```{r}
+ggplot(diversity_shannon_area, aes(x = time, y = diversity_shannon_area, 
+                                   color = ValleyName)) +
+  geom_line() + geom_point()
+```
+
+```{r}
+shannon_area_prepost <- diversity_shannon_area |> 
+  mutate(timeperiod = case_when((time > currenttimestart & 
+                                   time < currenttimeend) ~ 'Current',
+                                (time > preBPtimestart & 
+                                    time < preBPtimeend) ~ 'Pre-BP',
+                                .default = 'other')) |> 
+  filter(timeperiod != 'other') |> 
+  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
+  group_by(ValleyName, timeperiod) |> 
+  summarise(diversity_shannon_area = mean(diversity_shannon_area)) |> 
+  ungroup()
+```
+
+```{r}
+shannon_area_prepost |> 
+  st_drop_geometry() |> 
+  tidyr::pivot_wider(id_cols = ValleyName, 
+                     names_from = timeperiod, 
+                     values_from = diversity_shannon_area) |> 
+  mutate(Difference = Current - `Pre-BP`,
+         'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
+  mutate(across(where(is.numeric), round, 2)) |> 
+  select(ValleyName, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
+  knitr::kable()
+```
+
+```{r}
+ggplot(shannon_area_prepost, aes(fill = diversity_shannon_area)) +
+  geom_sf() +
+  facet_wrap('timeperiod') +
+  scale_fill_viridis_c(option = 'magma')
+```
+
+### Temporal turnover
+
+```{r}
+diversity_temporal_abgamma <- foreach(i = catchments$name_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'diversity', 'diversity_temporal_abgamma', 
+                                 paste0(i, '_', 'diversity_temporal_abgamma.rds')))
+                                  }
+
+diversity_temporal_abgamma <- st_as_sf(diversity_temporal_abgamma)
+```
+
+This is about temporal turnover, so doesn't work as a timeseries; it's an analysis of the timeseries, fundamentally. I'm mostly interested in beta diversity here; alpha is basically done above.
+
+```{r}
+
+ggplot(diversity_temporal_abgamma, aes(x = ValleyName, y = beta_diversity_anae)) +
+  geom_col()
+```
+
+### Richness and diversity in the basin
+
+This will be a big analysis, need to think about it.
+
+How can we summarise at the basin scale in a way the data is small enough to read in?
+
+Ah, diversity_anae_summary should have what we need- it has the anae types and their inundation area.
+
+Basically steal these from the catchment-scale analyses in anae_diversity.R
+
+```{r}
+basin_anae_richness <- diversity_anae_summary |> 
+  st_drop_geometry() |> 
+    mutate(n_anaes = dplyr::n_distinct(ANAE_DESC),
+           .by = time) |>
+    filter(area_inundated > 0) |>
+    summarise(anae_diversity_richness = dplyr::n_distinct(ANAE_DESC),
+              diversity_richness_proportion = anae_diversity_richness/unique(n_anaes),
+              .by = time) |>
+    arrange(time) |> 
+  bind_cols(basin) |> 
+  st_as_sf()
+```
+
+That's boring. Wondering if I stuffed something up. I don't think so, I think it might just be boring- by the time we're at the basin, maybe there's just always 61 anae types that get inundated? Tracing back, we don't ever do anything silly like dropping all the zeros (and they are in there if we check).
+
+```{r}
+ggplot(basin_anae_richness, aes(x = time, y = diversity_richness_proportion)) + 
+  geom_point() + geom_line()
+```
+
+Shannon should be better- more opportunity for variation. Again, ripped straight out of anae_diversity. This should all just be functioned, but I need to get it done.
+
+```{r}
+  # a function to get it from a vector of values, each of which corresponds to some measure of an anae type (number or area)
+  calc_shan <- function(x) {
+    px <- x/sum(x)
+    shan <- -sum(px*log(px))
+    return(shan)
+  }
+
+  # Shannon (based on number)
+  basin_shannon_number <- diversity_anae_summary |>
+    st_drop_geometry() |>
+    mutate(area_binary = area_inundated > 0) |> # just whether it's area or not
+    summarise(n_anaes_type = sum(area_binary), .by = c(ANAE_DESC, time)) |> # the 'abundance', e.g. number of wetlands of each type
+    filter(n_anaes_type > 0) |> # otherwise the log dies, and they don't count anyway.
+    summarise(shannon_binary = calc_shan(n_anaes_type), .by = c(time)) |>
+    arrange(time)|> 
+  bind_cols(basin) |> 
+  st_as_sf()
+
+  # Shannon (based on area)
+  basin_shannon_area <- diversity_anae_summary |>
+    st_drop_geometry() |>
+    summarise(total_area = sum(area_inundated), .by = c(ANAE_DESC, time)) |> # the 'abundance', e.g. number of wetlands of each type
+    filter(total_area > 0) |> # otherwise the log dies, and they don't count anyway.
+    summarise(diversity_shannon_area = calc_shan(total_area), .by = c(time)) |>
+    arrange(time)|> 
+  bind_cols(basin) |> 
+  st_as_sf()
+```
+
+```{r}
+ggplot(basin_shannon_number, aes(x = time, y = shannon_binary)) + 
+  geom_point() + geom_line()
+```
+
+```{r}
+ggplot(basin_shannon_area, aes(x = time, y = diversity_shannon_area)) + 
+  geom_point() + geom_line()
 ```
