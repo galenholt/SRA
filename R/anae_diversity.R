@@ -188,6 +188,7 @@ anae_diversity <- function(out_dir,
               gamma_diversity_UID = dplyr::n_distinct(UID))
 
   diversity_temporal_abgamma <- diversity_richness |>
+    st_drop_geometry() |>
     bind_cols(total_binary_diversity_richness) |>
     group_by(ValleyName) |>
     summarise(alpha_diversity_anae = mean(anae_diversity_richness),
