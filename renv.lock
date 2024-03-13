@@ -15,11 +15,10 @@
   "Packages": {
     "CC2": {
       "Package": "CC2",
-      "Version": "0.0.0.9006",
-      "Source": "git",
-      "RemoteType": "git",
-      "RemoteUrl": "git@github.com:galenholt/CC2.git",
-      "RemoteRef": "dev",
+      "Version": "0.0.0.9027",
+      "Source": "Local",
+      "RemoteType": "local",
+      "RemoteUrl": "../eFlowEval",
       "Requirements": [
         "R",
         "Rcpp",
@@ -41,7 +40,7 @@
         "tidyr",
         "units"
       ],
-      "Hash": "ca78028fdcaccd97ff32a1d21694955f"
+      "Hash": "bbcf06a44215e0ff451b46dabb65848e"
     },
     "DBI": {
       "Package": "DBI",
@@ -891,6 +890,24 @@
       ],
       "Hash": "8da17de8b15c89b574269fc414ff4e20"
     },
+    "patchwork": {
+      "Package": "patchwork",
+      "Version": "1.2.0",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "cli",
+        "ggplot2",
+        "grDevices",
+        "graphics",
+        "grid",
+        "gtable",
+        "rlang",
+        "stats",
+        "utils"
+      ],
+      "Hash": "9c8ab14c00ac07e9e04d1664c0b74486"
+    },
     "pillar": {
       "Package": "pillar",
       "Version": "1.9.0",
@@ -1057,6 +1074,16 @@
         "yaml"
       ],
       "Hash": "d65e35823c817f09f4de424fcdfa812a"
+    },
+    "rprojroot": {
+      "Package": "rprojroot",
+      "Version": "2.0.4",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Requirements": [
+        "R"
+      ],
+      "Hash": "4c8415e0ec1e29f3f4f6fc108bef0144"
     },
     "s2": {
       "Package": "s2",
