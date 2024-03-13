@@ -1,6 +1,23 @@
 # SRA
 Analyses for the SRA project
 
+## Overview
+
+This repo (will) use two sets of analyses- one examining inundation in ANAE polygons for bird breeding opportunity, diversity of wetland types, and vegetation, and the other using the WERP toolkit to assess EWRs from flow. 
+
+The first (merstyle) uses the [eFlowEval](https://github.com/galenholt/CC2) workflow. Notebooks to control the data processing, response models, and analyses are in `/merstyle`, and require `eFlowEval` (the dev branch) to be installed to run (see below).
+
+The second (werpstyle) uses the [WERP toolkit](https://github.com/MDBAuth/WERP_toolkit) to run. 
+
+The main goals are outlined in the "workplan" at `QAEL - SRA - SRA/SRA Environment Theme Workplan.docx`. 
+
+Input data for eFlowEval analyses is largely in `QAEL - MER/Model/dataBase`.
+Input data for WERP analyses are in ???
+
+Output data (e.g. processed inundation into ANAEs, responses, EWRs) is in `QAEL - SRA - SRA/data_out`.
+
+There is some processed data I've left on the HPC because it's 10s of Gb. 
+
 ## HPC sequence
 
 I want to work in notebooks that work either locally or on an HPC.
