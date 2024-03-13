@@ -112,7 +112,8 @@ anae_diversity <- function(out_dir,
     arrange(time, ValleyName) |>
     mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
     select(-ValleyName) |>
-    left_join(catches, by = 'name_clean')
+    left_join(catches, by = 'name_clean') |>
+    sf::st_as_sf()
 
 
   # diversity_richness- get it for both type and unique wetland
@@ -129,7 +130,8 @@ anae_diversity <- function(out_dir,
     arrange(time, ValleyName) |>
     mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
     select(-ValleyName) |>
-    left_join(catches, by = 'name_clean')
+    left_join(catches, by = 'name_clean') |>
+    sf::st_as_sf()
 
   # Shannon
     # Not doing this for UID, it doesn't seem that interesting, but maybe I'm just not thinking about something.
@@ -151,7 +153,8 @@ anae_diversity <- function(out_dir,
     arrange(time, ValleyName) |>
     mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
     select(-ValleyName) |>
-    left_join(catches, by = 'name_clean')
+    left_join(catches, by = 'name_clean') |>
+    sf::st_as_sf()
 
   # Shannon (based on area)
   diversity_shannon_area <- diversity_yearly_sf |>
@@ -162,7 +165,8 @@ anae_diversity <- function(out_dir,
     arrange(time, ValleyName) |>
     mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
     select(-ValleyName) |>
-    left_join(catches, by = 'name_clean')
+    left_join(catches, by = 'name_clean') |>
+    sf::st_as_sf()
 
   # Beta- if this means turnover/dissimilarity between catchments, we can't do
   # that here, will need to go glue all the diversity_yearly_sfs together. That probably
@@ -195,7 +199,8 @@ anae_diversity <- function(out_dir,
     ungroup() |>
     mutate(name_clean = stringr::str_remove_all(ValleyName, ' ')) |>
     select(-ValleyName) |>
-    left_join(catches, by = 'name_clean')
+    left_join(catches, by = 'name_clean') |>
+    sf::st_as_sf()
 
 
 
