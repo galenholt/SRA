@@ -30,23 +30,25 @@ I'm making myself crazy with all the copy-pasting and not writing functions to d
 
 Splitting that up into a few analyses:
 
--   In each catchment
+-   Richness (# of ANAE types)
 
--   A plot of inundation (%?) in each wetland type
+-   Diversity (shannon, either on number of wetlands per type or area per type)
 
--   Basin-wide
+-   The ANAE types themselves
 
--   Wetland groupings?
+-   Scales
 
--   Temporal diversity- are different wetlands inundated in different years? Or always the same ones?
+    -   In each catchment
+
+    -   Basin-wide
+
+    -   Temporal diversity- are different wetlands inundated in different years? Or always the same ones?
+
+        -   Crudely done with beta diversity, but likely needs more thought.
+
+-   Wetland groupings? Is there a way to group the ANAEs?
 
 -   The things in the workplan basically build on the above- the range/total range stuff, and the timeseries analysis
-
--   For each:
-
-    -   Just use binary is inundated? Or use area or proportional area?
-
-    -   Temporal scale? If we want yearly, will want to `tempaggregate` everything.
 
 ## Analyses
 
@@ -63,7 +65,7 @@ diversity_anae_summary <- foreach(i = catchments$name_clean,
                                   }
 
 # Why did this lose sf? 
-diversity_anae_summary <- st_as_sf(diversity_anae_summary)
+# diversity_anae_summary <- st_as_sf(diversity_anae_summary)
 ```
 
 make a couple quick plots. Not worrying too much about making them pretty, just mostly making sure the data is there.
@@ -89,7 +91,7 @@ diversity_richness <- foreach(i = catchments$name_clean,
                                  paste0(i, '_', 'diversity_richness.rds')))
                                   }
 
-diversity_richness <- st_as_sf(diversity_richness)
+# diversity_richness <- st_as_sf(diversity_richness)
 ```
 
 ```{r}
@@ -162,7 +164,7 @@ diversity_shannon_area <- foreach(i = catchments$name_clean,
                                  paste0(i, '_', 'diversity_shannon_area.rds')))
                                   }
 
-diversity_shannon_area <- st_as_sf(diversity_shannon_area)
+# diversity_shannon_area <- st_as_sf(diversity_shannon_area)
 ```
 
 ```{r}
@@ -215,7 +217,7 @@ diversity_temporal_abgamma <- foreach(i = catchments$name_clean,
                                  paste0(i, '_', 'diversity_temporal_abgamma.rds')))
                                   }
 
-diversity_temporal_abgamma <- st_as_sf(diversity_temporal_abgamma)
+# diversity_temporal_abgamma <- st_as_sf(diversity_temporal_abgamma)
 ```
 
 This is about temporal turnover, so doesn't work as a timeseries; it's an analysis of the timeseries, fundamentally. I'm mostly interested in beta diversity here; alpha is basically done above.
@@ -292,9 +294,35 @@ Shannon should be better- more opportunity for variation. Again, ripped straight
 ```{r}
 ggplot(basin_shannon_number, aes(x = time, y = shannon_binary)) + 
   geom_point() + geom_line()
+
 ```
 
 ```{r}
 ggplot(basin_shannon_area, aes(x = time, y = diversity_shannon_area)) + 
   geom_point() + geom_line()
+```
+
+Make a map
+
+```{r}
+basin_shannon_prepost <- basin_shannon_area |> 
+  mutate(timeperiod = case_when((time > currenttimestart & 
+                                   time < currenttimeend) ~ 'Current',
+                                (time > preBPtimestart & 
+                                    time < preBPtimeend) ~ 'Pre-BP',
+                                .default = 'other')) |> 
+  filter(timeperiod != 'other') |> 
+  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
+  group_by(timeperiod) |> 
+  summarise(diversity_shannon_area = mean(diversity_shannon_area)) |> 
+  ungroup()
+```
+
+A bit silly
+
+```{r}
+ggplot(basin_shannon_prepost, aes(fill = diversity_shannon_area)) +
+  geom_sf() +
+  facet_wrap('timeperiod') +
+  scale_fill_viridis_c(option = 'mako')
 ```

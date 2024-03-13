@@ -201,7 +201,7 @@ bird_asset_anae_summary |>
                      values_from = breeding_area) |> 
   mutate(Difference = Current - `Pre-BP`,
          'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
-  mutate(across(is.numeric, round, 2)) |> 
+  mutate(across(where(is.numeric), round, 2)) |> 
   select(Wetland, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
   knitr::kable()
 ```
@@ -289,7 +289,7 @@ wrpa_birds_prepost |>
                      values_from = breeding_area) |> 
   mutate(Difference = Current - `Pre-BP`,
          'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
-  mutate(across(is.numeric, round, 2)) |> 
+  mutate(across(where(is.numeric), round, 2)) |> 
   select(SWWRPAName, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
   knitr::kable()
 ```
@@ -362,7 +362,7 @@ basin_birds_prepost |>
                      values_from = breeding_area) |> 
   mutate(Difference = Current - `Pre-BP`,
          'Percent of pre' = (Current/`Pre-BP`) * 100) |> 
-  mutate(across(is.numeric, round, 2)) |> 
+  mutate(across(where(is.numeric), round, 2)) |> 
   select(' ' = LEVEL2NAME, `Pre-BP`, Current, Difference, `Percent of pre`) |> 
   knitr::kable()
 ```
