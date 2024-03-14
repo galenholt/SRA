@@ -85,6 +85,8 @@ ggplot(diversity_anae_summary,
   facet_wrap('ANAE_DESC')
 ```
 
+*Maybe not for SRA, but this is primed for a spatio-temporal Bray-Curtis --\> NMDS analysis comparing the sets of inundated wetland types through time and across catchments*
+
 ### Richness in each catchment
 
 The number of anae types
