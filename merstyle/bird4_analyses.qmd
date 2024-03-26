@@ -87,11 +87,12 @@ preBPtimeend <- lubridate::ymd('20120101')
 
 ## Analyses
 
-I think I can do much of what I need with just these two datasets.
+I think I can do much of what I need with just these three datasets. (get the non-anae filtered too to see how much inundation there is no matter the type).
 
 ```{r}
 # Should I make this a function in eFlowEval? It's conceptually similar to catchAggW, but it's really just reading and glueing sfs, not doing an agg.
 
+# This is the version clipped to anae type
 bird_asset_anae_amount <- foreach(i = breeding_polys$wetland_clean,
                                   .combine = dplyr::bind_rows,
                                   .multicombine = TRUE) %do% {
@@ -99,6 +100,14 @@ bird_asset_anae_amount <- foreach(i = breeding_polys$wetland_clean,
                                  paste0(i, '_', 'bird_asset_anae_amount.rds')))
                                   }
 
+# This has all anae types
+bird_asset <- foreach(i = breeding_polys$wetland_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'waterbirds', 'bird_asset', 
+                                 paste0(i, '_', 'bird_asset.rds')))
+                                  }
+# This is summed to Wetland
 bird_breed_area <- foreach(i = breeding_polys$wetland_clean,
                                   .combine = dplyr::bind_rows,
                                   .multicombine = TRUE) %do% {
@@ -397,4 +406,29 @@ basin_map <- ggplot(bbdiff, aes(fill = breeding_area/10000)) +
   labs(fill = 'Breeding area\n(hectares)')
 
 basin_map
+```
+
+## Export
+
+Gilad wants csvs.
+
+```{r}
+csvpath <- file.path(datOut, 'toGilad')
+if (!dir.exists(csvpath)) {dir.create(csvpath, recursive = TRUE)}
+
+# The main ones
+readr::write_csv(bird_asset |> st_drop_geometry(),
+                 file.path(csvpath, 'asset_anaes.csv'))
+readr::write_csv(wrpa_birds_total |> st_drop_geometry(),
+                 file.path(csvpath, 'wrpa_total.csv'))
+readr::write_csv(basin_birds |> st_drop_geometry(),
+                 file.path(csvpath, 'basin_total.csv'))
+
+# Some created ones
+readr::write_csv(bird_asset_anae_amount |> st_drop_geometry(),
+                 file.path(csvpath, 'asset_anae_typefilter.csv'))
+readr::write_csv(bird_breed_area |> st_drop_geometry(),
+                 file.path(csvpath, 'asset_total.csv'))
+
+
 ```

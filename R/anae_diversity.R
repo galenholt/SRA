@@ -40,6 +40,7 @@ anae_diversity <- function(out_dir,
   # we need to extract from ltimNoNorth sometimes, but needs to match how 'catchment' is handled
   catches <- ltimNoNorth |>
     mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
+
   ## 'Responses'
   # These aren't really 'responses', per se, but things we want to calculate.
 
