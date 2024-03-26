@@ -10,3 +10,7 @@ datOut/
 *_cache
 *_files
 *.html
+
+state_ts2.rds
+
+bom_ts2.rds
