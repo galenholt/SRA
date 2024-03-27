@@ -147,6 +147,38 @@ bom_table <- ewr_gauges |>
 
 ```
 
+Any gauges that are level *also* need flow. Seems to be undocumented, but it fails otherwise. So check and add flow.
+
+The catch here is that these gauges don't actually exist as discharge gauges. SO nevermind. Don't evaluate these.
+
+```{r}
+#| eval: false
+# state_l <- table(state_table$gauge, state_table$var_list) |> rbind() |> as_tibble(rownames = 'gauge')
+# 
+# stateflowstage <- state_l |> dplyr::filter(`100` > 0 & `141` == 0)
+# 
+# bom_l <- table(bom_table$gauge, bom_table$variable) |> 
+#   rbind() |> 
+#   as_tibble(rownames = 'gauge')
+# 
+# bomflowstage <- bom_l |> dplyr::filter(level > 0 & discharge == 0)
+```
+
+Now duplicate and replace and add to the table
+
+```{r}
+#| eval: false
+# stateextras <- state_table |> filter(gauge %in% stateflowstage$gauge)
+# bomextras <- bom_table |> filter(gauge %in% bomflowstage$gauge)
+# 
+# stateextras$var_list <- 100
+# bomextras$variable <- 'discharge'
+# bomextras$units <- 'Ml/d'
+# 
+# state_table <- dplyr::bind_rows(state_table, stateextras)
+# bom_table <- dplyr::bind_rows(bom_table, bomextras)
+```
+
 This feels extra, since it happens when we pull, but let's check this is going to pull the right things. Caught a TON. SO, good thing I checked. Some only have cumecs, and pybomwater pulls cumecs and converts, so we'll do that too. And need to use the 24 instead of 09 (gauge getter trades around, but I don't see the point).
 
 For bom, we need to check each ts_id is only once. This works now, each is a single row, and so will pull a single timeseries.
@@ -497,32 +529,6 @@ state_ts2 <- purrr::map(state_ts2, \(x) x |>
                         dplyr::mutate(value = ifelse(quality_code < 0 | quality_code > 150, NA, value)))
 ```
 
-Pivot so each gauge is just date, gaugename_flow or \_level
-
-make_ewrformat \<- function(x) {
-
-x \<- x \|\>
-
-dplyr::mutate(gauge = dplyr::case_when(
-
-grepl('ml/d', units, ignore.case = TRUE) \~ paste0(gauge, '\_flow'),
-
-units %in% c('m', 'Res. Level AHD', 'Metres') \~ paste0(gauge, '\_level'),
-
-.default = paste0(gauge, '\_FAIL'))
-
-) \|\>
-
-dplyr::select(Date = time, gauge, value) \|\>
-
-tidyr::pivot_wider(id_cols = Date, names_from = gauge, values_from = value) \|\>
-
-dplyr::mutate(Date = as.Date(Date))
-
-return(x)
-
-}
-
 ```{r}
 make_ewrformat <- function(x) {
   x <- x |> 
@@ -548,6 +554,25 @@ Check for \_fail
 ```{r}
 bom_simple |> purrr::map_lgl(\(x) grepl('FAIL', names(x)[2])) |> any()
 state_simple |> purrr::map_lgl(\(x) grepl('FAIL', names(x)[2])) |> any()
+```
+
+Gauges with flow and level need to be joined. Even if gauges are Level, they get assessed for Flow too???
+
+```{r}
+dupbom <- names(bom_simple)[duplicated(names(bom_simple))]
+dupstate <- names(state_simple)[duplicated(names(state_simple))]
+
+```
+
+Glue matches together and remove duplicates. There's got to be a better way than this loop. There are none in BOM (yet)
+
+```{r}
+for (i in 1:length(dupstate)) {
+  dupindex <- which(names(state_simple) == dupstate[i])
+  state_simple[[dupindex[1]]] <- dplyr::left_join(state_simple[[dupindex[1]]],
+                                                  state_simple[[dupindex[2]]])
+  state_simple[[dupindex[2]]] <- NULL
+}
 ```
 
 And then save

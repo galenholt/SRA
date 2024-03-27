@@ -55,3 +55,15 @@ ewr_out <- prep_run_save_ewrs(hydro_dir = hydro_dir,
                               model_format = 'Standard time-series',
                               rparallel = TRUE)
 ```
+
+That seems to be the level gauges.
+
+```{r}
+ewr_gauges <- get_ewr_gauges()
+levels <- ewr_gauges |> filter(gaugetype == 'L')
+levels
+# Do those all need flow too???
+ewr_gauges |> 
+  filter(gauge %in% levels$gauge) |> 
+  arrange(gauge)
+```
