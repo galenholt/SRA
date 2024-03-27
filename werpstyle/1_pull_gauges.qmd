@@ -387,6 +387,9 @@ Save if we want to checkpoint
 #| eval: false
 saveRDS(bom_ts2, 'bom_ts2.rds')
 saveRDS(state_ts2, 'state_ts2.rds')
+
+bom_ts2 <- readRDS('bom_ts2.rds')
+state_ts2 <- readRDS('state_ts2.rds')
 ```
 
 And then check all expected gauges.
@@ -427,23 +430,105 @@ m3ml <- function(x) {
 bom_ts2 <- purrr::map(bom_ts2, m3ml)
 ```
 
+Check for missing data and duplicated data
+
+```{r}
+checklength <- state_ts2$`403220`
+tdiffs <- checklength$time - lag(checklength$time)
+max(tdiffs, na.rm = TRUE)
+
+checklength$time[length(checklength$time)] - checklength$time[1]
+nrow(checklength)
+any(duplicated(checklength$time))
+
+# set those up into checker functions
+onerowperday <- function(x) {
+  tdiff <- x$time[length(x$time)] - x$time[1]
+  tdiff == nrow(x)-1
+}
+
+nomissing <- function(x) {
+  tdiffs <- x$time - lag(x$time)
+  return(max(tdiffs, na.rm = TRUE) == 1)
+}
+
+# this in particular woudl be easy to use as \(x)
+duptimes <- function(x) {
+  any(duplicated(x$time))
+}
+```
+
+```{r}
+staterows <- purrr::map_lgl(state_ts2, onerowperday)
+statecomplete <- purrr::map_lgl(state_ts2, nomissing)
+statedup <- purrr::map_lgl(state_ts2, duptimes)
+
+bomrows <- purrr::map_lgl(bom_ts2, onerowperday)
+bomcomplete <- purrr::map_lgl(bom_ts2, nomissing)
+bomdup <- purrr::map_lgl(bom_ts2, duptimes)
+```
+
+These are all TRUE, but we should have a fixing portion of the code that e.g. removes duplicates and fills missing dates.
+
+```{r}
+# Do rows match times
+all(staterows)
+# are there any missing dates
+all(statecomplete)
+# are there no duplicates?
+all(!statedup)
+
+# Do rows match times
+all(bomrows)
+# are there any missing dates
+all(bomcomplete)
+# are there no duplicates?
+all(!bomdup)
+```
+
 Filter quality codes (especially the -1 at the start of the bom). I think David uses a lower number than this.
+
+Change to NA instead of filter off because the filter leaves empty spots
 
 ```{r}
 bom_ts2 <- purrr::map(bom_ts2, \(x) x |> 
-                        dplyr::filter(quality_code > 0 & quality_code < 150))
+                        dplyr::mutate(value = ifelse(quality_code < 0 | quality_code > 150, NA, value)))
 state_ts2 <- purrr::map(state_ts2, \(x) x |> 
-                        dplyr::filter(quality_code > 0 & quality_code < 150))
+                        dplyr::mutate(value = ifelse(quality_code < 0 | quality_code > 150, NA, value)))
 ```
 
 Pivot so each gauge is just date, gaugename_flow or \_level
+
+make_ewrformat \<- function(x) {
+
+x \<- x \|\>
+
+dplyr::mutate(gauge = dplyr::case_when(
+
+grepl('ml/d', units, ignore.case = TRUE) \~ paste0(gauge, '\_flow'),
+
+units %in% c('m', 'Res. Level AHD', 'Metres') \~ paste0(gauge, '\_level'),
+
+.default = paste0(gauge, '\_FAIL'))
+
+) \|\>
+
+dplyr::select(Date = time, gauge, value) \|\>
+
+tidyr::pivot_wider(id_cols = Date, names_from = gauge, values_from = value) \|\>
+
+dplyr::mutate(Date = as.Date(Date))
+
+return(x)
+
+}
 
 ```{r}
 make_ewrformat <- function(x) {
   x <- x |> 
     dplyr::mutate(gauge = dplyr::case_when(
-      units == 'ML/d' ~ paste0(gauge, '_flow'),
-      units == 'm' ~ paste0(gauge, '_flow'),
+      grepl('ml/d', units, ignore.case = TRUE) ~ paste0(gauge, '_flow'),
+      units %in% c('m', 'Res. Level AHD', 'Metres') ~ paste0(gauge, '_level'),
       .default = paste0(gauge, '_FAIL'))
       ) |> 
     dplyr::select(Date = time, gauge, value) |> 
@@ -458,12 +543,20 @@ bom_simple <- purrr::map(bom_ts2, make_ewrformat)
 state_simple <- purrr::map(state_ts2, make_ewrformat)
 ```
 
+Check for \_fail
+
+```{r}
+bom_simple |> purrr::map_lgl(\(x) grepl('FAIL', names(x)[2])) |> any()
+state_simple |> purrr::map_lgl(\(x) grepl('FAIL', names(x)[2])) |> any()
+```
+
 And then save
 
 BOM
 
 ```{r}
-purrr::imap(bom_simple,
+# name just so it doesn't print it all
+catch <- purrr::imap(bom_simple,
            \(x, idx) readr::write_csv(x, 
                                  file = file.path(hydro_dir,
                                                   'historical',
@@ -473,7 +566,9 @@ purrr::imap(bom_simple,
 States
 
 ```{r}
-purrr::imap(state_simple,
+# name just so it doesn't print it all
+
+catch <- purrr::imap(state_simple,
            \(x, idx) readr::write_csv(x, 
                                  file = file.path(hydro_dir,
                                                   'historical',

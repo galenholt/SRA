@@ -1499,7 +1499,7 @@ files = [
 [[package]]
 name = "py_ewr"
 version = "2.1.2"
-description = ""
+description = "Environmental Water Requirement calculator"
 optional = false
 python-versions = "*"
 files = []
@@ -2302,4 +2302,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "3dd18ad506aba2af287f578aa111bf05a2615df1d240bf6e99a1bfbc4a495b6c"
+content-hash = "3fbeed1fe36e59d231ce7e51f7bc3e9e3918a1720b47f4a0393aa7e0e315af40"
