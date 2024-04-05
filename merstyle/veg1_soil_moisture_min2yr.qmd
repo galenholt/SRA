@@ -37,7 +37,7 @@ if (parset == 'local') {
 if (parset == 'gandalf') {
   plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
-                resources = list(time = 120,
+                resources = list(time = 300,
                                  ntasks.per.node = 12, 
                                  mem = "70GB",
                                  job.name = 'area_inundated')),
@@ -105,80 +105,6 @@ areamoistless30 <- function(x) {
 
 ## Run and check
 
-### Germination
-
-This is shared between red gum and black box
-
-10-day minimum 10%
-
-```{r}
-# 10 days > 10%
-with_progress({
-  min10dayout <- process_with_checks(dataname = 'soilmoisture',
-                          data_dir = file.path(datDir,
-                                               'soil_moisture_more'),
-                          poly_path = file.path(datOut, 'ANAEcatchment'),
-                          summaryFun = 'areamoistgreater10',
-                          catchment = 'all',
-                          out_dir = datOut,
-                          nchunks = 100,
-                          rastRollArgs = min10day,
-                          extraname = 'min10day')
-})
-```
-
-```{r}
-min10dayout$timings
-min10dayout$failures
-```
-
-10-day maximum 30%
-
-```{r}
-# 10 days <= 30%
-with_progress({
-  max10dayout <- process_with_checks(dataname = 'soilmoisture',
-                          data_dir = file.path(datDir,
-                                               'soil_moisture_more'),
-                          poly_path = file.path(datOut, 'ANAEcatchment'),
-                          summaryFun = 'areamoistless30',
-                          catchment = 'all',
-                          out_dir = datOut,
-                          nchunks = 100,
-                          rastRollArgs = max10day,
-                          extraname = 'max10day')
-})
-```
-
-```{r}
-max10dayout$timings
-max10dayout$failures
-```
-
-### Seedlings
-
-1 year \> 10%
-
-```{r}
-# 1 year > 10%
-with_progress({
-  year10 <- process_with_checks(dataname = 'soilmoisture',
-                          data_dir = file.path(datDir,
-                                               'soil_moisture_more'),
-                          poly_path = file.path(datOut, 'ANAEcatchment'),
-                          summaryFun = 'areamoistgreater10',
-                          catchment = 'all',
-                          out_dir = datOut,
-                          nchunks = 100,
-                          rastRollArgs = min1yr,
-                          extraname = 'min1yr')
-})
-```
-
-```{r}
-year10$timings
-year10$failures
-```
 
 2 years \> 10%
 
