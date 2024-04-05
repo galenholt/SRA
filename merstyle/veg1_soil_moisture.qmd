@@ -1,0 +1,204 @@
+---
+title: "Veg soil moisture"
+format: html
+editor: visual
+---
+
+## Calculating soil moisture data for veg
+
+First, set directories and set up for parallel
+
+```{r}
+source('directorySet.R')
+library(CC2)
+```
+
+```{r}
+library(sf)
+library(foreach)
+library(doFuture)
+library(progressr)
+# make the handlers call in the console.
+# handlers(global = TRUE)
+# Not supposed to need this, but it seems to help
+doFuture::registerDoFuture()
+```
+
+This notebook will sometimes be run locally, but may be run on the HPC through purl, so set up the future plans appropriately.
+
+Here, we set the local plan to a simple multisession, while the HPC sends the loops here to nodes, and the inner loops in rastPolyJoin should go to cores. This lets us change the slurm commands- time is minutes, ntasks.per.node is cores, and mem is per node, I think.
+
+```{r}
+if (parset == 'local') {
+  plan(multisession)
+}
+
+# There's a couple in the condamine that time out at 60. Nearly everything else finishes in 10-30.
+if (parset == 'gandalf') {
+  plan(list(tweak(future.batchtools::batchtools_slurm,
+                template = "batchtools.slurm.tmpl",
+                resources = list(time = 120,
+                                 ntasks.per.node = 12, 
+                                 mem = "70GB",
+                                 job.name = 'area_inundated')),
+          multicore))
+}
+```
+
+## Set functions
+
+We need to do a few things here. And so may want to break this notebook up.
+
+### Soil moisture for germ
+
+Both black box and red gum need soil moisture between 10 and 30% for 10 days for germination. Lets do that by rolling the raster and then getting the area that meets that condition. That means we need to set up a rolling arglist. I can't actually do conditionals if I rely on RcppRoll, so will do this from both ends- get the minimum and the maximum over the 10-day span. These will then be checked in the strictures.
+
+Seedlings require 1 (red gum) or 2 (black box) years above 10% for survival and establishment.
+
+These rolling functions will return the min or max over the previous x days at each day, and so give whether success had been possible up to that day.
+
+```{r}
+# The 10-day min and max for germ
+min10day <- list(attribute_number = 1, 
+                  tDim = 3, 
+                  FUN = RcppRoll::roll_min,
+                  rolln = 10,
+                  align = 'right',
+                  na.rm = TRUE)
+
+max10day <- list(attribute_number = 1, 
+                  tDim = 3, 
+                  FUN = RcppRoll::roll_max,
+                  rolln = 10,
+                  align = 'right',
+                  na.rm = TRUE)
+
+# the one and two-year mins for seedlings
+min1yr <- list(attribute_number = 1, 
+                  tDim = 3, 
+                  FUN = RcppRoll::roll_min,
+                  rolln = 365,
+                  align = 'right',
+                  na.rm = TRUE)
+
+min2yr <- list(attribute_number = 1, 
+                  tDim = 3, 
+                  FUN = RcppRoll::roll_min,
+                  rolln = 730,
+                  align = 'right',
+                  na.rm = TRUE)
+```
+
+And the stricture functions. These will return the area for which the rolling conditions are met. The first can be used for any of the timespans of 10% mins above.
+
+```{r}
+areamoistgreater10 <- function(x) {
+  sum(ifelse(x > 0.1, area, 0), na.rm = TRUE)
+}
+```
+
+```{r}
+areamoistless30 <- function(x) {
+  sum(ifelse(x <= 0.30, area, 0), na.rm = TRUE)
+}
+```
+
+## Run and check
+
+### Germination
+
+This is shared between red gum and black box
+
+10-day minimum 10%
+
+```{r}
+# 10 days > 10%
+with_progress({
+  min10dayout <- process_with_checks(dataname = 'soilmoisture',
+                          data_dir = file.path(datDir,
+                                               'soil_moisture_more'),
+                          poly_path = file.path(datOut, 'ANAEcatchment'),
+                          summaryFun = 'areamoistgreater10',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100,
+                          rastRollArgs = min10day,
+                          extraname = 'min10day')
+})
+```
+
+```{r}
+min10dayout$timings
+min10dayout$failures
+```
+
+10-day maximum 30%
+
+```{r}
+# 10 days <= 30%
+with_progress({
+  max10dayout <- process_with_checks(dataname = 'soilmoisture',
+                          data_dir = file.path(datDir,
+                                               'soil_moisture_more'),
+                          poly_path = file.path(datOut, 'ANAEcatchment'),
+                          summaryFun = 'areamoistless30',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100,
+                          rastRollArgs = max10day,
+                          extraname = 'max10day')
+})
+```
+
+```{r}
+max10dayout$timings
+max10dayout$failures
+```
+
+### Seedlings
+
+1 year \> 10%
+
+```{r}
+# 1 year > 10%
+with_progress({
+  year10 <- process_with_checks(dataname = 'soilmoisture',
+                          data_dir = file.path(datDir,
+                                               'soil_moisture_more'),
+                          poly_path = file.path(datOut, 'ANAEcatchment'),
+                          summaryFun = 'areamoistgreater10',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100,
+                          rastRollArgs = min1yr,
+                          extraname = 'min1yr')
+})
+```
+
+```{r}
+year10$timings
+year10$failures
+```
+
+2 years \> 10%
+
+```{r}
+# 2 years > 10%
+with_progress({
+  two10 <- process_with_checks(dataname = 'soilmoisture',
+                          data_dir = file.path(datDir,
+                                               'soil_moisture_more'),
+                          poly_path = file.path(datOut, 'ANAEcatchment'),
+                          summaryFun = 'areamoistgreater10',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100,
+                          rastRollArgs = min2yr,
+                          extraname = 'min2yr')
+})
+```
+
+```{r}
+two10$timings
+two10$failures
+```
