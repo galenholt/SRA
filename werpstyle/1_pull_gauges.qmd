@@ -608,6 +608,12 @@ A different way to do it, combine into one file. Could have done this a while ag
 both_simple <- c(bom_simple, state_simple)
 ```
 
+Delete the two SA gauges that cause EWR to crash
+
+```{r}
+both_simple[which(names(both_simple) %in% c('A4260527', 'A4260633'))] <- NULL
+```
+
 First, we need the range of dates
 
 ```{r}

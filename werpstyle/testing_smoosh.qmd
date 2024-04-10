@@ -1,0 +1,81 @@
+---
+title: "Testing gauge files"
+format: html
+editor: visual
+---
+
+## Uneven gauge dates
+
+When working with historical data, we often have gauges with uneven ranges. The (maybe) safest way to handle this is to put each in a separate file, so the directory looks like scenario_name/gauge1.csv, scenario_name/gauge2.csv, etc. That runs each as a separate scenario. I've done a fair amount of wrangling of directories and output to make that work, but it's still a hassle sometimes.
+
+So here, I want to check that if I smash them together for the maximum date range (leaving NA in various places) it gives the same thing. That's more in the spirit of what the EWR tool expects, anyway.
+
+So, the question is, do we get the same results both ways?
+
+```{r}
+library(werptoolkitr)
+library(sf)
+library(dplyr)
+# get directories
+source('directorySet.R')
+```
+
+Directories
+
+```{r}
+# Outer directory for project data
+project_dir <- file.path(datOut, 'werpstyle')
+
+hydro_dir <- file.path(project_dir, 'hydrographs')
+
+# Generated data
+# EWR outputs (will be created here in controller, read from here in aggregator)
+ewr_results <- file.path(project_dir, 'module_output', 'EWR')
+
+# Outer directory for project data
+smoosh_dir <- file.path(datOut, 'werpsmoosh')
+
+hydrosmoosh_dir <- file.path(smoosh_dir, 'hydrographs')
+
+# Generated data
+# EWR outputs (will be created here in controller, read from here in aggregator)
+ewrsmoosh_results <- file.path(smoosh_dir, 'module_output', 'EWR')
+```
+
+Now, we don't want to do any aggregations at all. Just read in the EWR data as-is and see if it's the same
+
+```{r}
+ewr_separate <- get_ewr_output(ewr_results)
+ewr_smoosh <- get_ewr_output(ewrsmoosh_results)
+```
+
+Hmm. Those are totally different
+
+```{r}
+ewr_separate
+ewr_smoosh
+```
+
+```{r}
+separate_summary <- get_any_ewr_output(ewr_results, type = 'summary')
+smoosh_summary <- get_any_ewr_output(ewrsmoosh_results, type = 'summary')
+```
+
+```{r}
+separate_summary
+smoosh_summary
+```
+
+```{r}
+separate_yearly <- get_any_ewr_output(ewr_results, type = 'yearly')
+smoosh_yearly <- get_any_ewr_output(ewrsmoosh_results, type = 'yearly')
+```
+
+```{r}
+separate_yearly |> 
+  dplyr::arrange(gauge, planning_unit_name, year, ewr_code)
+smoosh_yearly |> 
+  dplyr::arrange(gauge, planning_unit_name, year, ewr_code)
+```
+
+Event_years looks ok, lots of the frequency calcs are off because they compare to the whole span.
