@@ -65,3 +65,4 @@ if (grepl('^petrichor', Sys.info()["nodename"]) |
 # Make the out directory, in case it doesn't exist
 if (!dir.exists(datOut)) {dir.create(datOut, recursive = TRUE)}
 # The in directory has to exist, or there won't be anything to use
+

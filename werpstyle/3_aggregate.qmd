@@ -6,6 +6,9 @@ editor: visual
 
 ```{r}
 library(werptoolkitr)
+#devtools::load_all('E:/Georgia/WERP_toolkit') 
+
+
 library(dplyr)
 library(sf)
 
@@ -18,19 +21,6 @@ source('directorySet.R')
 I'm going to set this up to dump data to the QAEL WERP share for now. Unfortunately, that calls itself something different for each of us.
 
 ```{r}
-if (Sys.info()['user'] == 'galen') {
-  qaelpath <- '~/../Deakin University/QAEL - SRA - SRA'
-} else if (Sys.info()['user'] == 'Georgiad') {
-  qaelpath <- '~/Deakin University/QAEL - SRA - SRA'
-} else if (Sys.info()['user'] == 'georgiad') {
-  #qaelpath <- '~/Deakin University/QAEL - WERP - WERP'
-  qaelpath <- 'C:/Users/georgiad/Deakin University/QAEL - SRA - SRA'
-} else {
-  rlang::abort("YOU'RE NOT GALEN. PUT IN YOUR PATH TO QAEL-WERP")
-}
-```
-
-```{r}
 qaelpath <- myhome
 #qaelpath <- path.expand(qaelpath)
 datDir <- file.path(qaelpath, "Deakin University/QAEL - MER/Model/dataBase")
@@ -40,10 +30,77 @@ hydro_dir <- file.path(project_dir, 'hydrographs')
 
 # Generated data
 # EWR outputs (will be created here in controller, read from here in aggregator)
-ewr_results <- file.path(project_dir, 'module_output', 'EWR')
+ewr_results <- file.path(project_dir, 'module_output', 'EWR_numeric_gauges')
 
 # outputs of aggregator. There may be multiple modules
 agg_results <- file.path(project_dir, 'aggregator_output')
+
+```
+
+## MANUAL AGGREGATION - needed for timeseries
+
+## RUN MANUAL
+
+```{r}
+  # GET Target frequencies from NSWEWR (could also use NSWEWR from EWR tool?)
+ summarydf <- get_any_ewr_output(dir = ewr_results, type = "summary")
+ annualdf <- get_any_ewr_output(dir = ewr_results, type = "yearly")
+ 
+ 
+Target_frequencies <- summarydf |>
+    dplyr::select(planning_unit_name, gauge, ewr_code, ewr_code_timing, target_frequency) |>
+    dplyr::group_by(planning_unit_name, gauge, ewr_code, ewr_code_timing, target_frequency) |>
+    dplyr::distinct() |>
+    dplyr::ungroup()
+
+  # Join target frequencies to annualdf
+annualdf <- dplyr::left_join(annualdf, Target_frequencies,
+    by = dplyr::join_by(ewr_code, ewr_code_timing, gauge, planning_unit_name),
+    relationship = "many-to-many"
+  )
+
+year_roll <- 10
+  # Frequency checks (ACHIEVEMENT test)
+  if (year_roll > 1) {
+    # Specific rolling time frame
+    # calculate number of event years, frequency, and EWR pass/fail at defined (year_roll) year rolling time frames.
+    # cease to flows are the inverse of success.
+    annualdf_summary <- annualdf |>
+      dplyr::group_by(scenario, planning_unit_name, gauge, ewr_code, ewr_code_timing) |>
+      dplyr::arrange(scenario, planning_unit_name, gauge, ewr_code, ewr_code_timing, year) |>
+      # defined n years
+      dplyr::mutate(eventyears_per_n_years = purrr::reduce(purrr::map(1:(year_roll - 1), ~ lag(event_years, ., order_by = year)), `+`) + event_years) |>
+      dplyr::mutate(frequency_per_n_years = (eventyears_per_n_years / year_roll) * 100) |>
+      dplyr::mutate(frequency_check_n_years = ifelse(grepl("CF", ewr_code), frequency_per_n_years <= target_frequency,
+        frequency_per_n_years >= target_frequency
+      )) |>
+      dplyr::ungroup()
+
+    # ACHIEVEMENT test
+    EWR_results_summary <- annualdf_summary |>
+      dplyr::group_by(ewr_code, ewr_code_timing, gauge, scenario, planning_unit_name) |>
+      dplyr::filter(!is.na(frequency_check_n_years)) |>
+      # dplyr::summarise(ewr_achieved = sum(frequency_check_n_years) == dplyr::n()) |> # do all pass?
+      dplyr::summarise(ewr_achieved = mean(frequency_check_n_years)) |> # what proportion passes?
+      dplyr::mutate(ewr_achieved_timeframe = year_roll) |>
+      dplyr::ungroup()
+    }
+  
+
+  # change the logical to numeric to maintain generality with later functions
+  EWR_results_summary$ewr_achieved <- as.numeric(EWR_results_summary$ewr_achieved)
+  EWR_results_summary$scenario <- "Historical"
+
+  write.csv(EWR_results_summary, file.path(project_dir, 'MANUAL', 'EWR_summary.csv'))
+  
+  #####
+  #### FOR TIME SERIES
+  
+  annualdf$ewr_achieved <- as.numeric(annualdf$event_years)
+  annualdf$scenario <- "Historical"
+  write.csv(annualdf, file.path(project_dir, 'MANUAL', 'EWR_timeseries.csv'))
+  
+  
 
 ```
 
@@ -53,11 +110,16 @@ agg_results <- file.path(project_dir, 'aggregator_output')
 
 ```{r}
 
-#NOT SURE HOW TO DO THIS
-
-gauge_EWRS <- sdl_EWRS_agg$ewr_code |>
-  filter(scenario != "MAX")|>
-  mutate(scenario = "Historical")
+#FIXING GAUGES
+#devtools::load_all('E:/Georgia/WERP_toolkit/R') 
+# #NOT SURE HOW TO DO THIS
+#temp_df <- get_ewr_output(dir = ewr_results)
+# temp_df2 <- get_any_ewr_output(dir = ewr_results, type = 'yearly')
+# 
+# 
+# gauge_EWRS <- sdl_EWRS_agg$ewr_code |>
+#   filter(scenario != "MAX")|>
+#   mutate(scenario = "Historical")
 ```
 
 ## Aggregation sequencing

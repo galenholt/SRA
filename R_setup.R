@@ -29,6 +29,7 @@ if (grepl("unix", .Platform$OS.type)) {
   # `'git@github.com:MDBAuth/WERP_toolkit.git@BRANCH_NAME'` and rebuild = TRUE
   # and auto-updating the version in the package. But if not, use the remotes
   # line below
+#renv::install('git@github.com:MDBAuth/WERP_toolkit.git@Georgia_fast', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 renv::install('git@github.com:MDBAuth/WERP_toolkit.git@galen_working', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 #renv::install('git@github.com:MDBAuth/WERP_toolkit.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 

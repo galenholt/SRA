@@ -9,6 +9,7 @@ execute:
 ```{r}
 #| include: false
 #| 
+
 library(werptoolkitr)
 library(dplyr)
 library(sf)
@@ -35,10 +36,11 @@ hydro_dir <- file.path(project_dir, 'hydrographs')
 
 # Generated data
 # EWR outputs (will be created here in controller, read from here in aggregator)
-ewr_results <- file.path(project_dir, 'module_output', 'EWR')
+ewr_results <- file.path(project_dir, 'module_output', 'EWR_numeric_gauges')
+ewr_results <- file.path(project_dir, 'MANUAL')
 
 # outputs of aggregator. There may be multiple modules
-agg_results <- file.path(project_dir, 'aggregator_output')
+agg_results <- file.path(project_dir, 'aggregator_output_numeric_gauges')
 
 comp_results <- file.path(project_dir, 'comparer_output') 
 ```
@@ -121,6 +123,125 @@ sdl_EWRS_agg <- readRDS(file.path(agg_results, "sdl_EWRS_agg", 'achievement_aggr
 sdl_target_agg <- readRDS(file.path(agg_results, "sdl_target_agg", 'achievement_aggregated.rds'))
 # simple_agg <- readRDS(file.path(agg_results, "Simple_agg", 'achievement_aggregated.rds'))
 
+
+EWR_timing_summary <- read.csv(file.path(project_dir, 'MANUAL', 'EWR_summary.csv'))
+EWR_timing_timeseries <- read.csv(file.path(project_dir, 'MANUAL', 'EWR_timeseries.csv'))
+```
+
+```         
+```
+
+## For joining space data
+
+```{r}
+
+gauges_df <- get_ewr_gauges()|>
+  #st_drop_geometry() |>
+  mutate(OWNER = case_when(owner == "NSW - NSW Department of Industry – Lands and Water" ~ "NSW",
+                           owner == "VIC - Department of Environment, Land, Water and Planning"~ "VIC",
+                           owner == "SA - Department of Environment, Water and Natural Resources"~ "SA",
+                           owner == "QLD - Department of Natural Resources, Mines and Energy"~ "QLD",
+                           owner == NA ~ NA))
+
+gauges_df_sld <- st_join(gauges_df, sdl_units)
+
+
+Climate_Categories <- read.csv(file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "Climate_Categories_Coloured_2023.csv"), check.names = FALSE)
+
+Climate_Categories <- Climate_Categories |>
+  pivot_longer(cols = `Barwon-Darling`:`Total MDB`, names_to = "Climate_category.data", values_to = "Climate_Category")
+
+Climate_Categories <- Climate_Categories |>
+  mutate(Climate_Category = factor(Climate_Category, levels = c("Very Dry", "Dry", "Moderate", "Wet", "Very Wet")))
+
+Climate_Category_to_polygons <- read.csv(file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "Climate_Category_to_polygons.csv"))|>
+  select(-ValleyName, -LTWPShortName)|>
+  filter(Climate_category.data != "")|>
+  filter(SWSDLName != "")|>
+  mutate(SWSDLName = case_when(SWSDLName == "Barwon-Darling Watercourse" ~ "Barwon–Darling Watercourse",
+                               SWSDLName == "Barwon Darling Watercourse" ~ "Barwon–Darling Watercourse",
+                               SWSDLName == "Macquarie-Castlereagh" ~ "Macquarie–Castlereagh",
+                               SWSDLName == "Macquarie Castlereagh" ~ "Macquarie–Castlereagh",
+                               SWSDLName == "Wimmera Mallee (Surface Water)" ~ "Wimmera–Mallee (Surface Water)",
+                               SWSDLName == "Wimmera–Mallee (Surface Water)" ~ "Wimmera–Mallee (Surface Water)",
+                               SWSDLName == "Condamine-Balonne" ~ "Condamine–Balonne",
+                               SWSDLName == "Condamine Balonne" ~ "Condamine–Balonne",
+                               .default = SWSDLName))
+	
+Climate_Category_to_polygon_geometry <- left_join(Climate_Category_to_polygons, sdl_units, by = join_by(SWSDLName))
+
+Climate_Category_geometry <- Climate_Category_to_polygon_geometry|>
+  group_by(Climate_category.data) |>
+  summarise(geometry = st_union(geometry))
+
+Climate_Category_geometry_sdl <- Climate_Category_to_polygon_geometry|>
+  group_by(Climate_category.data) |>
+  mutate(geometry = st_union(geometry))
+
+# Climate_Categories <- left_join(Climate_Categories, Climate_Category_geometry, by = join_by(Climate_category.data))
+
+Climate_Categories_sdl <- left_join(Climate_Categories, Climate_Category_geometry_sdl, by = join_by(Climate_category.data)) |>
+  rename(year = `Start of water Year`)
+
+
+Climate_Categories_sdl
+
+# unique(resource_plan_areas$SWWRPANAME)
+# 
+# #unique(planning_units_df$PlanningUnitName)
+# 
+# unique(planning_units_df$LTWPShortName)
+# #unique(planning_units_df$PU_Region)
+# 
+# unique(cewo_valleys$ValleyName)
+# 
+# temp <- sdl_units |>
+#   select(SWSDLName)|>
+#   st_drop_geometry()
+# 
+# write.csv(temp, file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "SWSDLNames.csv"))
+# 
+# temp <- cewo_valleys |>
+#   select(ValleyName)|>
+#   st_drop_geometry()
+# 
+# write.csv(temp, file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "ValleyNames.csv"))
+# 
+# temp <- planning_units_df |>
+#   select(LTWPShortName)|>
+#   distinct(LTWPShortName)|>
+#   st_drop_geometry()
+# 
+# write.csv(temp, file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "LTWPShortNames.csv"))
+
+temp <- resource_plan_areas |>
+  select(SWWRPANAME)|>
+  distinct(SWWRPANAME)|>
+  st_drop_geometry()
+
+write.csv(temp, file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "SWWRPANAME.csv"))
+
+
+
+```
+
+## For joining EWR data
+
+```{r}
+#NEED TO WORK OUT WHAT SOME OF THE GROUPS ARE:
+EWR_table <- get_ewr_table()
+
+
+EWRS_df <- EWR_timing_summary |>
+  distinct(ewr_code) |>
+  mutate(ewr_group_temp1 = substr(ewr_code, start = 1, stop = 2)) |>
+  mutate(ewr_group_temp2 = substr(ewr_code, start = 1, stop = 1)) |> #DODGY BUT WILL DO FOR NOW
+  mutate(ewr_group = case_when(ewr_group_temp2 == "F" ~ ewr_group_temp2, 
+                               ewr_group_temp1 == "W-" ~ "LF",
+                               .default = ewr_group_temp1)) |>
+  mutate(ewr_group = ifelse(is.na(ewr_group), ewr_group_temp1, ewr_group)) |>
+  select(-ewr_group_temp1, -ewr_group_temp2)
+
 ```
 
 ## Prep agged data
@@ -130,14 +251,23 @@ sdl_target_agg <- readRDS(file.path(agg_results, "sdl_target_agg", 'achievement_
 -   clean and order ewr_codes
 
 ```{r}
+
+ewr_results
+
 gauge_EWRS <- sdl_EWRS_agg$ewr_code |>
   filter(aggfun_1 == "ArithmeticMean") |>
 #TEMP FIX FOR MAX - the MAX creation doesnt work with this data set. max is only being made for one gauge.
   filter(scenario != "MAX")|>
-  mutate(scenario = "Historical")
+  mutate(scenario = "Historical")|>
+  left_join(EWRS_df)
 
 gauge_EWRS_dropgeo <- gauge_EWRS |>
   st_drop_geometry()
+
+gauge_EWRS_dropgeo <- gauge_EWRS_dropgeo |>
+  left_join(gauges_df, by = join_by(gauge))
+
+unique(gauge_EWRS_dropgeo$owner)
 
 planning_unit_EWRS <- sdl_EWRS_agg$planning_unit |>
   filter(aggfun_1 == "ArithmeticMean" & aggfun_2 == "ArithmeticMean")
@@ -157,17 +287,15 @@ sdl_EWRS_dropgeo <- sdl_EWRS |>
 #paste(names(gauge_EWRS), collapse = "', '")
 gauge_aggEWR <- gauge_EWRS |>
   dplyr::ungroup()|>
-  dplyr::group_by(scenario, planning_unit_name, gauge, polyID, geometry,
-                  aggfun_1, aggLevel_1) |>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
   dplyr::summarise(ewr_achieved = mean(ewr_achieved))
 
 gauge_aggEWR_dropgeo <- gauge_aggEWR |>
   st_drop_geometry()
 
 planning_unit_aggEWR <- gauge_aggEWR |>
-  group_by(scenario, planning_unit_name, polyID,
-           aggfun_1, aggLevel_1) |>
-  summarise(ewr_achieved = mean(ewr_achieved))
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -gauge)))|>
+  dplyr::summarise(ewr_achieved = mean(ewr_achieved))
 
 planning_unit_aggEWR_dropgeo <- planning_unit_aggEWR |>
   st_drop_geometry()
@@ -177,6 +305,11 @@ planning_unit_aggEWR_dropgeo <- planning_unit_aggEWR |>
 #   group_by('ewr_code', 'polyID', 'PlanningUnitName', 'LTWPShortName', 'PU_Region', 'PU_Code', 'STATE', 'geometry', 'planning_unit_name', 'aggfun_1', 'aggLevel_1', 'aggfun_2', 'aggLevel_2') |>
 #   mutate(ewr_achieved == mean(ewr_achieved))
 
+## agregate to EWR groups
+gauge_EWR_groups <- gauge_EWRS_dropgeo |>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
+  dplyr::summarise(ewr_achieved = mean(ewr_achieved))
+
 
 # LIST OF ALL EWRS
 # paste(unique(sdl_EWRS$ewr_code), collapse = ", ")
@@ -184,6 +317,101 @@ planning_unit_aggEWR_dropgeo <- planning_unit_aggEWR |>
 
 #ORDER EWRS???? 
 #sdl_EWRS$ewr_code <- factor(sdl_units_nonrounding$ewr_code, levels = c("CF", "VF", "BF1", "BF2", "SF1", "SF2", "SF3", "LF1", "LF2", "OB-WL", "OB-WM", "OB-WS1", "OB-WS2", "OB-WS3", "OB-WS4")) 
+```
+
+## prep - MANUAL
+
+```{r}
+
+## agregate to EWR codes
+gauge_EWRS <- EWR_timing_summary |>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code_timing)))|>
+  left_join(EWRS_df)|>
+  left_join(gauges_df_sld, by = "gauge")
+
+## agregate to EWR groups
+gauge_EWR_groups <- gauge_EWRS |>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
+  dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+
+
+
+## FOR TIMESERIES
+## agregate to EWR codes
+gauge_EWRS_timeseries <- EWR_timing_timeseries |>
+  #dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code_timing)))|> #didnt work - other variables relating to code_timing
+   dplyr::group_by(year, ewr_code, scenario, gauge, planning_unit_name) |>
+  dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE)) |>
+  left_join(EWRS_df, by = "ewr_code")
+
+gauge_EWRS_timeseries <- left_join(gauge_EWRS_timeseries, gauges_df_sld, by = "gauge")
+
+#gauge_EWRS_timeseries <- st_join(gauge_EWRS_timeseries, Climate_Categories)
+
+## agregate to EWR groups
+gauge_EWR_GROUP_timeseries <- gauge_EWRS_timeseries |>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
+  dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+
+# ## agregate to EWR groups to planning units
+# planning_unit_EWR_timeseries <- gauge_EWRS_timeseries |>
+#   dplyr::group_by(dplyr::across(c(-gauge, -ewr_achieved)))|>
+#   dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+
+## agregate to EWR groups to resource planning areas
+#paste(names(gauge_EWRS_timeseries), collapse = ", ")
+#"year, ewr_code, scenario, gauge, planning_unit_name, ewr_achieved, ewr_group, planningunitname, ltwpshortname, gaugetype, site, owner, geometry#, OWNER, SWWRPANAME, SWWRPACODE, STATE"
+#"year, ewr_code, scenario, gauge, planning_unit_name, ewr_achieved, ewr_group, planningunitname, ltwpshortname, gaugetype, site, owner, geometry, OWNER, SWSDLID, SWSDLName, StateID, Start of water Year, Climate_category.data, Climate_Category"
+
+
+# sdl_EWR_timeseries <- gauge_EWRS_timeseries |>
+#   dplyr::group_by(dplyr::across(c(-gauge, -geometry, -planning_unit_name, -planningunitname, -ltwpshortname, -gaugetype, -site, -ewr_achieved)))|>
+#   dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+
+#individual EWRs
+climatecategory_EWR_timeseries <- gauge_EWR_GROUP_timeseries |>
+  ungroup() |>
+  st_drop_geometry() |>
+  select(-gauge, -geometry, -planning_unit_name, -planningunitname, -ltwpshortname, -gaugetype, -site, -owner, -OWNER) 
+
+climatecategory_EWR_timeseries <- climatecategory_EWR_timeseries |>
+  left_join(Climate_Categories_sdl, by = join_by(SWSDLID, SWSDLName, StateID, year))
+  
+climatecategory_EWR_timeseries_mean <- climatecategory_EWR_timeseries |> 
+  ungroup() |>
+  select(-SWSDLID, -StateID)|>
+  dplyr::group_by(dplyr::across(c( -ewr_achieved, -SWSDLName)))|>
+  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
+                   SWSDLName = paste(unique(SWSDLName), collapse = ", "))
+
+climatecategory_EWR_timeseries_mean_climatecategorysummary <- climatecategory_EWR_timeseries_mean |> 
+  ungroup() |>
+  dplyr::group_by(dplyr::across(c( -ewr_achieved, -year)))|>
+  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
+                 n_years = n())
+
+# EWRs GROUPS
+climatecategory_EWRgroup_timeseries <- gauge_EWR_GROUP_timeseries |>
+  ungroup() |>
+  st_drop_geometry() |>
+  select(-gauge, -geometry, -planning_unit_name, -planningunitname, -ltwpshortname, -gaugetype, -site, -owner, -OWNER) 
+
+climatecategory_EWRgroup_timeseries <- climatecategory_EWRgroup_timeseries |>
+  left_join(Climate_Categories_sdl, by = join_by(SWSDLID, SWSDLName, StateID, year))
+  
+climatecategory_EWRgroup_timeseries_mean <- climatecategory_EWRgroup_timeseries |> 
+  ungroup() |>
+  select(-SWSDLID, -StateID)|>
+  dplyr::group_by(dplyr::across(c( -ewr_achieved, -SWSDLName)))|>
+  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
+                   SWSDLName = paste(unique(SWSDLName), collapse = ", "))
+
+climatecategory_EWRgroup_timeseries_mean_climatecategorysummary <- climatecategory_EWRgroup_timeseries_mean |> 
+  ungroup() |>
+  dplyr::group_by(dplyr::across(c( -ewr_achieved, -year)))|>
+  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
+                 n_years = n())
+
 ```
 
 \## To work out which gauges to include:
@@ -215,9 +443,21 @@ planning_unit_aggEWR_dropgeo <- planning_unit_aggEWR |>
 #| include: false
 
 gauges_to_plot <- unique(gauge_EWRS$gauge)
-planning_units_to_plot <- unique(planning_unit_EWRS$PlanningUnitName)
-SWSDL_units_to_plot <- unique(sdl_EWRS$SWSDLName)
+#planning_units_to_plot <- unique(planning_unit_EWRS$PlanningUnitName)
+#SWSDL_units_to_plot <- unique(sdl_EWRS$SWSDLName)
 
+set.seed(4)
+gauges_x_4 <- gauge_EWR_groups |>
+  ungroup()|>
+  filter(ewr_group == "BF")|>
+  filter(OWNER != "QLD" & OWNER != "SA") |>
+  distinct(gauge, OWNER)|>
+  group_by(OWNER)|>
+  sample_n(4)
+
+gauges_x_4 <- c(gauges_x_4$gauge, "A4260505", "A4260507", "A4260509", "416201A")
+
+pal_climates
 # 
 # ODD_gauges <- c("421019", "421023", "421146") #(EWRS never pass)
 # 
@@ -249,18 +489,14 @@ SWSDL_units_to_plot <- unique(sdl_EWRS$SWSDLName)
 # Trying to organise by the sort of palette we need for each
 
 # Qualitative
-pal_gauge <- make_pal(refvals = gauges_to_plot,                       
-                      refcols = 'ggsci::nrc_npg')
-scales::show_col(ggsci::pal_npg("nrc", 1))
+pal_gauge <- stats::setNames(colorRampPalette(paletteer::paletteer_d('ggsci::nrc_npg'))(length(gauges_to_plot)), gauges_to_plot)
+class(pal_gauge) <- 'colors'
 
-colorRampPalette()(180)
-nrc_npg()
-
-pal_planning_units <- make_pal(planning_units_to_plot, 
-                    palette = "impressionist.colors::la_recolte_des_foins_eragny")
-pal_SDL <- make_pal(SWSDL_units_to_plot, 
-                    palette = "impressionist.colors::la_recolte_des_foins_eragny")
-
+pal_planning_units <-  stats::setNames(colorRampPalette(paletteer::paletteer_d('impressionist.colors::la_recolte_des_foins_eragny'))(length(planning_units_to_plot)), planning_units_to_plot)
+class(pal_planning_units) <- 'colors'
+  
+pal_SDL <-  stats::setNames(colorRampPalette(paletteer::paletteer_d('impressionist.colors::la_recolte_des_foins_eragny'))(length(SWSDL_units_to_plot)), SWSDL_units_to_plot)
+class(pal_SDL) <- 'colors'
 
 # scale_evap_pal <- make_pal(as.character(unique(scenarios$scale_evap)),
 #                       palette = 'nationalparkcolors::Redwoods')
@@ -307,6 +543,19 @@ pal_compare <- 'scico::bam'
 # pal_scene <- make_pal(unique(scenarios$scenario),                       
 #                       palette = "viridis::mako", #'ggsci::nrc_npg', 
 #                       refvals = 'base', refcols = 'black')
+
+# pal_climate <- make_pal(as.character(levels(Climate_Categories$Climate_Category)),
+#                        palette = 'LaCroixColoR::Orange')
+
+pal_climate <-  stats::setNames(c("#ED2024", "#FAA41A", "#F6EB14", "#87CDE9", "#282A73"), levels(Climate_Categories$Climate_Category))
+class(pal_climate) <- 'colors'
+
+pal_year <- make_pal(as.character(unique(Climate_Categories$`Start of water Year`)),
+                       palette = 'nationalparkcolors::Redwoods')
+
+
+pal_year <-  stats::setNames(colorRampPalette(paletteer::paletteer_d('impressionist.colors::la_recolte_des_foins_eragny'))(length(unique(Climate_Categories$`Start of water Year`))), unique(Climate_Categories$`Start of water Year`))
+class(pal_year) <- 'colors'
 ```
 
 ## Plots
@@ -745,115 +994,178 @@ ggsave(plot = sdl_achieve_bars_climate_nonrounding, filename = file.path(comp_re
 
 ```{r}
 
-Plot_EWRs_per_gauge1 <- ggplot(data = filter(ewr_code_per_gauge_nonrounding, names_climate_scenario %in% MDBA_comparison), 
-       aes(x = ewr_code, y = names_MDBA_climate_scenario))+
+Plot_EWRs_per_gauge1 <- ggplot(data = gauge_EWRS, 
+       aes(x = ewr_code, y = gauge))+
   geom_tile(aes(fill = ewr_achieved), colour = "black")+
   #geom_text(aes(label = n))+
-  facet_grid(licvolfactor~gauge, scales = "free", space = "free")+
+  facet_grid(OWNER~., scales = "free", space = "free")+
   paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
   theme_werp_toolkit()+
-  labs(x = "EWR", y = "Climate and adaptation option scenario", fill = "Proportion \nEWR achieved")+
+  labs(x = "EWR", y = "Gauge", fill = "Proportion \nEWR achieved")+
   theme(axis.text.x = element_text(angle = 90))
 
-Plot_EWRs_per_gauge2 <- ggplot(data = filter(ewr_code_per_gauge_nonrounding, names_climate_scenario %in% MDBA_comparison), 
-       aes(x = ewr_code, y = factor(licvolfactor, levels = unique(scenarios$licvolfactor))))+
-  geom_tile(aes(fill = ewr_achieved), colour = "black")+
-  #geom_text(aes(label = n))+
-  facet_grid(names_MDBA_climate_scenario~gauge, scales = "free", space = "free")+
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
-  theme_werp_toolkit()+
-  labs(x = "EWR", y = "Climate and adaptation option  scenario", fill = "Proportion \nEWR achieved")+
-  theme(axis.text.x = element_text(angle = 90))
-
-ggsave(plot = Plot_EWRs_per_gauge1, filename = file.path(comp_results, paste0("EWRs_per_gauge_compare_climate", Sys.Date(), ".tiff")), device = "tiff",
-       width = 10, height = 5)
-
-ggsave(plot = Plot_EWRs_per_gauge2, filename = file.path(comp_results, paste0("EWRs_per_gauge_compare_adaptation", Sys.Date(), ".tiff")), device = "tiff",
-       width = 10, height = 5)
+ggsave(plot = Plot_EWRs_per_gauge1, filename = file.path(comp_results, paste0("EWRs_per_gauge_STATE", Sys.Date(), ".tiff")), device = "tiff",
+       width = 10, height = 10)
 
 Plot_EWRs_per_gauge1
-Plot_EWRs_per_gauge2
+
 
 ```
 
-## tile plots - individual EWRs per ENV OBJ
+## tile plots - EWR groups per gauge
 
 ```{r}
-
-Plot_EWRs_per_EnvGroup <- ggplot(data = filter(sdl_EWRs_objectives_nonrounding, names_climate_scenario %in% MDBA_comparison), 
-       aes(x = ewr_code, y = names_MDBA_climate_scenario))+
+Plot_EWRgroups_per_gauge <- ggplot(data = gauge_EWR_groups, 
+       aes(x = ewr_group, y = gauge))+
   geom_tile(aes(fill = ewr_achieved), colour = "black")+
   #geom_text(aes(label = n))+
-  facet_grid(licvolfactor~env_group, scales = "free", space = "free")+
+  facet_grid(OWNER~., scales = "free", space = "free")+
   paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
   theme_werp_toolkit()+
-  labs(x = "EWR", y = "Climate and adaptation option scenario", fill = "Proportion \nEWR achieved")+
+  labs(x = "EWR", y = "Gauge", fill = "Proportion \nEWR achieved")+
   theme(axis.text.x = element_text(angle = 90))
 
-Plot_EWRs_per_EnvGroup2 <- ggplot(data = filter(sdl_EWRs_objectives_nonrounding, names_climate_scenario %in% MDBA_comparison), 
-       aes(x = ewr_code, y = factor(licvolfactor, levels = unique(scenarios$licvolfactor))))+
-  geom_tile(aes(fill = ewr_achieved), colour = "black")+
-  #geom_text(aes(label = n))+
-  facet_grid(names_MDBA_climate_scenario~env_group, scales = "free", space = "free")+
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
-  theme_werp_toolkit()+
-  labs(x = "EWR", y = "Climate and adaptation option  scenario", fill = "Proportion \nEWR achieved")+
-  theme(axis.text.x = element_text(angle = 90))
-
-ggsave(plot = Plot_EWRs_per_EnvGroup, filename = file.path(comp_results, 
-                                                           paste0("EWRs_per_EnvGroup_compare_climate", 
-                                                                  Sys.Date(), ".tiff")), device = "tiff",
-       width = 10, height = 5)
-
-ggsave(plot = Plot_EWRs_per_EnvGroup2, filename = file.path(comp_results, 
-                                                            paste0("EWRs_per_EnvGroup_compare_adaptation", 
-                                                                   Sys.Date(), ".tiff")), device = "tiff",
-       width = 10, height = 5)
-Plot_EWRs_per_EnvGroup2
-```
-
-## Problem with dry climate - seems like no EWRs pass
-
-```{r}
-#does nothing  ever pass in the dry climate?
-temp <- sdl_EWRs_nonrounding_agg$ewr_code |>
-  st_drop_geometry()|>
-  filter(aggfun_1 == "ArithmeticMean") 
-
-Dry_climate_EWRs <- temp|> 
-  filter(names_MDBA_climate_scenario ==  "Dry climate")
-  
-unique(Dry_climate_EWRs$ewr_achieved)
+ggsave(plot = Plot_EWRgroups_per_gauge, filename = file.path(comp_results, paste0("EWRgroups_per_gauge_STATE", Sys.Date(), ".tiff")), device = "tiff",
+       width = 10, height = 10)
 
 ```
 
+## Time series EWRS - BF
+
 ```{r}
-# comparing individual scenarios
-scenarios_to_compare <- c("SR0.8_SE1.00_LV1.0", "SR0.8_SE1.00_LV1.1")
 
-temp <- ewr_code_nonrounding |> 
-  filter(names_scenario %in% scenarios_to_compare)|>
-  ungroup()|>
-  select(names_scenario, gauge, ewr_achieved, ewr_code, planning_unit_name)|>
-  mutate(ewr_achieved = round(ewr_achieved,2))|>
-  tidyr::pivot_wider(names_from = names_scenario, values_from = ewr_achieved) |>
-  filter(`SR0.8_SE1.00_LV1.0` != `SR0.8_SE1.00_LV1.1`)
+timeseries_BF_4xgauges <- gauge_EWR_GROUP_timeseries |>
+  filter(gauge %in% gauges_x_4)|>
+  filter(ewr_group == "BF") |>
+  mutate(State_gauge = paste(OWNER, gauge, sep = "_"))
   
-knitr::kable(temp)
+timeseries_BF_403220 <- gauge_EWR_GROUP_timeseries |>
+  filter(gauge == "403220" & ewr_group == "BF")
 
-scenarios_to_compare_1 <- c("SR1.0_SE1.07_LV0.7", "SR1.0_SE1.07_LV0.9")
+Plot_EWRgroups_per_gauge_timeseries <- ggplot(data = timeseries_BF_4xgauges, 
+       aes(x = year, y = ewr_achieved, colour = State_gauge))+
+  geom_point()+#, colour = "black")+
+  geom_line()+#, colour = "black")+
+  #geom_point() +
+  #geom_line() +
+  #geom_text(aes(label = n))+ewr_group
+  facet_grid(OWNER~., scales = "free", space = "free")+
+  #paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "EWR", fill = "Gauge", y = "Proportion \nEWR achieved")+
+  theme(axis.text.x = element_text(angle = 90))
 
-comp_1 <- ewr_code_nonrounding |> 
-  filter(names_scenario %in% scenarios_to_compare_1)|>
-  ungroup()|>
-  select(names_scenario, gauge, ewr_achieved, ewr_code, planning_unit_name)|>
-  mutate(ewr_achieved = round(ewr_achieved,2))|>
-  tidyr::pivot_wider(names_from = names_scenario, values_from = ewr_achieved) |>
-  filter(`SR1.0_SE1.07_LV0.7` != `SR1.0_SE1.07_LV0.9`)
+Plot_EWRgroups_per_gauge_timeseries
+
+ggsave(plot = Plot_EWRgroups_per_gauge_timeseries, filename = file.path(comp_results, paste0("EWRgroups_per_gauge_STATE_timeseries_event_years", Sys.Date(), ".tiff")), device = "tiff",
+       width = 8, height = 5)
+
+
+```
+
+## CF - Time series EWRS - CF
+
+```{r}
+unique(sdl_EWR_timeseries$ewr_group)
+sdl_EWR_timeseries
+
+timeseries_CF_climatecategory <- climatecategory_EWRgroup_timeseries |>
+  filter(!is.na(Climate_category.data))|>
+  #filter(Climate_category.data != "Barwon-Darling")|> 
+  #filter(year > 1982)|>
+  #filter(gauge %in% gauges_x_4)|>
+  #filter(OWNER != "NSW")|>
+  filter(ewr_group == "CF") |>
+  filter(!is.na(ewr_achieved))|>
+  filter(!is.nan(ewr_achieved))
+
+CF_climatecategorysummary <- climatecategory_EWRgroup_timeseries_mean_climatecategorysummary |>
+  filter(ewr_group == "CF") |>
+  filter(!is.na(ewr_achieved))|>
+  filter(!is.nan(ewr_achieved))|>
+  filter(!is.na(Climate_category.data))
   
-comp_1
-knitr::kable(comp_1)
 
+Plot_CF_RPA_timeseries <- ggplot(data = timeseries_CF_climatecategory, 
+       aes(x = year, y = ewr_achieved))+
+  geom_line(colour = "grey80")+
+  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
+  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+  #geom_point() +
+  #geom_line() +
+  #geom_text(aes(label = n))+ewr_group
+  facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
+  #paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "Year", colour = "SWC", y = "Proportion of gauges \nwith CF occuring")+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_hline(data = CF_climatecategorysummary, aes(yintercept = ewr_achieved, colour = Climate_Category), linetype =  "dashed")
+
+Plot_CF_RPA_timeseries
+
+ggsave(plot = Plot_CF_RPA_timeseries, filename = file.path(comp_results, paste0("CF_SWC_timeseries", Sys.Date(), ".tiff")), device = "tiff",
+       width = 8, height = 5)
+
+
+Plot_CF_RPA_timeseries <- ggplot(data = timeseries_CF_climatecategory, 
+       aes(x = Climate_Category, y = ewr_achieved))+
+  #geom_line(colour = "grey80")+
+  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
+  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+  #geom_point() +
+  #geom_line() +
+  #geom_text(aes(label = n))+ewr_group
+  facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
+  #paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "SWC", colour = "SWC", y = "Proportion of gauges \nwith CF occuring")+
+  theme(axis.text.x = element_text(angle = 90))#+
+  #geom_hline(data = CF_climatecategorysummary, aes(yintercept = ewr_achieved, colour = Climate_Category), linetype =  "dashed")
+
+Plot_CF_RPA_timeseries
+
+ggsave(plot = Plot_CF_RPA_timeseries, filename = file.path(comp_results, paste0("CF_SWC_boxplots", Sys.Date(), ".tiff")), device = "tiff",
+       width = 8, height = 5)
+
+
+
+```
+
+```{r}
+#messy plot need to work out whats happening !!! DONT FORGET TO DO THIS!!!
+
+Plot_CF_RPA_timeseries <- ggplot(data = timeseries_CF_climatecategory, 
+       aes(x = year, y = ewr_achieved))+
+  geom_line()+#, colour = "black")+
+  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
+
+  #geom_point() +
+  #geom_line() +
+  #geom_text(aes(label = n))+ewr_group
+  facet_wrap(~SWSDLName, scales = "free_y", ncol = 3)+
+  #paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "EWR", fill = "Gauge", y = "Proportion of gauges \nwith CF occuring")+
+  theme(axis.text.x = element_text(angle = 90))
+
+Plot_CF_RPA_timeseries
+
+# DONT FORGET TO WORKOUT WHAT TO DO WITH INTERSECTING STREAMS!!!!!!!!!!!!!!!!!
+# climatecategory_EWR_timeseries |>
+#   filter(is.na(Climate_category.data))
+# #NA = Intersecting Streams
+
+# timeseries_CF_BarwonDarling <- climatecategory_EWR_timeseries |>
+#   filter(Climate_category.data == "Barwon-Darling")
+# #NA = Intersecting Streams
+```
+
+## TRENDS
+
+```{r}
+fitARIMA <- arima(tsData, order=c(1,1,1),seasonal = list(order = c(1,0,0), period = 12),method="ML")
+library(lmtest)
+coeftest(fitARIMA)
 
 ```
 
@@ -1512,57 +1824,54 @@ contour_point_heatmap
 
 ```{r}
 # The map
-sdl_achieve_map <- planning_unit_aggEWR |> 
-  #filter(scenario %in% scenarios_to_plot) |> 
-  plot_outcomes(outcome_col = 'ewr_achieved',
-                outcome_lab = 'Proportion\nEWR achieved',
-                x_col = 'map',
-                #facet_row = 'climate_code',
-                #facet_col = 'adapt_code',
-                pal_list = pal_achieve,
-                underlay_list = list(underlay = basin, underlay_pal = 'azure'),
-                setLimits = c(0,1))
-
-sdl_achieve_map <- sdl_achieve_map +
-  theme(legend.position = 'bottom', 
-        axis.ticks = element_blank(), 
-        axis.text = element_blank()) +
-  scale_y_continuous(sec.axis = sec_axis(~ . , name = "Climate scenario", 
-                                         breaks = NULL, labels = NULL)) +
-    scale_x_continuous(sec.axis = sec_axis(~ . , name = "Adaptation option",
-                                           breaks = NULL, labels = NULL))
-
-sdl_achieve_bars + sdl_achieve_map + 
-  patchwork::plot_annotation(tag_levels = 'a')
 
 
+ggplot(data = Climate_Category_geometry,  aes(geometry = geometry)) +
+  geom_sf()+
+  geom_sf_text(data = Climate_Category_geometry, aes(label = Climate_category.data))+
+  geom_sf(data = gauges_df_sld,  aes(geometry = geometry), colour = "red")+ #ALL GAUGES, TWO DONT RUN THORUGH EWR TOOL
+  geom_sf(data = gauge_EWR_groups,  aes(geometry = geometry))
 
+plot1 <- ggplot(data = Climate_Category_geometry,  aes(geometry = geometry)) +
+  geom_sf(aes(colour = Climate_category.data))+
+  geom_sf_text(data = Climate_Category_geometry, aes(label = Climate_category.data, colour = Climate_category.data))+
+  geom_sf(data = gauge_EWR_groups,  aes(geometry = geometry))+ 
+  theme(legend.position = "none")
 
-gauge_aggEWR
-# The map
-sdl_achieve_map <- planning_unit_aggEWR |> 
-  #filter(scenario %in% scenarios_to_plot) |> 
-  plot_outcomes(outcome_col = 'ewr_achieved',
-                outcome_lab = 'Proportion\nEWR achieved',
-                #x_col = 'map',
-                plot_type = 'map',
-                #facet_row = 'climate_code',
-                #facet_col = 'adapt_code',
-                colorset = 'ewr_achieved',
-                pal_list = pal_achieve,
-                underlay_list = list(underlay = basin, underlay_pal = 'azure'),
-                setLimits = c(0,1))
+plot2 <- ggplot(data = Climate_Category_geometry,  aes(geometry = geometry)) +
+  #geom_sf(aes(colour = Climate_category.data))+
+  #geom_sf_text(data = Climate_Category_geometry, aes(label = Climate_category.data, colour = Climate_category.data))+
+  geom_sf(data = gauge_EWR_groups,  aes(geometry = geometry))+
+  geom_sf(data = sdl_units,  aes(geometry = geometry, fill = SWSDLName, colour = SWSDLName), alpha = 0.1)+ 
+  geom_sf_text(data = filter(sdl_units), aes(label = SWSDLName, colour = SWSDLName))+
+  theme(legend.position = "none")
 
+plot3 <- ggplot(data = Climate_Category_geometry,  aes(geometry = geometry)) +
+  #geom_sf(aes(colour = Climate_category.data))+
+  #geom_sf_text(data = Climate_Category_geometry, aes(label = Climate_category.data, colour = Climate_category.data))+
+  geom_sf(data = gauge_EWR_groups,  aes(geometry = geometry))+
+  geom_sf(data = cewo_valleys,  aes(geometry = geometry, fill = ValleyName, colour = ValleyName), alpha = 0.1)+ 
+  geom_sf_text(data = cewo_valleys, aes(label = ValleyName, colour = ValleyName))+
+  theme(legend.position = "none")
 
-  plot_outcomes(outcome_col = 'ewr_achieved',
-                outcome_lab = 'Proportion\nEWR achieved',
-                plot_type = 'map',
-                colorset = 'ewr_achieved',
-                pal_list = achieve_pal,
-                facet_row = 'scenario',
-                facet_col = 'env_obj',
-                underlay_list = list(list(underlay = basin,
-                                     pal_list = 'azure'),
-                                    
-                setLimits = c(0,1)) )
+plot4 <- ggplot(data = Climate_Category_geometry,  aes(geometry = geometry)) +
+  #geom_sf(aes(colour = Climate_category.data))+
+  #geom_sf_text(data = Climate_Category_geometry, aes(label = Climate_category.data, colour = Climate_category.data))+
+  geom_sf(data = gauge_EWR_groups,  aes(geometry = geometry))+
+  geom_sf(data = resource_plan_areas,  aes(geometry = geometry, fill = SWWRPANAME, colour = SWWRPANAME), alpha = 0.1)+ 
+  geom_sf_text(data = resource_plan_areas, aes(label = SWWRPANAME, colour = SWWRPANAME))+
+  theme(legend.position = "none")
+
+suppressWarnings(print(
+plot1 + plot4 + theme(legend.position = "none")
+))
+suppressWarnings(print(
+plot2 + plot4 + theme(legend.position = "none")
+))
+
+suppressWarnings(print(
+plot3 + plot4 + theme(legend.position = "none")
+))
+
+sdl_units <- sdl_units
 ```
