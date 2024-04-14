@@ -1,5 +1,5 @@
 ---
-title: "Veg soil moisture"
+title: "Mean soil temp"
 format: html
 editor: visual
 ---
@@ -49,50 +49,38 @@ if (parset == 'gandalf') {
 
 We need to do a few things here. And so may want to break this notebook up.
 
-Unlike the other veg1\_ notebooks, this one is not going to roll the raster, but instead get the daily area in the moisture band and then we'll roll the polygons later. That's a bit cruder than the rolling calculations, but should yield a massive speedup, and is less crude than operating on mean soil moisture in the polygons.
-
-The stricture is a moisture band from 10-30%
-
-```{r}
-areamoist_10_30 <- function(x) {
-  sum(ifelse(x >= 0.1 & x <= 0.3, area, 0), na.rm = TRUE)
-}
-```
+For soil temp, let's just get the area-weighted mean for each polygon. `CC2::weightedMean` does this.
 
 ## Run and check
-
-This is shared between red gum and black box, and is needed for germ and seedlings
 
 ```{r}
 # 10 days > 10%
 with_progress({
-  out1030 <- process_with_checks(dataname = 'soilmoisture',
+  tempmean <- process_with_checks(dataname = 'soiltemp',
                           data_dir = file.path(datDir,
-                                               'soil_moisture_more'),
+                                               'soil_temp_02_23'),
                           poly_path = file.path(datOut, 'ANAEcatchment'),
-                          summaryFun = 'areamoist_10_30',
+                          summaryFun = 'weightedMean',
                           catchment = 'all',
                           out_dir = datOut,
-                          nchunks = 100,
-                          extraname = 'no_roll')
+                          nchunks = 100)
 })
 ```
 
 ```{r}
-out1030$timings
-out1030$failures
+tempmean$timings
+tempmean$failures
 ```
 
 This gets done in the above, but it's handy to past in to a terminal
 
 ```{r}
 #| eval: false
-source('directorySet.R')
 library(CC2)
-ct <- chunks_to_process(dataname = 'soilmoisture',
-                        summaryFun = 'areamoist_10_30',
+source('directorySet.R')
+ct <- chunks_to_process(dataname = 'soiltemp',
+                        summaryFun = 'weightedMean',
                           catchment = 'all',
                           out_dir = datOut,
-                          nchunks = 100,
-                          extraname = 'no_roll')
+                          nchunks = 100)
 ```
