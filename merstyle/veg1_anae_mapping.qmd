@@ -1,0 +1,217 @@
+---
+title: "Veg ANAE type mapping"
+format: html
+editor: visual
+---
+
+Here, we want to get the ANAE types with records for each veg species in the [ALA](https://www.ala.org.au/).
+
+```{r}
+source('directorySet.R')
+# ALA package
+library(galah)
+library(sf)
+library(ggplot2)
+
+vegdir <- file.path(datOut, 'vegmapping')
+galah_config(email = "g.holt@deakin.edu.au", atlas = "Australia")
+
+```
+
+## Download from ALA
+
+### Black box
+
+```{r}
+black_box <- galah_call() |>
+  galah_identify("Eucalyptus largiflorens") |>
+  atlas_occurrences()
+```
+
+### Red gum
+
+```{r}
+red_gum <- galah_call() |>
+  galah_identify("Eucalyptus camaldulensis") |>
+  atlas_occurrences()
+```
+
+### Coolabah
+
+```{r}
+coolabah <- galah_call() |>
+  galah_identify(c("Eucalyptus coolabah", 'Eucalyptus microtheca')) |>
+  atlas_occurrences()
+```
+
+### Lignum
+
+```{r}
+lignum <- galah_call() |>
+  galah_identify(c("Muehlenbeckia florulenta")) |>
+  atlas_occurrences()
+```
+
+## Make geographic
+
+We need *all* the anaes
+
+```{r}
+all_anaes <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
+```
+
+We need to make the data we just read in geographic
+
+```{r}
+
+make_geo <- function(x) {
+   x |> 
+  tidyr::drop_na(decimalLongitude, decimalLatitude) |> 
+  st_as_sf(coords = c('decimalLongitude', 'decimalLatitude'))  |>  
+  st_set_crs("WGS84") |>  
+  st_transform(st_crs(all_anaes))
+}
+
+black_box <- make_geo(black_box)
+red_gum <- make_geo(red_gum)
+coolabah <- make_geo(coolabah)
+lignum <- make_geo(lignum)
+```
+
+### Maps
+
+```{r}
+base_aus <- rnaturalearth::ne_countries(country = 'australia') |> 
+  st_transform(st_crs(black_box))
+```
+
+```{r}
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = black_box) + 
+  ggtitle('Black Box')
+```
+
+```{r}
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = red_gum) + 
+  ggtitle('Red Gum')
+```
+
+```{r}
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = coolabah) + 
+  ggtitle('Coolabah')
+```
+
+```{r}
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = lignum) + 
+  ggtitle('Lignum')
+```
+
+## Geointersections
+
+My notes say these take about 10 minutes each for lippia and centipeda, which have roughly the same order of magnitude as here. But I wonder if they'll be faster if I crop to the basin first? They only take 13 seconds though, so maybe it's moot.
+
+```{r}
+red_gum_mdb <- st_join(red_gum, basin, left = FALSE)
+black_box_mdb <- st_join(black_box, basin, left = FALSE)
+coolabah_mdb <- st_join(coolabah, basin, left = FALSE)
+lignum_mdb <- st_join(lignum, basin, left = FALSE)
+```
+
+I could obviously do this as a single run, just \|\> the basin to the anaes, but this lets me check intermediately.
+
+```{r}
+system.time(
+red_gum_anae <- st_join(red_gum_mdb, all_anaes, left = FALSE)
+)
+system.time(
+black_box_anae <- st_join(black_box_mdb, all_anaes, left = FALSE)
+)
+system.time(
+coolabah_anae <- st_join(coolabah_mdb, all_anaes, left = FALSE)
+)
+system.time(
+lignum_anae <- st_join(lignum_mdb, all_anaes, left = FALSE)
+)
+```
+
+Gut check maps
+
+```{r}
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = red_gum_anae) + 
+  ggtitle('red_gum')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = black_box_anae) + 
+  ggtitle('Black box')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = coolabah_anae) + 
+  ggtitle('Coolabah')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = basin) +
+  geom_sf(data = lignum_anae) + 
+  ggtitle('Lignum')
+```
+
+## Extract unique ANAE types
+
+```{r}
+red_gum_type <- red_gum_anae |> 
+  st_drop_geometry() |> 
+  # drop subspecies
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ANAE_CODE, ANAE_DESC))
+
+black_box_type <- black_box_anae |> 
+  st_drop_geometry() |> 
+  # no subspecies here anyway
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ANAE_CODE, ANAE_DESC))
+
+coolabah_type <- coolabah_anae |> 
+   st_drop_geometry() |> 
+  # Some are Eucalyptus microtheca, just change to make standard
+  mutate(species = "Eucalyptus coolabah") |> 
+  summarise(n_records = n(),
+            .by = c(species, ANAE_CODE, ANAE_DESC))
+
+lignum_type <- lignum_anae |> 
+  st_drop_geometry() |> 
+  # no subspecies here anyway
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ANAE_CODE, ANAE_DESC))
+```
+
+Save that. I think it'd be entirely reasonable to cut off the rare occurrences (\<10, \<0.5%, etc), but that should be an analysis/use decision.
+
+```{r}
+if (!dir.exists(vegdir)) {dir.create(vegdir, recursive = TRUE)}
+saveRDS(red_gum_type, file = file.path(vegdir, 'red_gum_anae_type.rds'))
+saveRDS(black_box_type, file = file.path(vegdir, 'black_box_anae_type.rds'))
+saveRDS(coolabah_type, file = file.path(vegdir, 'coolabah_anae_type.rds'))
+saveRDS(lignum_type, file = file.path(vegdir, 'lignum_anae_type.rds'))
+
+```
