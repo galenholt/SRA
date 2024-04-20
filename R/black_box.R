@@ -71,9 +71,11 @@ black_box <- function(out_dir,
 
   # Define the N basin according to https://www.mdba.gov.au/water-management/northern-basin (n of B-D and Macquarie, inclusive)
   n_catches <- c('Barwon Darling', "Macquarie", "Castlereagh", 'Paroo', 'Warrego',
-                 'Condamine Balonne', 'Border Rivers', "Gwydir", 'Namoi', 'Castlereagh')
+                 'Condamine Balonne', 'Border Rivers', "Gwydir", 'Namoi', 'Castlereagh') |>
+    stringr::str_remove_all(' ')
 
-  s_catches <- ltimNoNorth$ValleyName[!ltimNoNorth$ValleyName %in% n_catches]
+  all_catches <- ltimNoNorth$ValleyName |> stringr::str_remove_all(' ')
+  s_catches <- all_catches[!all_catches %in% n_catches]
 
   # So, since inundation timestep is at start of the data,
   # In north, we want inundation in May-June, July-Aug, and Sept-Oct, months 5, 7, 9 in inundation
@@ -190,6 +192,7 @@ black_box <- function(out_dir,
                            rolln = 183,
                            align = 'right',
                            na.rm = TRUE)
+
 
   germ_shift18 <- cbind(germ_6m[[1]][, 1:365]*NA, germ_6m[[1]])
   # germ_shift18 <- cbind(germ_6m[[1]][, 1:548]*NA, germ_6m[[1]])
