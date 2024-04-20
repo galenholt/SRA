@@ -320,6 +320,7 @@ black_box <- function(out_dir,
   #to retain the UIDs for each anae.
 
   catchpoly <- ltimNoNorth |>
+    dplyr::mutate(ValleyName = stringr::str_remove_all(ValleyName, ' ')) |>
     dplyr::filter(ValleyName == catchment) |>
     dplyr::select(ValleyName, geometry)
 
