@@ -32,39 +32,18 @@ if (parset == 'gandalf') {
 Set up. I'm still trying to decide how much of this is general and how much bespoke.
 
 ```{r}
-runlist <- chunks_to_process(out_dir = datOut,
-                               dataname = '',# Short circuit, just test the full list
-                               summaryFun = 'black_box', 
-                               nchunks = 1,
-                               catchment = 'all',
-                               returnForR = TRUE,
-                               filetype = '.rds')
-```
-
-Do the runs
-
-```{r}
 source('R/black_box.R')
 
 with_progress({
-p <- progressor(steps = nrow(runlist))
-blackbox_all <- foreach(nl = 1:nrow(runlist),
-                  .combine = rbind,
-                  .errorhandling = 'remove',
-                  .options.future = list(
-                    seed = TRUE)) %dofuture% { 
-
-                          # get the looplevels
-  w <- runlist$catchment[nl]
-    diversity_responses <- black_box(out_dir = datOut, 
-                                strictname = 'black_box',
-                          catchment = w,
-                          thischunk = 1, 
-                          nchunks = 1,
-                          saveout = TRUE, 
-                          returnForR = FALSE)
-    
-    p(glue::glue('catchment {w}'))
-                    }
+  box_out <- process_with_checks(
+                          process_function = 'black_box',
+                          catchment = c('Avoca', 'MittaMitta'), # 'all'
+                          out_dir = datOut,
+                          nchunks = 1)
 })
+
+```
+
+```{r}
+box_out$timings
 ```

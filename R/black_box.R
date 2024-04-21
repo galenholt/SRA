@@ -1,40 +1,15 @@
 black_box <- function(out_dir,
-                          strictname,
                           catchment,
-                          extraname = NULL,
                           thischunk,
                           nchunks = 1,
-                          whichcrs = 3577,
-                          saveout = TRUE,
-                          returnForR = FALSE) {
+                          whichcrs = 3577) {
 
-  start_time <- Sys.time()
 
   # I'll need to sort out lists of dataname and summaryFun if we have multiple
   # strictures based on different sets of stars polygons.
   # But trying to keep syntax consistent across the data functions.
 
-  # This is really close to process_data, can we make it a function they each call?
-  # If not chunking, don't need the inner chunked dir.
-  # Note that this is largely a stub; I don't actually have a way to chunk stars full of polygons
-  if (nchunks == 1) {
-    scriptOut <- file.path(out_dir, strictname)
-    # chunk names, don't support subchunks
-    unique_chunkname <- paste0(catchment, '_', strictname)
-    unique_indexname <- paste0(catchment, '_', strictname, '_index')
-  } else if (nchunks > 1) {
-    scriptOut <- file.path(out_dir, strictname, 'chunked',
-                           chunkpath)
-    # chunk names, don't support subchunks
-    unique_chunkname <- paste0(catchment, '_', strictname, '_', thischunk)
-    unique_indexname <- paste0(catchment, '_', strictname, '_index', '_', thischunk)
-  }
-
-  # Make the out directory, in case it doesn't exist
-  if (!dir.exists(scriptOut)) {dir.create(scriptOut, recursive = TRUE)}
-
-  # will need this to go get data, potentially. Though there's the issue here that this may not be genearlisable.
-  # Unless we make it a list...
+    # Hard to make the data arguments, could do it with a list, but still not very general
 
 
   ## DATA IN
@@ -362,29 +337,8 @@ black_box <- function(out_dir,
                                      inun_anae_name_catch, # area of inundation in anaes with `black box`
                                      inun_anae_ala_catch # area of inundation in anaes with ala records.
   )
-  if (saveout) {
-    saveRDS(black_box_responses, file = file.path(scriptOut, paste0(unique_chunkname, '.rds')))
-
-    # save each list-item separately. Just a different way to skin the cat, not sure which I'll prefer.
-    for (i in names(black_box_responses)) {
-      if (!dir.exists(file.path(scriptOut, i))) {dir.create(file.path(scriptOut, i), recursive = TRUE)}
-      saveRDS(black_box_responses[[i]], file = file.path(scriptOut, i, paste0(catchment, '_', i, '.rds')))
-    }
-  }
 
 
-  # Either return the list or a tibble of timings
-  if (returnForR) {
-    return(black_box_responses)
-  } else {
-    end_time <- Sys.time()
-    elapsed <- end_time-start_time
-
-    sumtab <- tibble::tibble(catchment,
-                             npolys = nrow(anaes),
-                             elapsed)
-    return(sumtab)
-  }
 
 }
 #
