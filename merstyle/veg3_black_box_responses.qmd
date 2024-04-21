@@ -37,7 +37,7 @@ source('R/black_box.R')
 with_progress({
   box_out <- process_with_checks(
                           process_function = 'black_box',
-                          catchment = c('Avoca', 'MittaMitta'), # 'all'
+                          catchment = 'all',
                           out_dir = datOut,
                           nchunks = 1)
 })
