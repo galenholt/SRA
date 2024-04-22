@@ -28,6 +28,10 @@ black_box <- function(out_dir,
   anaes <- readRDS(file.path(out_dir, 'ANAEcatchment',
                              paste0(catchment, '_ANAE.rds')))
 
+  # are they lined up? This was checked on creation, so not doing here, but leaving commented for later confirmation/debug
+  # testsm <- matchStarsIndex(index1 = anaes, stars1 = NULL, index2 = soilmoist_polys$indices, stars2 = soilmoist_polys$aggdata, indexcol = c(1,1), testfinal = TRUE)
+  # testinun <- matchStarsIndex(index1 = anaes, stars1 = NULL, index2 = anae_inun$indices, stars2 = anae_inun$aggdata, indexcol = c(1,1), testfinal = TRUE)
+
   # Clean up rounding errors with area
   soilmoist_polys$aggdata <- clean_area(soilmoist_polys$aggdata, anaes)
   anae_inun$aggdata <- clean_area(anae_inun$aggdata, anaes)
@@ -95,8 +99,9 @@ black_box <- function(out_dir,
   # We can do that by abusing unevenTimeMult by filling with 1, since it multiplies a coarse and fine stars by each other and returns the fine
 
   # This returns NA for all times before inundatin (as it should)
+  # use germ_inun_season here, since we care about the germ itself here.
   daily_inun <- unevenTimeMult(fineStars = soilmoist_polys$aggdata*0+1,
-                               coarseStars = anae_inun$aggdata,
+                               coarseStars = germ_inun_season,
                                lag = 0)
 
   # So, what's the assessment here? for each day, the soil moisture is the min
@@ -126,6 +131,7 @@ black_box <- function(out_dir,
 
   # No inundation > 70 days. Let's say 1 bimonth OK, 2 is a fail.
   # First, get the *un*inundated area
+  # back to just anae_inun here, because the seasonality comes in with the did germ happen check.
   area_not_inundated <- anae_inun$aggdata
   area_not_inundated[[1]] <- (anae_inun$indices |>
                            st_area() |>
@@ -299,25 +305,26 @@ black_box <- function(out_dir,
     dplyr::filter(ValleyName == catchment) |>
     dplyr::select(ValleyName, geometry)
 
+  # we need to return NA if all values are NA, else use na.rm = TRUE. sum alone returns 0. The sumna function does that.
   # not anae-clipped
-  germ_catch <- sf_and_aggforce(germ_area_year, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  seed_catch <- sf_and_aggforce(seedling_area_year, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  germ_and_seed_catch <- sf_and_aggforce(germ_and_seed_year, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  adult_catch <- sf_and_aggforce(adult_year, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  inun_anae_catch <- sf_and_aggforce(anae_year, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
+  germ_catch <- sf_and_aggforce(germ_area_year, catchpoly, newname = 'area', funlist = sumna)
+  seed_catch <- sf_and_aggforce(seedling_area_year, catchpoly, newname = 'area', funlist = sumna)
+  germ_and_seed_catch <- sf_and_aggforce(germ_and_seed_year, catchpoly, newname = 'area', funlist = sumna)
+  adult_catch <- sf_and_aggforce(adult_year, catchpoly, newname = 'area', funlist = sumna)
+  inun_anae_catch <- sf_and_aggforce(anae_year, catchpoly, newname = 'area', funlist = sumna)
 
   # ANAE clipped
-  germ_anae_name_catch <- sf_and_aggforce(germ_anae_name, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  seed_anae_name_catch <- sf_and_aggforce(seedling_anae_name, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  germ_and_seed_anae_name_catch <- sf_and_aggforce(germ_and_seed_anae_name, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  adult_anae_name_catch <- sf_and_aggforce(adult_anae_name, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  inun_anae_name_catch <- sf_and_aggforce(inun_anae_name, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
+  germ_anae_name_catch <- sf_and_aggforce(germ_anae_name, catchpoly, newname = 'area', funlist = sumna)
+  seed_anae_name_catch <- sf_and_aggforce(seedling_anae_name, catchpoly, newname = 'area', funlist = sumna)
+  germ_and_seed_anae_name_catch <- sf_and_aggforce(germ_and_seed_anae_name, catchpoly, newname = 'area', funlist = sumna)
+  adult_anae_name_catch <- sf_and_aggforce(adult_anae_name, catchpoly, newname = 'area', funlist = sumna)
+  inun_anae_name_catch <- sf_and_aggforce(inun_anae_name, catchpoly, newname = 'area', funlist = sumna)
 
-  germ_anae_ala_catch <- sf_and_aggforce(germ_anae_ala, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  seed_anae_ala_catch <- sf_and_aggforce(seedling_anae_ala, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  germ_and_seed_anae_ala_catch <- sf_and_aggforce(germ_and_seed_anae_ala, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  adult_anae_ala_catch <- sf_and_aggforce(adult_anae_ala, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
-  inun_anae_ala_catch <- sf_and_aggforce(inun_anae_ala, catchpoly, newname = 'area', funlist = \(x) sum(x, na.rm = T))
+  germ_anae_ala_catch <- sf_and_aggforce(germ_anae_ala, catchpoly, newname = 'area', funlist = sumna)
+  seed_anae_ala_catch <- sf_and_aggforce(seedling_anae_ala, catchpoly, newname = 'area', funlist = sumna)
+  germ_and_seed_anae_ala_catch <- sf_and_aggforce(germ_and_seed_anae_ala, catchpoly, newname = 'area', funlist = sumna)
+  adult_anae_ala_catch <- sf_and_aggforce(adult_anae_ala, catchpoly, newname = 'area', funlist = sumna)
+  inun_anae_ala_catch <- sf_and_aggforce(inun_anae_ala, catchpoly, newname = 'area', funlist = sumna)
 
 
   # list it up
@@ -349,7 +356,19 @@ black_box <- function(out_dir,
 #   geom_line(data = germ_and_seed_anae_ala_catch, mapping = aes(x = date, y = area), color = 'red') +
 #   geom_line(data = adult_anae_ala_catch, mapping = aes(x = date, y = area), color = 'blue')
 #
+# # How are adults > inun? The above is clipped and inun is the mean, but the adults are a rolling lookback at the 8-year max
+# anae_year_max <- tempaggregate(starObj = anae_inun$aggdata, by = datebreaks,
+#                            FUN = max, na.rm = TRUE) |>
+#   aperm(c('geometry', 'time'))
+# inun_max_catch <- sf_and_aggforce(anae_year_max, catchpoly, newname = 'area', funlist = sumna)
 #
+# ggplot() +
+#   geom_line(data = inun_max_catch, mapping = aes(x = date, y = area), color = 'black') +
+#   geom_line(data = adult_anae_ala_catch, mapping = aes(x = date, y = area), color = 'blue')
+#
+# #OK, I believe that.
+# #
+# #
 # ggplot() +
 #   geom_line(data = inun_anae_catch, mapping = aes(x = date, y = area), color = 'black') +
 #   geom_line(data = germ_catch, mapping = aes(x = date, y = area), color = 'green') +
