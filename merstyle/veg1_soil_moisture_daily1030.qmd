@@ -70,7 +70,7 @@ with_progress({
                           data_dir = file.path(datDir,
                                                'soil_moisture_more'),
                           poly_path = file.path(datOut, 'ANAEcatchment'),
-                          summaryFun = 'areamoist_10_30',
+                          process_function = 'areamoist_10_30',
                           catchment = 'all',
                           out_dir = datOut,
                           nchunks = 100)
