@@ -73,8 +73,7 @@ with_progress({
                           summaryFun = 'areamoist_10_30',
                           catchment = 'all',
                           out_dir = datOut,
-                          nchunks = 100,
-                          extraname = 'no_roll')
+                          nchunks = 100)
 })
 ```
 
@@ -93,6 +92,5 @@ ct <- chunks_to_process(dataname = 'soilmoisture',
                         summaryFun = 'areamoist_10_30',
                           catchment = 'all',
                           out_dir = datOut,
-                          nchunks = 100,
-                          extraname = 'no_roll')
+                          nchunks = 100)
 ```
