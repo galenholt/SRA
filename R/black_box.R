@@ -117,25 +117,29 @@ black_box <- function(out_dir,
   germ_area[[1]] <- pmin(shift_inun, soilmoist_10day[[1]])
 
   # Stage 2: Seedling survival
-  # Moisture must be maintained above 10% (and less than 30?) for two years. Nothing ever passes for 2. Try 1? Or 1/2. The ref is pretty dodgy and at one point says 'at least through the summer'
+  # Moisture must be maintained above 10% (and less than 30?) for two years.
+  # Nothing ever passes for 2, and there wasn't much real info. Try 1? Or 1/2. The ref is pretty dodgy and at one point says 'at least through the summer'
   # No more than 70 days inundation
   # and it needs to happen following germination
 
-  # soil moisture- the data is the daily area between 10-30, so we want the minimum of that over the last 2 years.
-  soilmoist_2yr <- timeRoll(soilmoist_polys$aggdata,
-                              FUN = RcppRoll::roll_min,
-                            rolln = 183,
-                              # rolln = 730,
-                              align = 'right',
-                              na.rm = TRUE)
+  # How long is the seedling period? say 6mo
+  seedling_period <- 6*30
 
-  # No inundation > 70 days. Let's say 1 bimonth OK, 2 is a fail.
+  # soil moisture- the data is the daily area between 10-30, so we want the minimum of that over the last seedling period.
+  soilmoist_seedling <- timeRoll(soilmoist_polys$aggdata,
+                                 FUN = RcppRoll::roll_min,
+                                 rolln = seedling_period,
+                                 # rolln = 730,
+                                 align = 'right',
+                                 na.rm = TRUE)
+
+  # No inundation 'several months'. Let's say 1 bimonth OK, 2 is a fail.
   # First, get the *un*inundated area
   # back to just anae_inun here, because the seasonality comes in with the did germ happen check.
   area_not_inundated <- anae_inun$aggdata
   area_not_inundated[[1]] <- (anae_inun$indices |>
-                           st_area() |>
-                           as.numeric()) -
+                                st_area() |>
+                                as.numeric()) -
     anae_inun$aggdata[[1]]
 
   # Then the max of that over two bimonths- this is the area that wasn't inundated for too long
@@ -145,77 +149,114 @@ black_box <- function(out_dir,
                            align = 'right',
                            na.rm = TRUE)
 
-  # Then the min of that over two years (12 bimonths) gives us the area that never got inundated too much in two years
-  area_not_2yr <- timeRoll(area_not_4mo,
-                       FUN = RcppRoll::roll_min,
-                       rolln = 3, # Cut to 6 mo now.
-                       # rolln = 12,
-                       align = 'right',
-                       na.rm = TRUE)
+  # Then the min of that over 6mo (3 bimonths) gives us the area that never got inundated too much in 6mo
+  notflood_seedling <- timeRoll(area_not_4mo,
+                                FUN = RcppRoll::roll_min,
+                                rolln = 3, # Cut to 6 mo now.
+                                # rolln = 12,
+                                align = 'right',
+                                na.rm = TRUE)
 
   # now we want the area that had enough moisture and not too much inundation over the two years.
   # again, abuse unevenTimeMult
   # This returns NA for all times before inundatin (as it should)
-  daily_not_area <- unevenTimeMult(fineStars = soilmoist_2yr*0+1,
-                               coarseStars = area_not_2yr,
-                               lag = 0)
+  daily_not_area <- unevenTimeMult(fineStars = soilmoist_seedling*0+1,
+                                   coarseStars = notflood_seedling,
+                                   lag = 0)
 
   # Then survival is
-  seedling_area <- soilmoist_2yr
-  seedling_area[[1]] <- pmin(soilmoist_2yr[[1]], daily_not_area[[1]])
+  seedling_area <- soilmoist_seedling
+  seedling_area[[1]] <- pmin(soilmoist_seedling[[1]], daily_not_area[[1]])
 
-  # I don't think we want to be precious about exactly two years ago for germ-
-  # this asks if conditions have been right for two years of seedling survival,
-  # but we can ask if germ happened within the last 18mo-2years.
-  # How to do that? Get 6-month germ lookback max. Then shift 18mo forward, and compare with seedling area.
-  germ_6m <- timeRoll(germ_area,
-                           FUN = RcppRoll::roll_max,
-                           rolln = 183,
-                           align = 'right',
-                           na.rm = TRUE)
+  # I don't think we want to be precious about exactly how long ago germ needs
+  # to have happened. The key is whether soil moisture has persisted.
+
+  # I don't think the way I was doing this made much sense. Or maybe just wasn't explained very well in my comment.
+
+  # Let's say we want some germ window x days (e.g. 2 months) long. This has to
+  # fit inside seedling_period, along with some minimum seedling period. IE we
+  # assess soil moisture for a full seedling_period, but if germ occurs in the
+  # first bit, it counts. So the length of seedling period = germ_window +
+  # minimum seedling period. To get that for each day, we can roll_max for x
+  # days to get whether there was germ sometime in that 2mo window
+  germ_window <- 60
+
+  germ_span <- timeRoll(germ_area,
+                        FUN = RcppRoll::roll_max,
+                        rolln = germ_window,
+                        align = 'right',
+                        na.rm = TRUE)
 
 
-  germ_shift18 <- cbind(germ_6m[[1]][, 1:365]*NA, germ_6m[[1]])
-  # germ_shift18 <- cbind(germ_6m[[1]][, 1:548]*NA, germ_6m[[1]])
-  # germ_shift18 <- germ_shift18[,-(ncol(germ_shift18)-547):-ncol(germ_shift18)]
-  germ_shift18 <- germ_shift18[,-(ncol(germ_shift18)-364):-ncol(germ_shift18)]
+  # But, the question is whether that germination happened at least some minimum
+  # seedling period ago.
+  # The full possible germ period needs to fit in the seedling_period, because that's the check that soil stayed moist.
+  # So if we're checking soil moisture for 6mo, we can't look beyond that for
+  # germination. So let's say the min seedling period is 4 mo. Then we'd ask
+  # whether germ in the preceding 2mo germ_window 4 months ago would yield
+  # passing for a 6-mo soil moisture period
+
+  min_seedling_period <- seedling_period - germ_window
+
+  # Now, we want to shift the germ window over by that minimum period, so we can
+  # see if there was any germination in teh germ_window preceding
+  # min_seedling_period
+  germ_span_shift <- cbind(germ_span[[1]][, 1:min_seedling_period]*NA, germ_span[[1]])
+  germ_span_shift <- germ_span_shift[,-(ncol(germ_span_shift)-(min_seedling_period-1)):-ncol(germ_span_shift)]
 
 
-  # now the area that germinated AND then survived an 18-24mo seedling stage is the minimum
+  # now the area that germinated AND then survived a seedling stage ranging from
+  # min_seedling_period to seedling_period is the minimum
   germ_and_seed <- seedling_area
-  germ_and_seed[[1]] <- pmin(seedling_area[[1]], germ_shift18)
+  germ_and_seed[[1]] <- pmin(seedling_area[[1]], germ_span_shift)
+
 
   # Stage 3: Adults
   # At least one flood in 8 years
-  # Duration 2-6 months
+  # Duration 2-4 months
   # Do we want to couple to seedlings? ie needs to have been seedling survival x
   # years in the past? I think no- presumably many of these trees are older than
   # the data we have. We can just report on condition for regeneration (germ and
   # seedlings) and conditions for persistence.
 
-  # The min inundation over 6 mo (3 bimonths) is the amount that fails that test
-  inun_6m <- timeRoll(anae_inun$aggdata,
-                        FUN = RcppRoll::roll_min,
-                        rolln = 3,
-                        align = 'right',
-                        na.rm = TRUE)
+  adult_maxflood <- 6/2 # /2 because bimonth, 4 is the limit, so use 6 because that's too long.
+  adult_floodinterval <- 8*6 # *6 because bimonth year
 
-  # Then we need the MAX of that over 8 years, as this is the amount that doesn't count in the 8-year check because it was too wet
-  inun_6m8y <- timeRoll(inun_6m,
-                     FUN = RcppRoll::roll_max,
-                     rolln = 48,
-                     align = 'right',
-                     na.rm = TRUE)
+  # How do we calculate this? We want the maximum area flooded in floodinterval
+  # years, minus the area that flooded too much
+  # We get the area that flooded too much by getting the minimum area flooded
+  # for maxflood (+2) months, which is too long. Then we want to subtract that off the
+  # total area during floodinterval years. And that piece we subtract off should
+  # be the max over floodinterval of the too-flooded areas in maxflood periods
 
-  # The max inun over 8 years is the amount that passes the 8-year requirement
-  inun_8y <- timeRoll(anae_inun$aggdata,
-                      FUN = RcppRoll::roll_max,
-                      rolln = 48,
-                      align = 'right',
-                      na.rm = TRUE)
+  # The min inundation over maxflood is the amount that fails that test
+  inun_adult_long <- timeRoll(anae_inun$aggdata,
+                              FUN = RcppRoll::roll_min,
+                              rolln = adult_maxflood,
+                              align = 'right',
+                              na.rm = TRUE)
 
-  # and the area that passes both is the difference
-  adult_condition <- inun_8y-inun_6m8y
+  # Then we need the MAX of that over floodinterval years, as this is the amount that doesn't count in the floodinterval-year check because it was too wet
+  inun_adult_inter <- timeRoll(inun_adult_long,
+                               FUN = RcppRoll::roll_max,
+                               rolln = adult_floodinterval,
+                               align = 'right',
+                               na.rm = TRUE)
+
+  # The max inun over floodinterval years is the amount that passes the floodinterval-year requirement
+  # i.e we want the max inundation over the floodinterval, but only those events  that occurred in a_months
+  inun_adult_all <- timeRoll(anae_inun$aggdata,
+                             FUN = RcppRoll::roll_max,
+                             rolln = adult_floodinterval,
+                             align = 'right',
+                             na.rm = TRUE)
+
+  # and the area that passes both is the difference. Note we don't put the seasonality on the adult_inter, since those durations aren't seasonal.
+  adult_condition <- inun_adult_all-inun_adult_inter
+
+
+
+
 
   # To return, let's aggregate up to water year
   availdates <- st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')

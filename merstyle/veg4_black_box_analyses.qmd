@@ -1,0 +1,225 @@
+---
+title: "Black box"
+format: html
+editor: visual
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r}
+source('directorySet.R')
+library(CC2)
+library(ggplot2)
+library(foreach)
+library(patchwork)
+```
+
+Borrowing a lot from diversity analyses for the boilerplate
+
+```{r}
+# Making these up for now, we'll want to be consistent
+currenttimestart <- lubridate::ymd('20190101')
+currenttimeend <- lubridate::ymd('20240301')
+preBPtimestart <- lubridate::ymd('20070101')
+preBPtimeend <- lubridate::ymd('20120101')
+
+# Need a clean name to bring in data
+catchments <- ltimNoNorth |> 
+  mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
+
+cleancatch <- catchments$name_clean
+```
+
+Bring in data. I really wanted a read and concat function for this in diversity, write it here. It doesn't save a lot of typing, but will be cleaner. I've made it here with specific defaults, but I think it likely generalises to all strictures that return sf as I'm currently doing, which is why I included the other arguments.
+
+```{r}
+catch_cat_sf <- function(which_strict, catchments = cleancatch, outerdir = 'black_box') {
+  foreach(i = catchments,
+          .combine = dplyr::bind_rows,
+          .multicombine = TRUE) %do% {
+            thiscatch <- readRDS(file.path(datOut, outerdir, which_strict, 
+                                           paste0(i, '_', which_strict, '.rds')))
+          }
+}
+```
+
+## Read in data
+
+### Germination
+
+The first step in the life cycle is germination. It requires
+
+```{r}
+germ <- catch_cat_sf('germ_catch') |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'germ')
+```
+
+Basin-scale
+
+```{r}
+germ_basin <- germ |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sum(area, na.rm = TRUE),
+            .by = c(date, stage)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+  
+```
+
+### Seedling survival
+
+The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), we get the following.
+
+```{r}
+seed <- catch_cat_sf('seed_catch') |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'seed')
+```
+
+Basin
+
+```{r}
+seed_basin <- seed |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sum(area, na.rm = TRUE),
+            .by = c(date, stage)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+
+```
+
+### Germination and seedlings
+
+The life cycle is sequential, and so what we are interested in ultimately is regeneration success; that is, germination and subsequent survival. Here, we as whether conditions supported seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper two, it actually takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
+
+```{r}
+germ_and_seed <- catch_cat_sf('germ_and_seed_catch') |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'germ_and_seed')
+```
+
+Basin
+
+```{r}
+germ_and_seed_basin <- germ_and_seed |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sum(area, na.rm = TRUE),
+            .by = c(date, stage)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+
+```
+
+### Adult condition
+
+Here, we assess area of favourable adult condition, primarily as a consequence of inundation duration and periods between events. This is not connected to the regeneration due to the length of available data and tree life spans.
+
+```{r}
+adult <- catch_cat_sf('adult_catch') |> 
+  # There's no adult data prior to 1995 because of the lookback period
+  filter(date > lubridate::ymd(19950101)) |> 
+  mutate(stage = 'adult')
+```
+
+Basin
+
+```{r}
+adult_basin <- adult |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sum(area, na.rm = TRUE),
+            .by = c(date, stage)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+```
+
+## Test plots
+
+### Germ
+
+```{r}
+ggplot(germ, aes(x = date, y = area, color = ValleyName)) +
+  geom_line() + 
+  facet_wrap('ValleyName') +
+  theme(legend.position = 'none')
+```
+
+
+```{r}
+ggplot(germ, aes(fill = log(area))) +
+  geom_sf(color = NA) +
+  facet_wrap('date') +
+  scale_fill_viridis_c()
+```
+
+```{r}
+ggplot(germ_basin, aes(x = date, y = area)) +
+  geom_line() +
+  geom_point()
+```
+
+
+### Seedling
+
+```{r}
+ggplot(seed, aes(x = date, y = area, color = ValleyName)) +
+  geom_line() + 
+  facet_wrap('ValleyName') +
+  theme(legend.position = 'none')
+```
+
+```{r}
+ggplot(seed_basin, aes(x = date, y = area)) +
+  geom_line() +
+  geom_point()
+```
+
+### Germ followed by seedling
+
+```{r}
+ggplot(germ_and_seed, aes(x = date, y = area, color = ValleyName)) +
+  geom_line() + 
+  facet_wrap('ValleyName') +
+  theme(legend.position = 'none')
+```
+
+```{r}
+ggplot(germ_and_seed, aes(fill = log(area))) +
+  geom_sf(color = NA) +
+  facet_wrap('date') +
+  scale_fill_viridis_c()
+```
+
+```{r}
+ggplot(germ_and_seed_basin, aes(x = date, y = area)) +
+  geom_line() +
+  geom_point()
+```
+
+### Adults
+
+```{r}
+ggplot(adult, aes(x = date, y = area, color = ValleyName)) +
+  geom_line() + 
+  facet_wrap('ValleyName') +
+  theme(legend.position = 'none')
+```
+
+```{r}
+ggplot(adult, aes(fill = log(area))) +
+  geom_sf(color = NA) +
+  facet_wrap('date') +
+  scale_fill_viridis_c()
+```
+
+```{r}
+ggplot(adult_basin, aes(x = date, y = area)) +
+  geom_line() +
+  geom_point()
+```
+
