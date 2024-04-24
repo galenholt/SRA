@@ -1,0 +1,96 @@
+---
+title: "Veg soil moisture"
+format: html
+editor: visual
+---
+
+## Calculating soil moisture data for veg
+
+First, set directories and set up for parallel
+
+```{r}
+source('directorySet.R')
+library(CC2)
+```
+
+```{r}
+library(sf)
+library(foreach)
+library(doFuture)
+library(progressr)
+# make the handlers call in the console.
+# handlers(global = TRUE)
+# Not supposed to need this, but it seems to help
+doFuture::registerDoFuture()
+```
+
+This notebook will sometimes be run locally, but may be run on the HPC through purl, so set up the future plans appropriately.
+
+Here, we set the local plan to a simple multisession, while the HPC sends the loops here to nodes, and the inner loops in rastPolyJoin should go to cores. This lets us change the slurm commands- time is minutes, ntasks.per.node is cores, and mem is per node, I think.
+
+```{r}
+if (parset == 'local') {
+  plan(multisession)
+}
+
+# There's a couple in the condamine that time out at 60. Nearly everything else finishes in 10-30.
+if (parset == 'gandalf') {
+  plan(list(tweak(future.batchtools::batchtools_slurm,
+                template = "batchtools.slurm.tmpl",
+                resources = list(time = 600,
+                                 ntasks.per.node = 12, 
+                                 mem = "70GB",
+                                 job.name = 'daily1030')),
+          multicore))
+}
+```
+
+## Set functions
+
+We need to do a few things here. And so may want to break this notebook up.
+
+Unlike the other veg1\_ notebooks, this one is not going to roll the raster, but instead get the daily area in the moisture band and then we'll roll the polygons later. That's a bit cruder than the rolling calculations, but should yield a massive speedup, and is less crude than operating on mean soil moisture in the polygons.
+
+The stricture is a moisture band from 10-30%
+
+```{r}
+areamoist_10_30 <- function(x) {
+  sum(ifelse(x >= 0.1 & x <= 0.3, area, 0), na.rm = TRUE)
+}
+```
+
+## Run and check
+
+This is shared between red gum and black box, and is needed for germ and seedlings
+
+```{r}
+# 10 days > 10%
+with_progress({
+  out1030 <- process_with_checks(dataname = 'soilmoisture',
+                          data_dir = file.path(datDir,
+                                               'soil_moisture_more'),
+                          poly_path = file.path(datOut, 'ANAEcatchment'),
+                          process_function = 'areamoist_10_30',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100)
+})
+```
+
+```{r}
+out1030$timings
+out1030$failures
+```
+
+This gets done in the above, but it's handy to past in to a terminal
+
+```{r}
+#| eval: false
+source('directorySet.R')
+library(CC2)
+ct <- chunks_to_process(dataname = 'soilmoisture',
+                        summaryFun = 'areamoist_10_30',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100)
+```

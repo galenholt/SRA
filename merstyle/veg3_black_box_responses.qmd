@@ -1,0 +1,49 @@
+---
+title: "Black box runs"
+format: html
+editor: visual
+---
+
+```{r}
+source('directorySet.R')
+library(CC2)
+library(foreach)
+library(doFuture)
+library(progressr)
+doFuture::registerDoFuture()
+```
+
+```{r}
+if (parset == 'local') {
+  plan(multisession)
+}
+
+if (parset == 'gandalf') {
+  plan(list(tweak(future.batchtools::batchtools_slurm,
+                template = "batchtools.slurm.tmpl",
+                resources = list(time = 60,
+                                 ntasks.per.node = 12,
+                                 mem = "70GB",
+                                 job.name = 'black_box')),
+          multicore))
+}
+```
+
+Set up. I'm still trying to decide how much of this is general and how much bespoke.
+
+```{r}
+source('R/black_box.R')
+
+with_progress({
+  box_out <- process_with_checks(
+                          process_function = 'black_box',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 1)
+})
+
+```
+
+```{r}
+box_out$timings
+```

@@ -1,0 +1,86 @@
+---
+title: "Mean soil temp"
+format: html
+editor: visual
+---
+
+## Calculating soil moisture data for veg
+
+First, set directories and set up for parallel
+
+```{r}
+source('directorySet.R')
+library(CC2)
+```
+
+```{r}
+library(sf)
+library(foreach)
+library(doFuture)
+library(progressr)
+# make the handlers call in the console.
+# handlers(global = TRUE)
+# Not supposed to need this, but it seems to help
+doFuture::registerDoFuture()
+```
+
+This notebook will sometimes be run locally, but may be run on the HPC through purl, so set up the future plans appropriately.
+
+Here, we set the local plan to a simple multisession, while the HPC sends the loops here to nodes, and the inner loops in rastPolyJoin should go to cores. This lets us change the slurm commands- time is minutes, ntasks.per.node is cores, and mem is per node, I think.
+
+```{r}
+if (parset == 'local') {
+  plan(multisession)
+}
+
+# There's a couple in the condamine that time out at 60. Nearly everything else finishes in 10-30.
+if (parset == 'gandalf') {
+  plan(list(tweak(future.batchtools::batchtools_slurm,
+                template = "batchtools.slurm.tmpl",
+                resources = list(time = 600,
+                                 ntasks.per.node = 12, 
+                                 mem = "70GB",
+                                 job.name = 'daily1030')),
+          multicore))
+}
+```
+
+## Set functions
+
+We need to do a few things here. And so may want to break this notebook up.
+
+For soil temp, let's just get the area-weighted mean for each polygon. `CC2::weightedMean` does this.
+
+## Run and check
+
+```{r}
+# 10 days > 10%
+with_progress({
+  tempmean <- process_with_checks(dataname = 'soiltemp',
+                          data_dir = file.path(datDir,
+                                               'soil_temp_02_23'),
+                          poly_path = file.path(datOut, 'ANAEcatchment'),
+                          summaryFun = 'weightedMean',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100)
+})
+```
+
+```{r}
+tempmean$timings
+tempmean$failures
+```
+
+This gets done in the above, but it's handy to past in to a terminal
+
+```{r}
+#| eval: false
+library(CC2)
+source('directorySet.R')
+ct <- chunks_to_process(dataname = 'soiltemp',
+                        summaryFun = 'weightedMean',
+                          catchment = 'all',
+                          out_dir = datOut,
+                          nchunks = 100)
+```

@@ -37,10 +37,10 @@ if (parset == 'local') {
 if (parset == 'gandalf') {
   plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
-                resources = list(time = 300,
+                resources = list(time = 600,
                                  ntasks.per.node = 12, 
                                  mem = "70GB",
-                                 job.name = 'area_inundated')),
+                                 job.name = 'min_2y')),
           multicore))
 }
 ```
@@ -104,7 +104,6 @@ areamoistless30 <- function(x) {
 ```
 
 ## Run and check
-
 
 2 years \> 10%
 

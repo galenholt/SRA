@@ -602,6 +602,58 @@ catch <- purrr::imap(state_simple,
 
 Now, I need to package all that up into a fetch_mdb_gauges function to deal with the idiosyncracies.
 
+A different way to do it, combine into one file. Could have done this a while ago
+
+```{r}
+both_simple <- c(bom_simple, state_simple)
+```
+
+Delete the two SA gauges that cause EWR to crash
+
+```{r}
+both_simple[which(names(both_simple) %in% c('A4260527', 'A4260633'))] <- NULL
+```
+
+First, we need the range of dates
+
+```{r}
+alldates <- purrr::map(both_simple,
+                       \(x) dplyr::select(x, Date)) |> 
+  purrr::list_rbind() |> 
+  dplyr::distinct(Date) |> 
+  dplyr::arrange(Date)
+```
+
+Then we need to go through each table and `left_join` them on by `Date` . I think `reduce` is the `purrr` way to avoid for loops or foreach (`accumulate`) gives the intermediate steps too.)
+
+```{r}
+all_results <- both_simple |> 
+  purrr::reduce(.f = \(x, y) dplyr::left_join(x, y, by = 'Date'),
+                    .init = alldates)
+```
+
+Save that into a different directory for testing
+
+```{r}
+project_dir2 <- file.path(datOut, 'werpsmoosh')
+
+hydro_dir2 <- file.path(project_dir2, 'hydrographs')
+
+# there's only one scenario, so kinda funny
+if (!dir.exists(file.path(hydro_dir2, 'historical'))) {
+  dir.create(file.path(hydro_dir2, 'historical'), recursive = TRUE)
+  }
+```
+
+```{r}
+ readr::write_csv(all_results,
+                  file = file.path(hydro_dir2, 'historical', 'historical.csv'))
+```
+
+```{r}
+
+```
+
 ### This was old debug
 
 Some gauges don't exist anywhere
