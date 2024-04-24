@@ -230,4 +230,80 @@ red_gum <- function(out_dir,
   adult_condition <- inun_adult_all-inun_adult_inter
 
 
+
+# Common post-processing --------------------------------------------------
+# We now have a set of outputs that we want to do some common post-processing on:
+  # aggregate to year, clip to ANAE (by name and ala records)
+  # I think the best way to do this is to make them a list, and then use purrr. Otherwise it's a TON of copy-paste
+
+  # the anae_inun stuff is done elsewhere, but good to not have to go hunting
+  bare_stricts <- tibble::lst(germ_area, seedling_area, germ_and_seed, adult_condition, anae_inun = anae_inun$aggdata)
+
+# Aggregate to year -------------------------------------------------------
+
+  # To return, let's aggregate up to water year
+  availdates <- st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
+  startyear <- lubridate::year(min(availdates))-1
+  endyear <- lubridate::year(max(availdates)) + 1
+  # we want to cut at June 30, and so need to make sure the 07-01 go into the next step.
+  datebreaks <- startyear:endyear
+  datebreaks <- paste0(as.character(datebreaks), '0701') |> lubridate::ymd() |> as.POSIXct()
+
+  # Aggregate to year with meaneven though these are only pseudo-daily. That
+  # captures a time-dependence that the max would miss (e.g. one possible string
+  # of 10 days, vs every day).
+  yrstricts <- purrr::map(bare_stricts, \(x)
+                          tempaggregate(starObj = seedling_area, by = datebreaks,
+                                        FUN = mean, na.rm = TRUE) |>
+                            aperm(c('geometry', 'time')))
+
+
+# ANAE types --------------------------------------------------------------
+  # Option 1: it has the name 'red gum'- can just do this in a mutate
+
+
+  # Option 2: it's an anae type with records from ALA
+  # Let's say it needs to have at least 0.5% of the records to be appreciable.
+  ala_types <- anae_types |>
+    filter(n_records > 0.005*sum(anae_types$n_records)) |>
+    select(ANAE_DESC) |>
+    pull() |>
+    unique() # Should be, but ensure
+
+  # Have each method in separate cols of a df because we need logical vectors that match the full anae df (and stars)
+  anaestricts <- anaes |>
+    # option 1- by name
+    dplyr::mutate(name_anae = grepl('red gum|redgum', ANAE_DESC, ignore.case = TRUE),
+                  # option 2: by ala record
+                  ala_anae = ANAE_DESC %in% ala_types)
+
+  # clip the strictures
+  anae_name_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$name_anae) |>
+    setNames(paste0(names(yrstricts), '_anae_name'))
+  anae_ala_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$ala_anae) |>
+    setNames(paste0(names(yrstricts), '_anae_ala'))
+
+
+# make catchment scale ----------------------------------------------------
+
+  ## Catchment-scale so read-in is OK? still save the upper stuff for posterity,
+  #but mainly use the agged. We could use catchAggW, but I kind of like the sf
+  #approach I used for anae_diversity better. Especially because we know we're
+  #in `catchment` and so can avoid spatial joins that might have a bit of
+  #spillover etc We could generalise that, especially since here we don't need
+  #to retain the UIDs for each anae.
+
+  catchpoly <- ltimNoNorth |>
+    dplyr::mutate(ValleyName = stringr::str_remove_all(ValleyName, ' ')) |>
+    dplyr::filter(ValleyName == catchment) |>
+    dplyr::select(ValleyName, geometry)
+
+  # use sum to get total are in the catchment
+  # we're doing this to everything above, so we can c() the three lists together and then operate on all of them
+  response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
+    purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
+
+  return(response_list)
+
+
 }

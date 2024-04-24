@@ -91,6 +91,7 @@ diversity_temporal_abgamma <- catch_cat_sf('diversity_temporal_abgamma')
 ```
 
 ### Basin versions
+
 Diversity_anae_summary should have what we need- it has the anae types and their inundation are, so we can just make these here.
 
 Basically steal these from the catchment-scale analyses in anae_diversity.R
@@ -144,13 +145,11 @@ Shannon should be better- more opportunity for variation. Again, ripped straight
   st_as_sf()
 ```
 
-
 ## Analyses
 
 I'm going to try to avoid actually reading in any stars, but it might be unavoidable.
 
 ### Inundation in each ANAE type
-
 
 make a couple quick plots. Not worrying too much about making them pretty, just mostly making sure the data is there.
 
@@ -272,7 +271,6 @@ ggplot(shannon_area_prepost, aes(fill = diversity_shannon_area)) +
 ```
 
 ### Temporal turnover
-
 
 This is about temporal turnover, so doesn't work as a timeseries; it's an analysis of the timeseries, fundamentally. I'm mostly interested in beta diversity here; alpha is basically done above.
 

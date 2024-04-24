@@ -386,6 +386,8 @@ black_box <- function(out_dir,
                                      inun_anae_ala_catch # area of inundation in anaes with ala records.
   )
 
+  return(black_box_responses)
+
 
 
 }
