@@ -5,11 +5,92 @@ black_box <- function(out_dir,
                           whichcrs = 3577) {
 
 
-  # I'll need to sort out lists of dataname and summaryFun if we have multiple
-  # strictures based on different sets of stars polygons.
-  # But trying to keep syntax consistent across the data functions.
 
-    # Hard to make the data arguments, could do it with a list, but still not very general
+
+  source('directorySet.R')
+  library(CC2)
+  library(foreach)
+  library(doFuture)
+  catchment <- 'Avoca'
+  out_dir <- datOut
+  thischunk <- 1
+
+
+# arguments ---------------------------------------------------------------
+
+  veg_name <- 'black_box'
+
+  # Stricture 1: Germination
+  # North: May to Oct, South Nov to March
+  # inundation immediately preceding,
+  # then 10 days of moisture 10-30% (days_germmoist)
+  north_g_month <- c(5:10)
+  south_g_month <- c(1:4, 11:12)
+
+  days_germmoist <- 10
+
+  # Stage 2: Seedling survival
+  # Moisture must be maintained above 10% (and less than 30?) for two years.
+  # Nothing ever passes for 2, and there wasn't much real info. Try 1? Or 1/2. The ref is pretty dodgy and at one point says 'at least through the summer'
+  # No more than 70 days inundation
+  # and it needs to happen following germination
+
+  # How long is the seedling period? say 6mo
+  seedling_period_days <- 6*30
+  seedling_period_bimonth <- 6/2
+
+  # The germ window is a period within seed_period_days during which germ can occur. This has to
+  # fit inside seedling_period_days, along with some minimum seedling period. IE we
+  # assess soil moisture for a full seedling_period_days, but if germ occurs in the
+  # first bit of length germ_window, it counts. So the length of seedling period = germ_window +
+  # minimum seedling period.
+  germ_window <- 60
+
+  # No inundation >70 days. Let's say 1 bimonth OK, 2 is a fail.
+  too_long_inun <- 4/2 # b/c bimonth
+
+  # Stage 3: Adults
+  # At least one flood in 8 years
+  # Duration 2-4 months
+  # Do we want to couple to seedlings? ie needs to have been seedling survival x
+  # years in the past? I think no- presumably many of these trees are older than
+  # the data we have. We can just report on condition for regeneration (germ and
+  # seedlings) and conditions for persistence.
+
+  adult_maxflood <- 6/2 # /2 because bimonth, 4 is the limit, so use 6 because that's too long.
+  adult_floodinterval <- 8*6 # *6 because bimonth year
+  a_month <- 1:12 # no seasonality restriction
+
+
+
+  # some tweaks to handle conditionals on the inputs, e.g. grep formats, catchment info
+  veg_grep <- dplyr::case_when(veg_name == 'black_box' ~ 'black box',
+                               veg_name == 'red_gum' ~ 'red gum',
+                               veg_name == 'coolabah' ~ 'cool',
+                               veg_name == 'lignum' ~ 'lignum')
+
+  # Define the N basin according to https://www.mdba.gov.au/water-management/northern-basin (n of B-D and Macquarie, inclusive)
+  n_catches <- c('Barwon Darling', "Macquarie", "Castlereagh", 'Paroo', 'Warrego',
+                 'Condamine Balonne', 'Border Rivers', "Gwydir", 'Namoi', 'Castlereagh') |>
+    stringr::str_remove_all(' ')
+
+  all_catches <- ltimNoNorth$ValleyName |> stringr::str_remove_all(' ')
+  s_catches <- all_catches[!all_catches %in% n_catches]
+
+  # So, since inundation timestep is at start of the data,
+  # In north, we want inundation in May-June, July-Aug, and Sept-Oct, months 5, 7, 9 in inundation
+  # In south, we want inundation in Nov-Dec, Jan-Feb, Mar-April (extend a bit), months 11, 1, 3 in inundation
+  # We can include the even months here to hit the daily data, and they just get ignored in the inundation
+  if (catchment %in% n_catches) {
+    g_month <- north_g_month
+  } else if (catchment %in% s_catches) {
+    g_month <- south_g_month
+  }
+
+
+
+
+# Data read-in ------------------------------------------------------------
 
 
   ## DATA IN
@@ -40,35 +121,14 @@ black_box <- function(out_dir,
 
   # Two ways of doing this- one from the name of the anae, and one from where they're found in ALA (see veg1_anae_mapping).
   # In both cases, we develop the stricture at the end, but we read in the ALA side here.
-  anae_types <- readRDS(file.path(out_dir, 'vegmapping', 'black_box_anae_type.rds'))
+  anae_types <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_anae_type.rds')))
 
 
   # Stricture 1: Germination
-  # North: May to Oct, South Nov to March
-  # inundation immediately preceding,
-  # then 10 days of moisture 10-30%
-
-  # Define the N basin according to https://www.mdba.gov.au/water-management/northern-basin (n of B-D and Macquarie, inclusive)
-  n_catches <- c('Barwon Darling', "Macquarie", "Castlereagh", 'Paroo', 'Warrego',
-                 'Condamine Balonne', 'Border Rivers', "Gwydir", 'Namoi', 'Castlereagh') |>
-    stringr::str_remove_all(' ')
-
-  all_catches <- ltimNoNorth$ValleyName |> stringr::str_remove_all(' ')
-  s_catches <- all_catches[!all_catches %in% n_catches]
-
-  # So, since inundation timestep is at start of the data,
-  # In north, we want inundation in May-June, July-Aug, and Sept-Oct, months 5, 7, 9 in inundation
-  # In south, we want inundation in Nov-Dec, Jan-Feb, Mar-April (extend a bit), months 11, 1, 3 in inundation
-  # We can include the even months here to hit the daily data, and they just get ignored in the inundation
-  if (catchment %in% n_catches) {
-    i_month <- c(5:10)
-  } else if (catchment %in% s_catches) {
-    i_month <- c(1:4, 11:12)
-  }
 
   times <- st_get_dimension_values(anae_inun$aggdata, 'time')
   # Easier to set 0 than 1
-  nogermtimes <- which(!lubridate::month(times) %in% i_month)
+  nogermtimes <- which(!lubridate::month(times) %in% g_month)
 
   # Only the area of inundation if in the right season
     # We may not actually need this at all- if we do the soil moisture it'll pick this up, with the time shifts around month starts, which is better anyway
@@ -76,9 +136,9 @@ black_box <- function(out_dir,
   germ_inun_season[[1]][ , nogermtimes] <- 0
 
   # soil moisture- the data is the daily area between 10-30, so we want the minimum of that over the last 10 days.
-  soilmoist_10day <- timeRoll(soilmoist_polys$aggdata,
+  soilmoist_germdays <- timeRoll(soilmoist_polys$aggdata,
                                    FUN = RcppRoll::roll_min,
-                                   rolln = 10,
+                                   rolln = days_germmoist,
                                    align = 'right',
                                    na.rm = TRUE)
 
@@ -110,30 +170,22 @@ black_box <- function(out_dir,
   # inundated, and that retained 10%.
 
   # There's almost certainly a better way to do this with `lag`, but that really wants a timeseries
-  shift_inun <- daily_inun[[1]][, -1:-11] # shift the time-cols over
-  shift_inun <- cbind(shift_inun, daily_inun[[1]][, 1:11]*NA) # put the same number of NA cols at the end so we can multiply the matrices
+  shift_inun <- daily_inun[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
+  shift_inun <- cbind(shift_inun, daily_inun[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
 
-  germ_area <- soilmoist_10day
-  germ_area[[1]] <- pmin(shift_inun, soilmoist_10day[[1]])
+  germ_area <- soilmoist_germdays
+  germ_area[[1]] <- pmin(shift_inun, soilmoist_germdays[[1]])
 
   # Stage 2: Seedling survival
-  # Moisture must be maintained above 10% (and less than 30?) for two years.
-  # Nothing ever passes for 2, and there wasn't much real info. Try 1? Or 1/2. The ref is pretty dodgy and at one point says 'at least through the summer'
-  # No more than 70 days inundation
-  # and it needs to happen following germination
-
-  # How long is the seedling period? say 6mo
-  seedling_period <- 6*30
 
   # soil moisture- the data is the daily area between 10-30, so we want the minimum of that over the last seedling period.
   soilmoist_seedling <- timeRoll(soilmoist_polys$aggdata,
                                  FUN = RcppRoll::roll_min,
-                                 rolln = seedling_period,
-                                 # rolln = 730,
+                                 rolln = seedling_period_days,
                                  align = 'right',
                                  na.rm = TRUE)
 
-  # No inundation 'several months'. Let's say 1 bimonth OK, 2 is a fail.
+
   # First, get the *un*inundated area
   # back to just anae_inun here, because the seasonality comes in with the did germ happen check.
   area_not_inundated <- anae_inun$aggdata
@@ -143,21 +195,21 @@ black_box <- function(out_dir,
     anae_inun$aggdata[[1]]
 
   # Then the max of that over two bimonths- this is the area that wasn't inundated for too long
-  area_not_4mo <- timeRoll(area_not_inundated,
+  area_not_too_long <- timeRoll(area_not_inundated,
                            FUN = RcppRoll::roll_max,
-                           rolln = 2,
+                           rolln = too_long_inun,
                            align = 'right',
                            na.rm = TRUE)
 
-  # Then the min of that over 6mo (3 bimonths) gives us the area that never got inundated too much in 6mo
-  notflood_seedling <- timeRoll(area_not_4mo,
+  # Then the min of that over the seedling period gives us the area that never
+  # got inundated too much while seedling establishing
+  notflood_seedling <- timeRoll(area_not_too_long,
                                 FUN = RcppRoll::roll_min,
-                                rolln = 3, # Cut to 6 mo now.
-                                # rolln = 12,
+                                rolln = seedling_period_bimonth,
                                 align = 'right',
                                 na.rm = TRUE)
 
-  # now we want the area that had enough moisture and not too much inundation over the two years.
+  # now we want the area that had enough moisture and not too much inundation over the seedling period.
   # again, abuse unevenTimeMult
   # This returns NA for all times before inundatin (as it should)
   daily_not_area <- unevenTimeMult(fineStars = soilmoist_seedling*0+1,
@@ -173,13 +225,12 @@ black_box <- function(out_dir,
 
   # I don't think the way I was doing this made much sense. Or maybe just wasn't explained very well in my comment.
 
-  # Let's say we want some germ window x days (e.g. 2 months) long. This has to
-  # fit inside seedling_period, along with some minimum seedling period. IE we
-  # assess soil moisture for a full seedling_period, but if germ occurs in the
+  # We have some germ window x days (e.g. 2 months) long. This has to
+  # fit inside seedling_period_days, along with some minimum seedling period. IE we
+  # assess soil moisture for a full seedling_period_days, but if germ occurs in the
   # first bit, it counts. So the length of seedling period = germ_window +
   # minimum seedling period. To get that for each day, we can roll_max for x
   # days to get whether there was germ sometime in that 2mo window
-  germ_window <- 60
 
   germ_span <- timeRoll(germ_area,
                         FUN = RcppRoll::roll_max,
@@ -190,37 +241,28 @@ black_box <- function(out_dir,
 
   # But, the question is whether that germination happened at least some minimum
   # seedling period ago.
-  # The full possible germ period needs to fit in the seedling_period, because that's the check that soil stayed moist.
+  # The full possible germ period needs to fit in the seedling_period_days, because that's the check that soil stayed moist.
   # So if we're checking soil moisture for 6mo, we can't look beyond that for
   # germination. So let's say the min seedling period is 4 mo. Then we'd ask
   # whether germ in the preceding 2mo germ_window 4 months ago would yield
   # passing for a 6-mo soil moisture period
 
-  min_seedling_period <- seedling_period - germ_window
+  min_seedling_period_days <- seedling_period_days - germ_window
 
   # Now, we want to shift the germ window over by that minimum period, so we can
   # see if there was any germination in teh germ_window preceding
-  # min_seedling_period
-  germ_span_shift <- cbind(germ_span[[1]][, 1:min_seedling_period]*NA, germ_span[[1]])
-  germ_span_shift <- germ_span_shift[,-(ncol(germ_span_shift)-(min_seedling_period-1)):-ncol(germ_span_shift)]
+  # min_seedling_period_days
+  germ_span_shift <- cbind(germ_span[[1]][, 1:min_seedling_period_days]*NA, germ_span[[1]])
+  germ_span_shift <- germ_span_shift[,-(ncol(germ_span_shift)-(min_seedling_period_days-1)):-ncol(germ_span_shift)]
 
 
   # now the area that germinated AND then survived a seedling stage ranging from
-  # min_seedling_period to seedling_period is the minimum
+  # min_seedling_period_days to seedling_period_days is the minimum
   germ_and_seed <- seedling_area
   germ_and_seed[[1]] <- pmin(seedling_area[[1]], germ_span_shift)
 
 
   # Stage 3: Adults
-  # At least one flood in 8 years
-  # Duration 2-4 months
-  # Do we want to couple to seedlings? ie needs to have been seedling survival x
-  # years in the past? I think no- presumably many of these trees are older than
-  # the data we have. We can just report on condition for regeneration (germ and
-  # seedlings) and conditions for persistence.
-
-  adult_maxflood <- 6/2 # /2 because bimonth, 4 is the limit, so use 6 because that's too long.
-  adult_floodinterval <- 8*6 # *6 because bimonth year
 
   # How do we calculate this? We want the maximum area flooded in floodinterval
   # years, minus the area that flooded too much
@@ -243,9 +285,18 @@ black_box <- function(out_dir,
                                align = 'right',
                                na.rm = TRUE)
 
+
+  # we don't have season for black box, but to make things consistent
+  # We already have 'times' from above
+  noadulttimes <- which(!lubridate::month(times) %in% a_month)
+  # Only the area of inundation if in the right season
+  # We may not actually need this at all- if we do the soil moisture it'll pick this up, with the time shifts around month starts, which is better anyway
+  adult_inun_season <- anae_inun$aggdata
+  adult_inun_season[[1]][ , noadulttimes] <- 0
+
   # The max inun over floodinterval years is the amount that passes the floodinterval-year requirement
   # i.e we want the max inundation over the floodinterval, but only those events  that occurred in a_months
-  inun_adult_all <- timeRoll(anae_inun$aggdata,
+  inun_adult_all <- timeRoll(adult_inun_season,
                              FUN = RcppRoll::roll_max,
                              rolln = adult_floodinterval,
                              align = 'right',
@@ -255,8 +306,15 @@ black_box <- function(out_dir,
   adult_condition <- inun_adult_all-inun_adult_inter
 
 
+  # Common post-processing --------------------------------------------------
+  # We now have a set of outputs that we want to do some common post-processing on:
+  # aggregate to year, clip to ANAE (by name and ala records)
+  # I think the best way to do this is to make them a list, and then use purrr. Otherwise it's a TON of copy-paste
 
+  # the anae_inun stuff is done elsewhere, but good to not have to go hunting
+  bare_stricts <- tibble::lst(germ_area, seedling_area, germ_and_seed, adult_condition, anae_inun = anae_inun$aggdata)
 
+  # Aggregate to year -------------------------------------------------------
 
   # To return, let's aggregate up to water year
   availdates <- st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
@@ -266,73 +324,43 @@ black_box <- function(out_dir,
   datebreaks <- startyear:endyear
   datebreaks <- paste0(as.character(datebreaks), '0701') |> lubridate::ymd() |> as.POSIXct()
 
-  # I'm going to use the mean, even though these are only pseudo-daily. That captures a time-dependence that the max would miss (e.g. one possible string of 10 days, vs every day).
-  # Germination
-  germ_area_year <- tempaggregate(starObj = germ_area, by = datebreaks,
-                                  FUN = mean, na.rm = TRUE) |>
-    aperm(c('geometry', 'time'))
+  # Aggregate to year with meaneven though these are only pseudo-daily. That
+  # captures a time-dependence that the max would miss (e.g. one possible string
+  # of 10 days, vs every day).
+  yrstricts <- purrr::map(bare_stricts, \(x)
+                          tempaggregate(starObj = x, by = datebreaks,
+                                        FUN = mean, na.rm = TRUE) |>
+                            aperm(c('geometry', 'time')))
 
-  # Seedlings
-  seedling_area_year <- tempaggregate(starObj = seedling_area, by = datebreaks,
-                                  FUN = mean, na.rm = TRUE) |>
-    aperm(c('geometry', 'time'))
 
-  # All recruitment
-  germ_and_seed_year <- tempaggregate(starObj = germ_and_seed, by = datebreaks,
-                                    FUN = mean, na.rm = TRUE) |>
-    aperm(c('geometry', 'time'))
+  # ANAE types --------------------------------------------------------------
 
-  # Adults
-  adult_year <- tempaggregate(starObj = adult_condition, by = datebreaks,
-                                    FUN = mean, na.rm = TRUE) |>
-    aperm(c('geometry', 'time'))
+  # Option 1: it has the name 'red gum'- can just do this in a mutate
 
-  # Just inundation- useful for if we don't actually have strictures. This is
-  # also done in diversity analyses to this point, but the idea is to do the
-  # anae cut below, and so is moving towards a different comparison.
-    # And I'm using the mean here to match the other stuff above.
-  anae_year <- tempaggregate(starObj = anae_inun$aggdata, by = datebreaks,
-                              FUN = mean, na.rm = TRUE) |>
-    aperm(c('geometry', 'time'))
-
-  ## ANAE Types
-
-  # Option 1: it has the name 'black box'- can just do this in a mutate
 
   # Option 2: it's an anae type with records from ALA
   # Let's say it needs to have at least 0.5% of the records to be appreciable.
-  boxala <- anae_types |>
+  ala_types <- anae_types |>
     filter(n_records > 0.005*sum(anae_types$n_records)) |>
     select(ANAE_DESC) |>
     pull() |>
     unique() # Should be, but ensure
 
-  # add those as columns to anaes
-  anaes_bb <- anaes |>
+  # Have each method in separate cols of a df because we need logical vectors that match the full anae df (and stars)
+  anaestricts <- anaes |>
     # option 1- by name
-    dplyr::mutate(name_anae = grepl('black|box', ANAE_DESC, ignore.case = TRUE),
+    dplyr::mutate(name_anae = grepl(veg_grep, ANAE_DESC, ignore.case = TRUE),
                   # option 2: by ala record
-                  ala_anae = ANAE_DESC %in% boxala)
+                  ala_anae = ANAE_DESC %in% ala_types)
 
-  # Then, cut the tempaggregates above.
-  # This is getting factorial fast.
-  germ_anae_name <- germ_area_year * anaes_bb$name_anae
-  germ_anae_ala <- germ_area_year * anaes_bb$ala_anae
+  # clip the strictures
+  anae_name_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$name_anae) |>
+    setNames(paste0(names(yrstricts), '_anae_name'))
+  anae_ala_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$ala_anae) |>
+    setNames(paste0(names(yrstricts), '_anae_ala'))
 
-  seedling_anae_name <- seedling_area_year * anaes_bb$name_anae
-  seedling_anae_ala <- seedling_area_year * anaes_bb$ala_anae
 
-  germ_and_seed_anae_name <- germ_and_seed_year * anaes_bb$name_anae
-  germ_and_seed_anae_ala <- germ_and_seed_year * anaes_bb$ala_anae
-
-  adult_anae_name <- adult_year * anaes_bb$name_anae
-  adult_anae_ala <- adult_year * anaes_bb$ala_anae
-
-  # BUT ALSO, one that JUST cuts ANAE_inun by type- what if there's no info
-  # about strictures and all we have is ANAE or records?
-  inun_anae_name <- anae_year * anaes_bb$name_anae
-  inun_anae_ala <- anae_year * anaes_bb$ala_anae
-
+  # make catchment scale ----------------------------------------------------
 
   ## Catchment-scale so read-in is OK? still save the upper stuff for posterity,
   #but mainly use the agged. We could use catchAggW, but I kind of like the sf
@@ -346,75 +374,38 @@ black_box <- function(out_dir,
     dplyr::filter(ValleyName == catchment) |>
     dplyr::select(ValleyName, geometry)
 
-  # we need to return NA if all values are NA, else use na.rm = TRUE. sum alone returns 0. The sumna function does that.
-  # not anae-clipped
-  germ_catch <- sf_and_aggforce(germ_area_year, catchpoly, newname = 'area', funlist = sumna)
-  seed_catch <- sf_and_aggforce(seedling_area_year, catchpoly, newname = 'area', funlist = sumna)
-  germ_and_seed_catch <- sf_and_aggforce(germ_and_seed_year, catchpoly, newname = 'area', funlist = sumna)
-  adult_catch <- sf_and_aggforce(adult_year, catchpoly, newname = 'area', funlist = sumna)
-  inun_anae_catch <- sf_and_aggforce(anae_year, catchpoly, newname = 'area', funlist = sumna)
+  # use sum to get total are in the catchment
+  # we're doing this to everything above, so we can c() the three lists together and then operate on all of them
+  response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
+    purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
 
-  # ANAE clipped
-  germ_anae_name_catch <- sf_and_aggforce(germ_anae_name, catchpoly, newname = 'area', funlist = sumna)
-  seed_anae_name_catch <- sf_and_aggforce(seedling_anae_name, catchpoly, newname = 'area', funlist = sumna)
-  germ_and_seed_anae_name_catch <- sf_and_aggforce(germ_and_seed_anae_name, catchpoly, newname = 'area', funlist = sumna)
-  adult_anae_name_catch <- sf_and_aggforce(adult_anae_name, catchpoly, newname = 'area', funlist = sumna)
-  inun_anae_name_catch <- sf_and_aggforce(inun_anae_name, catchpoly, newname = 'area', funlist = sumna)
-
-  germ_anae_ala_catch <- sf_and_aggforce(germ_anae_ala, catchpoly, newname = 'area', funlist = sumna)
-  seed_anae_ala_catch <- sf_and_aggforce(seedling_anae_ala, catchpoly, newname = 'area', funlist = sumna)
-  germ_and_seed_anae_ala_catch <- sf_and_aggforce(germ_and_seed_anae_ala, catchpoly, newname = 'area', funlist = sumna)
-  adult_anae_ala_catch <- sf_and_aggforce(adult_anae_ala, catchpoly, newname = 'area', funlist = sumna)
-  inun_anae_ala_catch <- sf_and_aggforce(inun_anae_ala, catchpoly, newname = 'area', funlist = sumna)
-
-
-  # list it up
-  black_box_responses <- tibble::lst(germ_catch, # Area of germination met
-                                     seed_catch, # Area of seedling survival met
-                                     germ_and_seed_catch, # Area of germination followed by seed survival
-                                     adult_catch, # area of acceptable adult condition
-                                     inun_anae_catch, # area of inundation in *all* ANAEs
-                                     germ_anae_name_catch, # area of germ met in anaes with 'black box'
-                                     germ_anae_ala_catch, # Area of germ met in anaes with ala records
-                                     seed_anae_name_catch, # As above
-                                     seed_anae_ala_catch,
-                                     germ_and_seed_anae_name_catch,
-                                     germ_and_seed_anae_ala_catch,
-                                     adult_anae_name_catch,
-                                     adult_anae_ala_catch,
-                                     inun_anae_name_catch, # area of inundation in anaes with `black box`
-                                     inun_anae_ala_catch # area of inundation in anaes with ala records.
-  )
-
-  return(black_box_responses)
-
-
+  return(response_list)
 
 }
 #
-# ggplot() +
-#   geom_line(data = inun_anae_ala_catch, mapping = aes(x = date, y = area), color = 'black') +
-#   geom_line(data = germ_anae_ala_catch, mapping = aes(x = date, y = area), color = 'green') +
-#   geom_line(data = seed_anae_ala_catch, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = germ_and_seed_anae_ala_catch, mapping = aes(x = date, y = area), color = 'red') +
-#   geom_line(data = adult_anae_ala_catch, mapping = aes(x = date, y = area), color = 'blue')
+ggplot() +
+  geom_line(data = response_list$anae_inun_anae_ala, mapping = aes(x = date, y = area), color = 'black') +
+  geom_line(data = response_list$germ_area_anae_ala, mapping = aes(x = date, y = area), color = 'green') +
+  geom_line(data = response_list$seedling_area_anae_ala, mapping = aes(x = date, y = area), color = 'purple') +
+  geom_line(data = response_list$germ_and_seed_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
+  geom_line(data = response_list$adult_condition_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
+
+# How are adults > inun? The above is clipped and inun is the mean, but the adults are a rolling lookback at the 8-year max
+anae_year_max <- tempaggregate(starObj = anae_inun$aggdata, by = datebreaks,
+                           FUN = max, na.rm = TRUE) |>
+  aperm(c('geometry', 'time'))
+inun_max_catch <- sf_and_aggforce(anae_year_max, catchpoly, newname = 'area', funlist = sumna)
+
+ggplot() +
+  geom_line(data = inun_max_catch, mapping = aes(x = date, y = area), color = 'black') +
+  geom_line(data = adult_anae_ala_catch, mapping = aes(x = date, y = area), color = 'blue')
+
+#OK, I believe that.
 #
-# # How are adults > inun? The above is clipped and inun is the mean, but the adults are a rolling lookback at the 8-year max
-# anae_year_max <- tempaggregate(starObj = anae_inun$aggdata, by = datebreaks,
-#                            FUN = max, na.rm = TRUE) |>
-#   aperm(c('geometry', 'time'))
-# inun_max_catch <- sf_and_aggforce(anae_year_max, catchpoly, newname = 'area', funlist = sumna)
 #
-# ggplot() +
-#   geom_line(data = inun_max_catch, mapping = aes(x = date, y = area), color = 'black') +
-#   geom_line(data = adult_anae_ala_catch, mapping = aes(x = date, y = area), color = 'blue')
-#
-# #OK, I believe that.
-# #
-# #
-# ggplot() +
-#   geom_line(data = inun_anae_catch, mapping = aes(x = date, y = area), color = 'black') +
-#   geom_line(data = germ_catch, mapping = aes(x = date, y = area), color = 'green') +
-#   geom_line(data = seed_catch, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = germ_and_seed_catch, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
-#   geom_line(data = adult_catch, mapping = aes(x = date, y = area), color = 'blue')
+ggplot() +
+  geom_line(data = response_list$anae_inun, mapping = aes(x = date, y = area), color = 'black') +
+  geom_line(data = response_list$germ_area, mapping = aes(x = date, y = area), color = 'green') +
+  geom_line(data = response_list$seedling_area, mapping = aes(x = date, y = area), color = 'purple') +
+  geom_line(data = response_list$germ_and_seed, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
+  geom_line(data = response_list$adult_condition, mapping = aes(x = date, y = area), color = 'blue')

@@ -46,11 +46,11 @@ red_gum <- function(out_dir,
   # inundation immediately preceding, then 5 days of soil moisture (David's sheet) or 14 (Casanova). Use 14?
   days_germmoist <- 14
 
-  i_month <- c(9:12)
+  g_month <- c(9:12)
 
   times <- st_get_dimension_values(anae_inun$aggdata, 'time')
   # Easier to set 0 than 1
-  nogermtimes <- which(!lubridate::month(times) %in% i_month)
+  nogermtimes <- which(!lubridate::month(times) %in% g_month)
 
   # Only the area of inundation if in the right season
   # We may not actually need this at all- if we do the soil moisture it'll pick this up, with the time shifts around month starts, which is better anyway
@@ -89,17 +89,21 @@ red_gum <- function(out_dir,
   # and it needs to happen following germination
 
   # How long is the seedling period? say 6mo
-  seedling_period <- 183
+  seedling_period_days <- 183
+  seedling_period_bimonth <- 6/2
+
+  # No inundation 'several months'. Let's say 1 bimonth OK, 2 is a fail.
+  too_long_inun <- 4/2 # b/c bimonth
 
   # soil moisture- the data is the daily area between 10-30, so we want the minimum of that over the last seedling period.
   soilmoist_seedling <- timeRoll(soilmoist_polys$aggdata,
                             FUN = RcppRoll::roll_min,
-                            rolln = seedling_period,
+                            rolln = seedling_period_days,
                             # rolln = 730,
                             align = 'right',
                             na.rm = TRUE)
 
-  # No inundation 'several months'. Let's say 1 bimonth OK, 2 is a fail.
+
   # First, get the *un*inundated area
   # back to just anae_inun here, because the seasonality comes in with the did germ happen check.
   area_not_inundated <- anae_inun$aggdata
@@ -109,14 +113,14 @@ red_gum <- function(out_dir,
     anae_inun$aggdata[[1]]
 
   # Then the max of that over two bimonths- this is the area that wasn't inundated for too long
-  area_not_4mo <- timeRoll(area_not_inundated,
+  area_not_too_long <- timeRoll(area_not_inundated,
                            FUN = RcppRoll::roll_max,
-                           rolln = 2,
+                           rolln = too_long_inun,
                            align = 'right',
                            na.rm = TRUE)
 
   # Then the min of that over 6mo (3 bimonths) gives us the area that never got inundated too much in 6mo
-  notflood_seedling <- timeRoll(area_not_4mo,
+  notflood_seedling <- timeRoll(area_not_too_long,
                            FUN = RcppRoll::roll_min,
                            rolln = 3, # Cut to 6 mo now.
                            # rolln = 12,
@@ -140,8 +144,8 @@ red_gum <- function(out_dir,
   # I don't think the way I was doing this made much sense. Or maybe just wasn't explained very well in my comment.
 
   # Let's say we want some germ window x days (e.g. 2 months) long. This has to
-  # fit inside seedling_period, along with some minimum seedling period. IE we
-  # assess soil moisture for a full seedling_period, but if germ occurs in the
+  # fit inside seedling_period_days, along with some minimum seedling period. IE we
+  # assess soil moisture for a full seedling_period_days, but if germ occurs in the
   # first bit, it counts. So the length of seedling period = germ_window +
   # minimum seedling period. To get that for each day, we can roll_max for x
   # days to get whether there was germ sometime in that 2mo window
@@ -156,23 +160,23 @@ red_gum <- function(out_dir,
 
   # But, the question is whether that germination happened at least some minimum
   # seedling period ago.
-  # The full possible germ period needs to fit in the seedling_period, because that's the check that soil stayed moist.
+  # The full possible germ period needs to fit in the seedling_period_days, because that's the check that soil stayed moist.
   # So if we're checking soil moisture for 6mo, we can't look beyond that for
   # germination. So let's say the min seedling period is 4 mo. Then we'd ask
   # whether germ in the preceding 2mo germ_window 4 months ago would yield
   # passing for a 6-mo soil moisture period
 
-  min_seedling_period <- seedling_period - germ_window
+  min_seedling_period_days <- seedling_period_days - germ_window
 
   # Now, we want to shift the germ window over by that minimum period, so we can
   # see if there was any germination in teh germ_window preceding
-  # min_seedling_period
-  germ_span_shift <- cbind(germ_span[[1]][, 1:min_seedling_period]*NA, germ_span[[1]])
-  germ_span_shift <- germ_span_shift[,-(ncol(germ_span_shift)-(min_seedling_period-1)):-ncol(germ_span_shift)]
+  # min_seedling_period_days
+  germ_span_shift <- cbind(germ_span[[1]][, 1:min_seedling_period_days]*NA, germ_span[[1]])
+  germ_span_shift <- germ_span_shift[,-(ncol(germ_span_shift)-(min_seedling_period_days-1)):-ncol(germ_span_shift)]
 
 
   # now the area that germinated AND then survived a seedling stage ranging from
-  # min_seedling_period to seedling_period is the minimum
+  # min_seedling_period_days to seedling_period_days is the minimum
   germ_and_seed <- seedling_area
   germ_and_seed[[1]] <- pmin(seedling_area[[1]], germ_span_shift)
 
@@ -253,12 +257,13 @@ red_gum <- function(out_dir,
   # captures a time-dependence that the max would miss (e.g. one possible string
   # of 10 days, vs every day).
   yrstricts <- purrr::map(bare_stricts, \(x)
-                          tempaggregate(starObj = seedling_area, by = datebreaks,
+                          tempaggregate(starObj = x, by = datebreaks,
                                         FUN = mean, na.rm = TRUE) |>
                             aperm(c('geometry', 'time')))
 
 
 # ANAE types --------------------------------------------------------------
+  veg_name <- 'red gum'
   # Option 1: it has the name 'red gum'- can just do this in a mutate
 
 
@@ -273,7 +278,7 @@ red_gum <- function(out_dir,
   # Have each method in separate cols of a df because we need logical vectors that match the full anae df (and stars)
   anaestricts <- anaes |>
     # option 1- by name
-    dplyr::mutate(name_anae = grepl('red gum|redgum', ANAE_DESC, ignore.case = TRUE),
+    dplyr::mutate(name_anae = grepl(veg_name, ANAE_DESC, ignore.case = TRUE),
                   # option 2: by ala record
                   ala_anae = ANAE_DESC %in% ala_types)
 
