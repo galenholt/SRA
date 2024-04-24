@@ -33,19 +33,20 @@ black_box <- function(out_dir,
   # minimum seedling period.
   germ_window <- 60
 
-  # No inundation >70 days. Let's say 1 bimonth OK, 2 is a fail.
-  too_long_inun <- 4/2 # b/c bimonth
+  # No inundation >70 days. Let's say 1 bimonth OK, 2 is a fail.This is
+  # in months, so I guess say 3, it gets ceilinged in the fun
+  too_long_inun <- 3
 
   # Stage 3: Adults
   # At least one flood in 8 years
-  # Duration 2-4 months
+  # Duration 2-4 months (max 5)
   # Do we want to couple to seedlings? ie needs to have been seedling survival x
   # years in the past? I think no- presumably many of these trees are older than
   # the data we have. We can just report on condition for regeneration (germ and
   # seedlings) and conditions for persistence.
 
-  adult_maxflood <- 6/2 # /2 because bimonth, 4 is the limit, so use 6 because that's too long.
-  adult_floodinterval <- 8*6 # *6 because bimonth year
+  adult_maxflood <- 5
+  adult_floodinterval <- 8*12
   a_month <- 1:12 # no seasonality restriction
 
 

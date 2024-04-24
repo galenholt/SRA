@@ -149,7 +149,6 @@ ggplot(germ, aes(x = date, y = area, color = ValleyName)) +
   theme(legend.position = 'none')
 ```
 
-
 ```{r}
 ggplot(germ, aes(fill = log(area))) +
   geom_sf(color = NA) +
@@ -162,7 +161,6 @@ ggplot(germ_basin, aes(x = date, y = area)) +
   geom_line() +
   geom_point()
 ```
-
 
 ### Seedling
 
@@ -222,4 +220,3 @@ ggplot(adult_basin, aes(x = date, y = area)) +
   geom_line() +
   geom_point()
 ```
-

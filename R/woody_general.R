@@ -20,9 +20,9 @@
 #'   soil moisture for a full seedling_period_days, but if germ occurs in the
 #'   first bit of length germ_window, it counts. So the length of seedling
 #'   period = germ_window + minimum seedling period.
-#' @param too_long_inun How long (in bimonths) is too much inundation for seedlings to survive? Other units would be nice, but rounding is a pain.
-#' @param adult_maxflood How long (in bimonths) is too much inundation for adults to survive? Other units would be nice, but rounding is a pain.
-#' @param adult_floodinterval the maximum (in years) interval between floods before adults die/lose condition
+#' @param too_long_inun How long (in months) is too much inundation for seedlings to survive? This ends up being used as ceiling(too_long_inun/2) to get the bimonth, so if you want a round-down, make sure it's an even number.
+#' @param adult_maxflood How long (in months) is too much inundation for adults to survive? This ends up being used as ceiling(adult_maxflood/2) to get the bimonth, so if you want a round-down, make sure it's an even number.
+#' @param adult_floodinterval the maximum (in months) interval between floods before adults die/lose condition
 #' @param a_month months in which inundation 'counts' for adults
 #'
 #' @return
@@ -43,7 +43,12 @@ woody_general <- function(out_dir, catchment,
   # some tweaks to handle conditionals on the inputs, e.g. grep formats, catchment info
 
   seedling_period_days <- seedling_period_month*30
-  seedling_period_bimonth <- seedling_period_month/2
+  seedling_period_bimonth <- ceiling(seedling_period_month/2) ## because bimonth data
+
+  too_long_inun <- ceiling(too_long_inun/2) # because bimonth data
+  adult_maxflood <- ceiling(adult_maxflood/2) # because bimonth data
+
+  adult_floodinterval <- ceiling(adult_floodinterval/2) # because bimonth data
 
 
   veg_grep <- dplyr::case_when(veg_name == 'black_box' ~ 'black box',
@@ -168,6 +173,14 @@ woody_general <- function(out_dir, catchment,
                                  na.rm = TRUE)
 
 
+  # Deal with too much inundation (drowning)
+
+  # If the there isn't a stricture here, setting the too_long to longer than the data just returns NA for all the checks below
+
+  if (length(too_long_inun) == 0 | is.null(too_long_inun)) {
+    too_long_inun <- st_dimensions(anae_inun$aggdata)$time$to + 1
+  }
+
   # First, get the *un*inundated area
   # back to just anae_inun here, because the seasonality comes in with the did germ happen check.
   area_not_inundated <- anae_inun$aggdata
@@ -176,7 +189,7 @@ woody_general <- function(out_dir, catchment,
                                 as.numeric()) -
     anae_inun$aggdata[[1]]
 
-  # Then the max of that over two bimonths- this is the area that wasn't inundated for too long
+  # Then the max of that over too_long_inun bimonths- this is the area that *wasn't* inundated for too long
   area_not_too_long <- timeRoll(area_not_inundated,
                                 FUN = RcppRoll::roll_max,
                                 rolln = too_long_inun,
@@ -200,7 +213,7 @@ woody_general <- function(out_dir, catchment,
 
   # Then survival is
   seedling_area <- soilmoist_seedling
-  seedling_area[[1]] <- pmin(soilmoist_seedling[[1]], daily_not_area[[1]])
+  seedling_area[[1]] <- pmin(soilmoist_seedling[[1]], daily_not_area[[1]], na.rm = TRUE)
 
   # I don't think we want to be precious about exactly how long ago germ needs
   # to have happened. The key is whether soil moisture has persisted.
@@ -253,20 +266,25 @@ woody_general <- function(out_dir, catchment,
   # total area during floodinterval years. And that piece we subtract off should
   # be the max over floodinterval of the too-flooded areas in maxflood periods
 
-  # The min inundation over maxflood is the amount that fails that test
-  inun_adult_long <- timeRoll(anae_inun$aggdata,
-                              FUN = RcppRoll::roll_min,
-                              rolln = adult_maxflood,
-                              align = 'right',
-                              na.rm = TRUE)
+  # unlike above, where rolling and producing NA was fine, here I need 0s.
 
-  # Then we need the MAX of that over floodinterval years, as this is the amount that doesn't count in the floodinterval-year check because it was too wet
-  inun_adult_inter <- timeRoll(inun_adult_long,
-                               FUN = RcppRoll::roll_max,
-                               rolln = adult_floodinterval,
-                               align = 'right',
-                               na.rm = TRUE)
+  if (length(adult_maxflood) == 0 | is.null(adult_maxflood)) {
+    inun_adult_inter <- anae_inun$aggdata * 0
+  } else {
+    # The min inundation over maxflood is the amount that fails that test
+    inun_adult_long <- timeRoll(anae_inun$aggdata,
+                                FUN = RcppRoll::roll_min,
+                                rolln = adult_maxflood,
+                                align = 'right',
+                                na.rm = TRUE)
 
+    # Then we need the MAX of that over floodinterval years, as this is the amount that doesn't count in the floodinterval-year check because it was too wet
+    inun_adult_inter <- timeRoll(inun_adult_long,
+                                 FUN = RcppRoll::roll_max,
+                                 rolln = adult_floodinterval,
+                                 align = 'right',
+                                 na.rm = TRUE)
+  }
 
   # we don't have season for black box, but to make things consistent
   # We already have 'times' from above
@@ -361,6 +379,20 @@ woody_general <- function(out_dir, catchment,
   response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
     purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
 
+  # check that nothing is all na
+  naareas <- purrr::map_lgl(response_list, \(x) all(is.na(x$area)))
+  if(any(naareas)) {
+    rlang::warn(glue::glue("Response list for {catchment} contains all-NA area columns in {paste0(names(which(naareas)), collapse = ', ')}"))
+  }
+
+  # No area should be negative. Warn if so. Not erroring because I don't want to kill big runs
+  # use minna or it throws a bunch of warnings with all NA
+  negareas <- purrr::map_lgl(response_list, \(x) minna(x$area) < 0)
+  if(any(negareas)) {
+    rlang::warn(glue::glue("Response list for {catchment} contains negative areas in {paste0(names(which(negareas)), collapse = ', ')}"))
+  }
+
+
   return(response_list)
 
 }
@@ -370,12 +402,13 @@ woody_general <- function(out_dir, catchment,
 # # This should move if this goes in the package, obviously
 # source('directorySet.R')
 # library(CC2)
-# source('R/woody_general.R')
+# library(ggplot2)
+# # source('R/woody_general.R')
 # catchment <- 'Avoca'
 # out_dir <- datOut
 # thischunk <- 1
 #
-#
+# #
 # #
 # ggplot() +
 #   geom_line(data = response_list$anae_inun_anae_ala, mapping = aes(x = date, y = area), color = 'black') +
