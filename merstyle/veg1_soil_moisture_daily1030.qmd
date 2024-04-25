@@ -37,7 +37,7 @@ if (parset == 'local') {
 if (parset == 'gandalf') {
   plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
-                resources = list(time = 600,
+                resources = list(time = 1200,
                                  ntasks.per.node = 12, 
                                  mem = "70GB",
                                  job.name = 'daily1030')),
