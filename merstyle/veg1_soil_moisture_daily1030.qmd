@@ -33,7 +33,7 @@ if (parset == 'local') {
   plan(multisession)
 }
 
-# There's a couple in the condamine that time out at 60. Nearly everything else finishes in 10-30.
+# These take a REALLY long time
 if (parset == 'gandalf') {
   plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
@@ -68,12 +68,13 @@ This is shared between red gum and black box, and is needed for germ and seedlin
 with_progress({
   out1030 <- process_with_checks(dataname = 'soilmoisture',
                           data_dir = file.path(datDir,
-                                               'soil_moisture_more'),
+                                               'soil_moisture_22_23'),
                           poly_path = file.path(datOut, 'ANAEcatchment'),
                           process_function = 'areamoist_10_30',
                           catchment = 'all',
                           out_dir = datOut,
-                          poly_per_chunk = 12)
+                          poly_per_chunk = 12,
+                          extraname = 'yr2223')
 })
 ```
 
@@ -92,5 +93,5 @@ ct <- chunks_to_process(dataname = 'soilmoisture',
                         summaryFun = 'areamoist_10_30',
                           catchment = 'all',
                           out_dir = datOut,
-                          poly_per_chunk = 10)
+                          poly_per_chunk = 12)
 ```
