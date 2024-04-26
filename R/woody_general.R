@@ -101,8 +101,12 @@ woody_general <- function(out_dir, catchment,
   # testinun <- matchStarsIndex(index1 = anaes, stars1 = NULL, index2 = anae_inun$indices, stars2 = anae_inun$aggdata, indexcol = c(1,1), testfinal = TRUE)
 
   # Clean up rounding errors with area
+  # We could just do this with the $indices, but using the incoming anaes prevents drift by resetting to the originals
   soilmoist_polys$aggdata <- clean_area(soilmoist_polys$aggdata, anaes)
+  soilmoist_polys$indices <- clean_area(soilmoist_polys$indices, anaes)
   anae_inun$aggdata <- clean_area(anae_inun$aggdata, anaes)
+  anae_inun$indices <- clean_area(anae_inun$indices, anaes)
+
 
   # ANAE type stricture
 
@@ -303,7 +307,7 @@ woody_general <- function(out_dir, catchment,
                              na.rm = TRUE)
 
   # and the area that passes both is the difference. Note we don't put the seasonality on the adult_inter, since those durations aren't seasonal.
-  adult_condition <- inun_adult_all-inun_adult_inter
+  adult_area <- inun_adult_all-inun_adult_inter
 
 
   # Common post-processing --------------------------------------------------
@@ -312,7 +316,7 @@ woody_general <- function(out_dir, catchment,
   # I think the best way to do this is to make them a list, and then use purrr. Otherwise it's a TON of copy-paste
 
   # the anae_inun stuff is done elsewhere, but good to not have to go hunting
-  bare_stricts <- tibble::lst(germ_area, seedling_area, germ_and_seed, adult_condition, anae_inun = anae_inun$aggdata)
+  bare_stricts <- tibble::lst(germ_area, seedling_area, germ_and_seed, adult_area, anae_inun = anae_inun$aggdata)
 
   # Aggregate to year -------------------------------------------------------
 
@@ -415,7 +419,7 @@ woody_general <- function(out_dir, catchment,
 #   geom_line(data = response_list$germ_area_anae_ala, mapping = aes(x = date, y = area), color = 'green') +
 #   geom_line(data = response_list$seedling_area_anae_ala, mapping = aes(x = date, y = area), color = 'purple') +
 #   geom_line(data = response_list$germ_and_seed_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
-#   geom_line(data = response_list$adult_condition_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
+#   geom_line(data = response_list$adult_area_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
 # #
 # #
 # ggplot() +
@@ -423,4 +427,4 @@ woody_general <- function(out_dir, catchment,
 #   geom_line(data = response_list$germ_area, mapping = aes(x = date, y = area), color = 'green') +
 #   geom_line(data = response_list$seedling_area, mapping = aes(x = date, y = area), color = 'purple') +
 #   geom_line(data = response_list$germ_and_seed, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
-#   geom_line(data = response_list$adult_condition, mapping = aes(x = date, y = area), color = 'blue')
+#   geom_line(data = response_list$adult_area, mapping = aes(x = date, y = area), color = 'blue')
