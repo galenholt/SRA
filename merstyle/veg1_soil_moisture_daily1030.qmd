@@ -73,7 +73,7 @@ with_progress({
                           process_function = 'areamoist_10_30',
                           catchment = 'all',
                           out_dir = datOut,
-                          poly_per_chunk = 10)
+                          poly_per_chunk = 12)
 })
 ```
 
