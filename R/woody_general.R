@@ -117,7 +117,7 @@ woody_general <- function(out_dir, catchment,
 
   # Stricture 1: Germination
 
-  times <- st_get_dimension_values(anae_inun$aggdata, 'time')
+  times <- stars::st_get_dimension_values(anae_inun$aggdata, 'time')
   # Easier to set 0 than 1
   nogermtimes <- which(!lubridate::month(times) %in% g_month)
 
@@ -182,14 +182,14 @@ woody_general <- function(out_dir, catchment,
   # If the there isn't a stricture here, setting the too_long to longer than the data just returns NA for all the checks below
 
   if (length(too_long_inun) == 0 | is.null(too_long_inun)) {
-    too_long_inun <- st_dimensions(anae_inun$aggdata)$time$to + 1
+    too_long_inun <- stars::st_dimensions(anae_inun$aggdata)$time$to + 1
   }
 
   # First, get the *un*inundated area
   # back to just anae_inun here, because the seasonality comes in with the did germ happen check.
   area_not_inundated <- anae_inun$aggdata
   area_not_inundated[[1]] <- (anae_inun$indices |>
-                                st_area() |>
+                                sf::st_area() |>
                                 as.numeric()) -
     anae_inun$aggdata[[1]]
 
@@ -321,7 +321,7 @@ woody_general <- function(out_dir, catchment,
   # Aggregate to year -------------------------------------------------------
 
   # To return, let's aggregate up to water year
-  availdates <- st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
+  availdates <- stars::st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
   startyear <- lubridate::year(min(availdates))-1
   endyear <- lubridate::year(max(availdates)) + 1
   # we want to cut at June 30, and so need to make sure the 07-01 go into the next step.

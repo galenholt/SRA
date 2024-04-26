@@ -6,7 +6,6 @@ editor: visual
 
 I've gone with separate qmds for each species just to make it easier to do one-off runs. They're all just copy-pastes of each other though.
 
-
 ```{r}
 source('directorySet.R')
 library(CC2)
