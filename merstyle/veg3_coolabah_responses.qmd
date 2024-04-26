@@ -1,5 +1,5 @@
 ---
-title: "Black box runs"
+title: "Coolabah runs"
 format: html
 editor: visual
 ---
@@ -27,7 +27,7 @@ if (parset == 'gandalf') {
                 resources = list(time = 60,
                                  ntasks.per.node = 12,
                                  mem = "70GB",
-                                 job.name = 'black_box')),
+                                 job.name = 'coolabah')),
           multicore))
 }
 ```
@@ -35,11 +35,11 @@ if (parset == 'gandalf') {
 Set up. I'm still trying to decide how much of this is general and how much bespoke.
 
 ```{r}
-source('R/black_box.R')
+source('R/coolabah.R')
 
 with_progress({
   out_tib <- process_with_checks(
-                          process_function = 'black_box',
+                          process_function = 'coolabah',
                           catchment = 'all',
                           out_dir = datOut,
                           nchunks = 1)

@@ -1,11 +1,10 @@
 ---
-title: "Black box runs"
+title: "Red gum runs"
 format: html
 editor: visual
 ---
 
 I've gone with separate qmds for each species just to make it easier to do one-off runs. They're all just copy-pastes of each other though.
-
 
 ```{r}
 source('directorySet.R')
@@ -27,7 +26,7 @@ if (parset == 'gandalf') {
                 resources = list(time = 60,
                                  ntasks.per.node = 12,
                                  mem = "70GB",
-                                 job.name = 'black_box')),
+                                 job.name = 'red_gum')),
           multicore))
 }
 ```
@@ -35,11 +34,11 @@ if (parset == 'gandalf') {
 Set up. I'm still trying to decide how much of this is general and how much bespoke.
 
 ```{r}
-source('R/black_box.R')
+source('R/red_gum.R')
 
 with_progress({
   out_tib <- process_with_checks(
-                          process_function = 'black_box',
+                          process_function = 'red_gum',
                           catchment = 'all',
                           out_dir = datOut,
                           nchunks = 1)

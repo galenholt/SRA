@@ -82,7 +82,7 @@ out1030$timings
 out1030$failures
 ```
 
-This gets done in the above, but it's handy to past in to a terminal
+This gets done in the above, but it's handy to paste in to a terminal
 
 ```{r}
 #| eval: false
