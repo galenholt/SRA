@@ -81,6 +81,7 @@ with_progress({
 ```
 
 ```{r}
+#| eval: false
 out1030$timings
 out1030$failures
 ```
@@ -259,3 +260,4 @@ tc <- concat_time_chunks(out_dir = datOut,
                          catchment = 'all',
                          extraname = NULL)
 ```
+
