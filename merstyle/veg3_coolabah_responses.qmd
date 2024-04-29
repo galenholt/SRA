@@ -6,7 +6,6 @@ editor: visual
 
 I've gone with separate qmds for each species just to make it easier to do one-off runs. They're all just copy-pastes of each other though.
 
-
 ```{r}
 source('directorySet.R')
 library(CC2)
@@ -35,6 +34,8 @@ if (parset == 'gandalf') {
 Set up. I'm still trying to decide how much of this is general and how much bespoke.
 
 ```{r}
+# should move to eFlowEval
+source('R/woody_general.R')
 source('R/coolabah.R')
 
 with_progress({

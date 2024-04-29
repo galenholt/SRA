@@ -34,6 +34,8 @@ if (parset == 'gandalf') {
 Set up. I'm still trying to decide how much of this is general and how much bespoke.
 
 ```{r}
+# should move to eFlowEval
+source('R/woody_general.R')
 source('R/lignum.R')
 
 with_progress({
