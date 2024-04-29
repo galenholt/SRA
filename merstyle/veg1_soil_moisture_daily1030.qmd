@@ -64,6 +64,8 @@ areamoist_10_30 <- function(x) {
 This is shared between red gum and black box, and is needed for germ and seedlings
 
 ```{r}
+#| eval: false
+# turn this off for now
 # 10 days > 10%
 with_progress({
   out1030 <- process_with_checks(dataname = 'soilmoisture',
@@ -104,6 +106,7 @@ The first round through left off 2022. I've now run 2022-23 and need to glue it 
 And hopefully this will get us a long way towards time-parallelising
 
 ```{r}
+#| eval: false
 catchment <- 'Avoca'
 out_dir <- datOut
 
@@ -185,18 +188,18 @@ concat_time_chunks <- function(out_dir,
                      "Murrumbidgee", "Namoi", "Ovens", "Paroo", "UpperMurray", "Warrego", "Wimmera")
     }
 
-    # # Usually only rebuild new data
-    # # This looks in the concatenated folder and finds the catchments already there and removes them from the list to do.
-    # if (!rebuild) {
-    #   filespresent <- list.files(fundir)
-    #   catchespresent <- stringr::str_remove(filespresent, '_[A-z].*')
-    #   catchment <- catchment[!(catchment %in% catchespresent)]
-    # }
-    # 
-    # if (length(catchment) == 0) {
-    #   rlang::inform("No catchments to combine, likely because `rebuild = FALSE` and they're all done")
-    #   return()
-    # }
+    # Usually only rebuild new data
+    # This looks in the concatenated folder and finds the catchments already there and removes them from the list to do.
+    if (!rebuild) {
+      filespresent <- list.files(fundir)
+      catchespresent <- stringr::str_remove(filespresent, '_[A-z].*')
+      catchment <- catchment[!(catchment %in% catchespresent)]
+    }
+
+    if (length(catchment) == 0) {
+      rlang::inform("No catchments to combine, likely because `rebuild = FALSE` and they're all done")
+      return()
+    }
 
     # set up progress bar
     p <- progressor(steps = length(catchment))
