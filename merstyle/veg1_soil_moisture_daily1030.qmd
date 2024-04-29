@@ -93,5 +93,166 @@ ct <- chunks_to_process(dataname = 'soilmoisture',
                         summaryFun = 'areamoist_10_30',
                           catchment = 'all',
                           out_dir = datOut,
-                          poly_per_chunk = 12)
+                          poly_per_chunk = 12,
+                        extraname = 'yr2223')
+```
+
+## Date smash
+
+The first round through left off 2022. I've now run 2022-23 and need to glue it on. Ideally, this would have all happened in one go, but we're on a time crunch to fully re-do the processing.
+
+And hopefully this will get us a long way towards time-parallelising
+
+```{r}
+catchment <- 'Avoca'
+out_dir <- datOut
+
+# The big ones without 2022
+soilmoist_polys <- readRDS(file.path(out_dir, 'soilmoisture',
+                                       'areamoist_10_30', 'no_roll',
+                                       paste0(catchment, '_areamoist_10_30', '.rds'))) |>
+    setNames(c('aggdata', 'indices'))
+
+soilmoist_2223 <- readRDS(file.path(out_dir, 'soilmoisture',
+                                       'areamoist_10_30', 'yr2223',
+                                       paste0(catchment, '_areamoist_10_30', '.rds'))) |>
+    setNames(c('aggdata', 'indices'))
+
+# check they match
+all(soilmoist_2223$indices$UID == soilmoist_polys$indices$UID)
+
+# Get the common times
+sametimes <- which(st_get_dimension_values(soilmoist_polys$aggdata, 'time') %in% st_get_dimension_values(soilmoist_2223$aggdata, 'time'))
+
+# Using concat_star_index machinery
+sm21 <- soilmoist_polys
+sm21$aggdata <- soilmoist_polys$aggdata[,,-sametimes]
+
+time_cat <- concat_star_index(list(sm21, soilmoist_2223), dimension = 'time')
+
+
+# From concat_anae_chunks
+extraname = NULL
+summaryFun = 'areamoist_10_30'
+dataname = 'soilmoisture'
+thiscatch = catchment
+# There are some that were NOT chunked- leave them alone, and just look in the chunked folder
+  if (!is.null(extraname)) {
+    sumextra <- paste0(summaryFun, '/', extraname)
+  } else {
+    sumextra <- summaryFun
+  }
+    fundir <- file.path(out_dir, dataname, sumextra)
+    
+saveRDS(time_cat, 
+        file = file.path(fundir, paste0(thiscatch, '_', summaryFun, '.rds')))
+
+
+```
+
+Can I just use concat_anae_chunks with geometry changed to time? If I'm careful? I think otherwise it'll jumble them. Probably safest to do that explicitly with a time-parallel function tbd. Especially since this has the issue that we didnt time-parallel at the outset so need to clip the input times.
+
+Turn the above into an ad-hoc function just for this, but use the same infrastructure as concat_chunks for future inclusion
+
+```{r}
+concat_time_chunks <- function(out_dir,
+                          dataname,
+                          summaryFun,
+                          catchment = 'all',
+                          poly_path = file.path(out_dir, 'ANAEprocessed'),
+                          extraname = NULL,
+                          rebuild = FALSE,
+                          filetype = '.rds') {
+  # loop over summary functions- deprecated, this was never used in practice, and could be done outside the code
+  # for (su in 1:length(summaryFuns)) {
+  #   summaryFun <- summaryFuns[su]
+
+    # There are some that were NOT chunked- leave them alone, and just look in the chunked folder
+  if (!is.null(extraname)) {
+    sumextra <- paste0(summaryFun, '/', extraname)
+  } else {
+    sumextra <- summaryFun
+  }
+    fundir <- file.path(out_dir, dataname, sumextra)
+    chunkdir <- file.path(fundir, 'chunked')
+
+    if ('all' %in% catchment) {
+      # get the names of the catchments
+      catchment <- c("Avoca", "BarwonDarling", "BorderRivers", "Broken", "Campaspe",
+                     "Castlereagh", "CentralMurray", "CondamineBalonne",
+                     "EdwardWakool", "Goulburn", "Gwydir", "Kiewa", "Lachlan",
+                     "Loddon", "LowerDarling", "LowerMurray", "Macquarie", "MittaMitta",
+                     "Murrumbidgee", "Namoi", "Ovens", "Paroo", "UpperMurray", "Warrego", "Wimmera")
+    }
+
+    # # Usually only rebuild new data
+    # # This looks in the concatenated folder and finds the catchments already there and removes them from the list to do.
+    # if (!rebuild) {
+    #   filespresent <- list.files(fundir)
+    #   catchespresent <- stringr::str_remove(filespresent, '_[A-z].*')
+    #   catchment <- catchment[!(catchment %in% catchespresent)]
+    # }
+    # 
+    # if (length(catchment) == 0) {
+    #   rlang::inform("No catchments to combine, likely because `rebuild = FALSE` and they're all done")
+    #   return()
+    # }
+
+    # set up progress bar
+    p <- progressor(steps = length(catchment))
+
+    # Loop over catchments that were chunked. I do not understand why, but if
+    # this is %dofuture%, concat_star_index can't use c.stars or bind_rows on an
+    # sf. I've tried passing in packages in options.future and nothing is working.
+      allcatch <- foreach(cn = 1:length(catchment),
+                          .options.future = list(seed = TRUE)) %dofuture% {
+        # Get a single catchment
+        thiscatch <- catchment[cn]
+
+        # This is the new ad-hoc bit
+        # The big ones without 2022
+soilmoist_polys <- readRDS(file.path(out_dir, dataname,
+                                       summaryFun, 'no_roll',
+                                       paste0(thiscatch, '_', summaryFun, '.rds'))) |>
+    setNames(c('aggdata', 'indices'))
+
+soilmoist_2223 <- readRDS(file.path(out_dir, dataname,
+                                       summaryFun, 'yr2223',
+                                       paste0(thiscatch, '_', summaryFun, '.rds'))) |>
+    setNames(c('aggdata', 'indices'))
+
+# check they match
+all(soilmoist_2223$indices$UID == soilmoist_polys$indices$UID)
+
+# Get the common times
+sametimes <- which(st_get_dimension_values(soilmoist_polys$aggdata, 'time') %in% st_get_dimension_values(soilmoist_2223$aggdata, 'time'))
+
+# Cut to the right set of times- this is particularly specific
+sm21 <- soilmoist_polys
+sm21$aggdata <- soilmoist_polys$aggdata[,,-sametimes]
+
+# Use concat_star_index, just on time
+time_cat <- concat_star_index(list(sm21, soilmoist_2223), dimension = 'time')
+
+
+      # Could just use thisInunName for the rdata, since there's a folder structure, but this is more explicit
+      saveRDS(time_cat, 
+        file = file.path(fundir, paste0(thiscatch, '_', summaryFun, '.rds')))
+
+      # just kick the catchment name to the foreach output
+      p(glue::glue("catchment {thiscatch} concatenated"))
+      thiscatch
+    }
+  # }
+
+      return(invisible())
+}
+```
+
+```{r}
+tc <- concat_time_chunks(out_dir = datOut,
+                         summaryFun = 'areamoist_10_30',
+                         dataname = 'soilmoisture',
+                         catchment = 'all',
+                         extraname = NULL)
 ```

@@ -83,7 +83,7 @@ woody_general <- function(out_dir, catchment,
   ## DATA IN
   # Need soil moisture and inundation and anaes
   soilmoist_polys <- readRDS(file.path(out_dir, 'soilmoisture',
-                                       'areamoist_10_30', 'no_roll',
+                                       'areamoist_10_30',
                                        paste0(catchment, '_areamoist_10_30', '.rds'))) |>
     setNames(c('aggdata', 'indices'))
 
