@@ -5,7 +5,7 @@ coolabah <- function(out_dir,
                    whichcrs = 3577) {
 
   # arguments ---------------------------------------------------------------
-
+  source('R/woody_general.R')
   veg_name <- 'coolabah'
 
   # Stricture 1: Germination

@@ -5,7 +5,7 @@ lignum <- function(out_dir,
                       whichcrs = 3577) {
 
   # arguments ---------------------------------------------------------------
-
+  source('R/woody_general.R')
   veg_name <- 'lignum'
 
   # Stricture 1: Germination
