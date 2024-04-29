@@ -51,7 +51,7 @@ black_box <- function(out_dir,
 
 
 
-  response_list <- CC2::woody_general(out_dir = out_dir,
+  response_list <- woody_general(out_dir = out_dir,
                                  catchment = catchment,
                                  veg_name = veg_name,
                                  north_g_month = north_g_month,
