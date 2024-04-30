@@ -230,9 +230,13 @@ Get the expected shannon given the basin composition and the number of local ANA
 
 ```{r}
 shannon_expectations <- shannon_expectations |> 
-  mutate(basin_shannon_overall = basin_shan_overall,
-         expected_shannon = expected_shannon(N = n_anae_types, 
-                                             regional_probs = basin_probs$prob))
+  mutate(n_basin_types = nrow(basin_probs),
+         basin_shannon_overall = basin_shan_overall,
+         expected_catchment_shannon = expected_shannon(N = n_anae_types, 
+                                             regional_probs = basin_probs$prob)) |> 
+  select(ValleyName, name_clean, 
+         n_anae_types, max_shannon_catchment, expected_catchment_shannon,
+         n_basin_types, max_shannon_basin, basin_shannon_overall)
 ```
 
 Save
@@ -427,4 +431,3 @@ ggplot(basin_shannon_prepost, aes(fill = diversity_shannon_area)) +
   facet_wrap('timeperiod') +
   scale_fill_viridis_c(option = 'mako')
 ```
-
