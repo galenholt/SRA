@@ -40,6 +40,7 @@ woody_general <- function(out_dir, catchment,
                           adult_floodinterval,
                           a_month) {
 
+  starttime <- Sys.time()
   # some tweaks to handle conditionals on the inputs, e.g. grep formats, catchment info
 
   seedling_period_days <- seedling_period_month*30
@@ -100,12 +101,15 @@ woody_general <- function(out_dir, catchment,
   # testsm <- matchStarsIndex(index1 = anaes, stars1 = NULL, index2 = soilmoist_polys$indices, stars2 = soilmoist_polys$aggdata, indexcol = c(1,1), testfinal = TRUE)
   # testinun <- matchStarsIndex(index1 = anaes, stars1 = NULL, index2 = anae_inun$indices, stars2 = anae_inun$aggdata, indexcol = c(1,1), testfinal = TRUE)
 
+  rlang::inform(glue::glue("data in in {round(Sys.time() - starttime)} seconds."))
   # Clean up rounding errors with area
   # We could just do this with the $indices, but using the incoming anaes prevents drift by resetting to the originals
   soilmoist_polys$aggdata <- clean_area(soilmoist_polys$aggdata, anaes)
   soilmoist_polys$indices <- clean_area(soilmoist_polys$indices, anaes)
   anae_inun$aggdata <- clean_area(anae_inun$aggdata, anaes)
   anae_inun$indices <- clean_area(anae_inun$indices, anaes)
+
+  rlang::inform(glue::glue("area cleaned in {round(Sys.time() - starttime)} seconds."))
 
   # Get dates
   availdates <- stars::st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
@@ -172,6 +176,9 @@ woody_general <- function(out_dir, catchment,
   germ_area[[1]] <- pmin(shift_inun, soilmoist_germdays[[1]])
 
   rm(soilmoist_germdays)
+
+  rlang::inform(glue::glue("Germination done in {round(Sys.time() - starttime)} seconds."))
+
 
   # Stage 2: Seedling survival
 
@@ -273,6 +280,9 @@ woody_general <- function(out_dir, catchment,
 
   rm(germ_span, germ_span_shift)
 
+  rlang::inform(glue::glue("Seedlings done in {round(Sys.time() - starttime)} seconds."))
+
+
   # Stage 3: Adults
 
   # How do we calculate this? We want the maximum area flooded in floodinterval
@@ -323,6 +333,8 @@ woody_general <- function(out_dir, catchment,
 
   rm(inun_adult_inter, inun_adult_all, adult_inun_season)
 
+  rlang::inform(glue::glue("Adults done in {round(Sys.time() - starttime)} seconds."))
+
 
   # Common post-processing --------------------------------------------------
   # We now have a set of outputs that we want to do some common post-processing on:
@@ -354,6 +366,7 @@ woody_general <- function(out_dir, catchment,
 
   rm(bare_stricts)
 
+  rlang::inform(glue::glue("Year agg done in {round(Sys.time() - starttime)} seconds."))
 
   # ANAE types --------------------------------------------------------------
 
@@ -381,6 +394,8 @@ woody_general <- function(out_dir, catchment,
   anae_ala_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$ala_anae) |>
     setNames(paste0(names(yrstricts), '_anae_ala'))
 
+  rlang::inform(glue::glue("ANAE clipped in {round(Sys.time() - starttime)} seconds."))
+
 
   # make catchment scale ----------------------------------------------------
 
@@ -398,8 +413,36 @@ woody_general <- function(out_dir, catchment,
 
   # use sum to get total are in the catchment
   # we're doing this to everything above, so we can c() the three lists together and then operate on all of them
+
+  # Working on a much faster sf_and_aggforce with less nuance (deal with sumna later, for now make it work)
+  # should match this
+  # test <- sf_and_aggforce(yrstricts$germ_area, catchpoly, newname = 'area', funlist = sumna)
+  super_aggforce <- function(x, catchpoly, newname) {
+    yrvals <- colSums(x[[1]], na.rm = TRUE)
+    nas <- is.na(x[[1]])
+    yrvals[which(colSums(nas) == nrow(nas))] <- NA
+
+    t2 <- tibble::tibble(date = st_get_dimension_values(x, 'time'),
+                         area = yrvals) |>
+      dplyr::bind_cols(catchpoly) |>
+      sf::st_as_sf()
+
+    return(t2)
+  }
+
   response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
-    purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
+    purrr::map(\(x) super_aggforce(x, catchpoly, newname = 'area'))
+  # response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
+  #   purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
+
+
+
+
+
+
+
+
+
 
   # check that nothing is all na
   naareas <- purrr::map_lgl(response_list, \(x) all(is.na(x$area)))
@@ -415,7 +458,8 @@ woody_general <- function(out_dir, catchment,
   }
 
 
-  print('finished woody_general, about to return')
+  rlang::inform(glue::glue("Finished woody_general in {round(Sys.time() - starttime)} seconds."))
+
   return(response_list)
 
 }
