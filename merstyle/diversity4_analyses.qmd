@@ -166,6 +166,82 @@ Shannon should be better- more opportunity for variation. Again, ripped straight
   st_as_sf()
 ```
 
+## Expected and max
+
+These are for the catchment, but we sometimes need to reference basin, so do it here once we have basin info
+
+```{r}
+total_basin_anae <- diversity_anae_summary |> 
+  st_drop_geometry() |> 
+  summarise(basin_anae = n_distinct(ANAE_DESC)) |> 
+  pull()
+
+shannon_expectations <- diversity_anae_summary |>
+  sf::st_drop_geometry() |> 
+  summarise(n_anae_types = n_distinct(ANAE_DESC),
+            max_shannon_catchment = log(n_anae_types),
+            max_shannon_basin = log(total_basin_anae),
+            .by = c(ValleyName, name_clean))
+```
+
+Getting the expected shannon given the basin p's depends on the vector of regional probabilities
+
+```{r}
+expected_shannon <- function(N, regional_probs, 
+                             n_boots = 1000, returntype = 'mean') {
+  
+  H <- matrix(NA, ncol = length(N), nrow = n_boots)
+  colnames(H) <- paste0('N_', as.character(N))
+  
+  for (i in 1:length(N)) {
+    for (j in 1:n_boots) {
+      # This loses the names, but that doesn't matter.
+      localcomp <- extraDistr::rcat(N[i], regional_probs)
+      localprops <- table(localcomp)/N[i]
+      H[j,i] <- -sum(localprops*log(localprops))
+    }
+  }
+  
+  if (returntype == 'dist') {return(H)}
+  
+  if (returntype == 'mean') {return(apply(H, 2, mean))}
+  
+}
+```
+
+Get basin-level probabilities
+
+```{r}
+basin_probs <- diversity_anae_summary |>
+    st_drop_geometry() |>
+    summarise(basin_inun_area = sum(area_inundated),
+              .by = c(ANAE_DESC)) |> # If we include time here, it gives a different set of p's each year
+    mutate(wetland_area = sum(basin_inun_area),
+           prob = basin_inun_area/wetland_area)
+```
+
+The overall basin-scale shannon
+
+```{r}
+basin_shan_overall <- calc_shan(basin_probs$basin_inun_area[basin_probs$basin_inun_area > 0])
+```
+
+Get the expected shannon given the basin composition and the number of local ANAEs
+
+```{r}
+shannon_expectations <- shannon_expectations |> 
+  mutate(basin_shannon_overall = basin_shan_overall,
+         expected_shannon = expected_shannon(N = n_anae_types, 
+                                             regional_probs = basin_probs$prob))
+```
+
+Save
+
+```{r}
+saveRDS(shannon_expectations,
+        file.path(datOut, 'diversity', 'shannon_expectations.rds'))
+```
+
 ## Analyses
 
 I'm going to try to avoid actually reading in any stars, but it might be unavoidable.
@@ -351,3 +427,4 @@ ggplot(basin_shannon_prepost, aes(fill = diversity_shannon_area)) +
   facet_wrap('timeperiod') +
   scale_fill_viridis_c(option = 'mako')
 ```
+

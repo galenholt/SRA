@@ -529,6 +529,32 @@ state_ts2 <- purrr::map(state_ts2, \(x) x |>
                         dplyr::mutate(value = ifelse(quality_code < 0 | quality_code > 150, NA, value)))
 ```
 
+Make a summary for data availability
+
+```{r}
+summarise_gauges <- function(x) {
+  if (all(!grepl('ml/d', x$units, ignore.case = TRUE))) {
+    return(NULL)
+  }
+  x |> 
+    filter(grepl('ml/d', units, ignore.case = TRUE)) |> 
+    summarise(gauge = unique(gauge), 
+              name = unique(name),
+              start = min(time),
+              end = max(time),
+              proportion_bad = sum(quality_code > 150, na.rm = TRUE)/n())
+}
+
+```
+
+```{r}
+bom_summary <- purrr::map(bom_ts2, summarise_gauges)
+state_summary <- purrr::map(state_ts2, summarise_gauges)
+
+summary_df <- c(bom_summary, state_summary) |> bind_rows()
+readr::write_csv(summary_df, file = file.path(datOut, 'werpstyle', 'gauges', 'gauge_summary.csv'))
+```
+
 ```{r}
 make_ewrformat <- function(x) {
   x <- x |> 
@@ -653,6 +679,8 @@ if (!dir.exists(file.path(hydro_dir2, 'historical'))) {
 ```{r}
 
 ```
+
+## Make a summary table
 
 ### This was old debug
 
