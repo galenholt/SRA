@@ -17,17 +17,17 @@ doFuture::registerDoFuture()
 
 ```{r}
 if (parset == 'local') {
-  plan(sequential)
+  plan(multisession)
 }
 
 if (parset == 'gandalf') {
   plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
                 resources = list(time = 60,
-                                 ntasks.per.node = 1,
+                                 ntasks.per.node = 12,
                                  mem = "70GB",
                                  job.name = 'black_box')),
-          sequential))
+          multicore))
 }
 ```
 
