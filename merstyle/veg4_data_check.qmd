@@ -51,8 +51,8 @@ catch_cat_sf <- function(which_strict, outerdir, catchments = cleancatch) {
 Setting these up to read in all the species at once with purrr
 
 ```{r}
-# species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
-species <- c('black_box', 'coolabah', 'lignum')
+species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
+# species <- c('black_box', 'coolabah', 'lignum')
 ```
 
 ### Germination
