@@ -107,6 +107,8 @@ woody_general <- function(out_dir, catchment,
   anae_inun$aggdata <- clean_area(anae_inun$aggdata, anaes)
   anae_inun$indices <- clean_area(anae_inun$indices, anaes)
 
+  # Get dates
+  availdates <- stars::st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
 
   # ANAE type stricture
 
@@ -164,8 +166,12 @@ woody_general <- function(out_dir, catchment,
   shift_inun <- daily_inun[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
   shift_inun <- cbind(shift_inun, daily_inun[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
 
+  rm(daily_inun)
+
   germ_area <- soilmoist_germdays
   germ_area[[1]] <- pmin(shift_inun, soilmoist_germdays[[1]])
+
+  rm(soilmoist_germdays)
 
   # Stage 2: Seedling survival
 
@@ -176,6 +182,9 @@ woody_general <- function(out_dir, catchment,
                                  align = 'right',
                                  na.rm = TRUE)
 
+
+  # Manage memory
+  rm(soilmoist_polys)
 
   # Deal with too much inundation (drowning)
 
@@ -219,6 +228,8 @@ woody_general <- function(out_dir, catchment,
   seedling_area <- soilmoist_seedling
   seedling_area[[1]] <- pmin(soilmoist_seedling[[1]], daily_not_area[[1]], na.rm = TRUE)
 
+  rm(soilmoist_seedling, daily_not_area)
+
   # I don't think we want to be precious about exactly how long ago germ needs
   # to have happened. The key is whether soil moisture has persisted.
 
@@ -260,6 +271,7 @@ woody_general <- function(out_dir, catchment,
   germ_and_seed <- seedling_area
   germ_and_seed[[1]] <- pmin(seedling_area[[1]], germ_span_shift)
 
+  rm(germ_span, germ_span_shift)
 
   # Stage 3: Adults
 
@@ -309,6 +321,8 @@ woody_general <- function(out_dir, catchment,
   # and the area that passes both is the difference. Note we don't put the seasonality on the adult_inter, since those durations aren't seasonal.
   adult_area <- inun_adult_all-inun_adult_inter
 
+  rm(inun_adult_inter, inun_adult_all, adult_inun_season)
+
 
   # Common post-processing --------------------------------------------------
   # We now have a set of outputs that we want to do some common post-processing on:
@@ -318,10 +332,12 @@ woody_general <- function(out_dir, catchment,
   # the anae_inun stuff is done elsewhere, but good to not have to go hunting
   bare_stricts <- tibble::lst(germ_area, seedling_area, germ_and_seed, adult_area, anae_inun = anae_inun$aggdata)
 
+  rm(germ_area, seedling_area, germ_and_seed, adult_area, anae_inun)
+
   # Aggregate to year -------------------------------------------------------
 
   # To return, let's aggregate up to water year
-  availdates <- stars::st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
+  # availdates <- stars::st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
   startyear <- lubridate::year(min(availdates))-1
   endyear <- lubridate::year(max(availdates)) + 1
   # we want to cut at June 30, and so need to make sure the 07-01 go into the next step.
@@ -335,6 +351,8 @@ woody_general <- function(out_dir, catchment,
                           tempaggregate(starObj = x, by = datebreaks,
                                         FUN = mean, na.rm = TRUE) |>
                             aperm(c('geometry', 'time')))
+
+  rm(bare_stricts)
 
 
   # ANAE types --------------------------------------------------------------
