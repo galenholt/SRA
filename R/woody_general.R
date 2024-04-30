@@ -397,6 +397,7 @@ woody_general <- function(out_dir, catchment,
   }
 
 
+  print('finished woody_general, about to return')
   return(response_list)
 
 }

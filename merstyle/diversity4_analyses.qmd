@@ -90,6 +90,27 @@ diversity_temporal_abgamma <- catch_cat_sf('diversity_temporal_abgamma')
 
 ```
 
+To get the total inundated area, we can just sum `diversity_anae_summary`.
+
+```{r}
+total_inun_area <- diversity_anae_summary |> 
+  sf::st_drop_geometry() |> 
+  summarise(area_inundated = sum(area_inundated),
+            total_area = sum(total_area),
+            n_inundated = sum(n_inundated),
+            n_anaes = sum(n_anaes),
+            .by = c(time, name_clean, ValleyName)) |> 
+  mutate(prop_wetland_inundated = area_inundated/total_area) |> 
+  left_join(werptoolkitr::cewo_valleys, by = 'ValleyName') |> 
+  st_as_sf()
+```
+
+Check
+
+```{r}
+ggplot(total_inun_area, aes(x = time, y = prop_wetland_inundated)) + geom_point() + geom_line() + facet_wrap('ValleyName')
+```
+
 ### Basin versions
 
 Diversity_anae_summary should have what we need- it has the anae types and their inundation are, so we can just make these here.

@@ -51,4 +51,3 @@ with_progress({
 ```{r}
 out_tib$timings
 ```
-

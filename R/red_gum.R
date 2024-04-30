@@ -58,6 +58,7 @@ red_gum <- function(out_dir,
                                  adult_floodinterval = adult_floodinterval,
                                  a_month = a_month)
 
+  print('woody_general returned to red_gum')
   return(response_list)
 
 }
