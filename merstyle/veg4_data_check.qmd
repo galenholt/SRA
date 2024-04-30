@@ -68,18 +68,6 @@ germ <- purrr::map(species, \(x) catch_cat_sf('germ_area', x) |>
   bind_rows()
 ```
 
-Basin-scale
-
-```{r}
-# germ_basin <- germ |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sum(area, na.rm = TRUE),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-#   
-```
-
 ### Seedling survival
 
 The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), we get the following.
@@ -91,18 +79,6 @@ seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area', x) |>
   mutate(stage = 'seedling',
          species = x)) |> 
   bind_rows()
-```
-
-Basin
-
-```{r}
-# seed_basin <- seed |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sum(area, na.rm = TRUE),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-
 ```
 
 ### Germination and seedlings
@@ -118,18 +94,6 @@ germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed', x) |>
   bind_rows()
 ```
 
-Basin
-
-```{r}
-# germ_and_seed_basin <- germ_and_seed |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sum(area, na.rm = TRUE),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-
-```
-
 ### Adult condition
 
 Here, we assess area of favourable adult condition, primarily as a consequence of inundation duration and periods between events. This is not connected to the regeneration due to the length of available data and tree life spans.
@@ -141,17 +105,6 @@ adult <- purrr::map(species, \(x) catch_cat_sf('adult_area', x) |>
   mutate(stage = 'adult',
          species = x)) |> 
   bind_rows()
-```
-
-Basin
-
-```{r}
-# adult_basin <- adult |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sum(area, na.rm = TRUE),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
 ```
 
 ### All together
