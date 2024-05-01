@@ -1,48 +1,47 @@
-red_gum <- function(out_dir,
-                    catchment,
-                    thischunk,
-                    nchunks = 1,
-                    whichcrs = 3577) {
+lignum <- function(out_dir,
+                      catchment,
+                      thischunk,
+                      nchunks = 1,
+                      whichcrs = 3577) {
 
   # arguments ---------------------------------------------------------------
   source('R/woody_general.R')
-  veg_name <- 'red_gum'
+  veg_name <- 'lignum'
 
   # Stricture 1: Germination
-  # "spring to early summer", let's say Sept-Dec
-  # inundation immediately preceding, then 5 days of soil moisture (David's sheet) or 14 (Casanova). Use 14?
+  # "spring to autumn", let's say Sept-April
+  # inundation immediately preceding, then 14 days (Casanova via EWKR)
+  north_g_month <- c(9:12, 1:4)
+  south_g_month <- north_g_month
+
   days_germmoist <- 14
 
-  north_g_month <- c(9:12)
-  south_g_month <- c(9:12)
-
   # Stage 2: Seedling survival
-  # Moisture must be maintained above 10% (and less than 30?) for the summer. How long is 'summer'? we used 6mo for black box, I guess use that here too?
-  # Immersion of young seedlings <25cm for 'several months' is fatal. Assume that's in the 6mo period.
+  # Moisture must be maintained above 10% (and less than 30?) for a year. Holloway via EWKR says one year, but we know everything will fail.
+  # Immersion of young seedlings <25cm for 1 month is fatal (cites in EWKR).
   # and it needs to happen following germination
 
-  # How long is the seedling period? say 6mo
+  # How long is the seedling period? say 6mo, despite it being a year in Holloway
   seedling_period_month <- 6
 
-  # No inundation 'several months'. Let's say 1 bimonth OK, 2 is a fail. This is
-  # in months, so I guess say 3, it gets ceilinged in the fun
-  too_long_inun <- 3
+  # No inundation longer than 1 month. Let's say any subsequent inundation is a fail. There are lots of references to not liking being waterlogged.
+  too_long_inun <- 1
 
   # The germ window is a period within seed_period_days during which germ can occur. This has to
   # fit inside seedling_period_days, along with some minimum seedling period. IE we
   # assess soil moisture for a full seedling_period_days, but if germ occurs in the
   # first bit of length germ_window, it counts. So the length of seedling period = germ_window +
-  # minimum seedling period.
+  # minimum seedling period. I suppose stick with two months here.
   germ_window <- 60
 
   # Stage 3: Adults
-  # At least one flood in 4 years (max inter-flood dry period)
-  # Duration 2-24 months
-  # timing: Winter-early summer
+  # At least one flood in 10 years (max inter-flood dry period) Capon in Roberts and Marston 2011
+  # Duration dead after 12 months (David's table)
+  # timing: spring-early summer (david's table)
 
-  adult_maxflood <- 24
-  adult_floodinterval <- 48
-  a_month <- c(7:12) # let's say winter-early summer is July-Dec
+  adult_maxflood <- 12 #
+  adult_floodinterval <- 10*12
+  a_month <- c(9:12) # let's say winter-early summer is July-Dec
 
   # Run the response
   response_list <- woody_general(out_dir = out_dir,
@@ -58,7 +57,6 @@ red_gum <- function(out_dir,
                                  adult_floodinterval = adult_floodinterval,
                                  a_month = a_month)
 
-  print('woody_general returned to red_gum')
   return(response_list)
 
 }

@@ -1,5 +1,5 @@
 ---
-title: "Black box runs"
+title: "Red gum runs"
 format: html
 editor: visual
 ---
@@ -26,7 +26,7 @@ if (parset == 'gandalf') {
                 resources = list(time = 60,
                                  ntasks.per.node = 12,
                                  mem = "70GB",
-                                 job.name = 'black_box')),
+                                 job.name = 'red_gum')),
           multicore))
 }
 ```
@@ -36,11 +36,11 @@ Set up. I'm still trying to decide how much of this is general and how much besp
 ```{r}
 # should move to eFlowEval
 source('R/woody_general.R')
-source('R/black_box.R')
+source('R/red_gum.R')
 
 with_progress({
   out_tib <- process_with_checks(
-                          process_function = 'black_box',
+                          process_function = 'red_gum',
                           catchment = 'all',
                           out_dir = datOut,
                           nchunks = 1)
