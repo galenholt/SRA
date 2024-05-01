@@ -16,6 +16,7 @@ library(sf)
 library(ggplot2)
 library(patchwork)
 library(tidyr)
+library(CC2)
 
 # get directories
 source('directorySet.R')
@@ -303,6 +304,24 @@ Timeseries_Basin_LONGITUDINALgroup <- Timeseries_ClimateCategoryArea_LONGITUDINA
                  n_gauges = sum(n_gauges))
 
 
+Timeseries_gauge_LATERALgroup <- left_join(Timeseries_gauge_LATERALgroup, gauges_df, by = join_by(gauge))
+Timeseries_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup |>
+  rename(geometry_gauge = geometry)
+Timeseries_gauge_LATERALgroup <- left_join(Timeseries_gauge_LATERALgroup, cewo_valleys, by = join_by(ValleyName))
+Timeseries_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup |>
+  rename(geometry_valley = geometry)
+
+Timeseries_gauge_LONGITUDINALgroup <- left_join(Timeseries_gauge_LONGITUDINALgroup, gauges_df, by = join_by(gauge))
+Timeseries_gauge_LONGITUDINALgroup <- Timeseries_gauge_LONGITUDINALgroup |>
+  rename(geometry_gauge = geometry)
+Timeseries_gauge_LONGITUDINALgroup <- left_join(Timeseries_gauge_LONGITUDINALgroup, cewo_valleys, by = join_by(ValleyName))
+Timeseries_gauge_LONGITUDINALgroup <- Timeseries_gauge_LONGITUDINALgroup |>
+  rename(geometry_valley = geometry)
+
+
+saveRDS(Timeseries_gauge_LATERALgroup, file.path(data_path, "Timeseries_gauge_LATERALconnectivity.rds"))
+saveRDS(Timeseries_gauge_LONGITUDINALgroup, file.path(data_path, "Timeseries_gauge_LONGITUDINALconnectivity.rds"))
+
 saveRDS(Timeseries_ClimateCategoryArea_LATERALgroup, file.path(data_path, "Timeseries_Valley_LATERALconnectivity.rds"))
 saveRDS(Timeseries_ClimateCategoryArea_LONGITUDINALgroup, file.path(data_path, "Timeseries_Valley_LONGITUDINALconnectivity.rds"))
 
@@ -316,13 +335,13 @@ Tagg_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup|>
   group_by(gauge)|>
   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
           ewr_achieved_unweighted = weighted.mean(ewr_achieved))|>
-  left_join(gauges_df_sld, by = "gauge")
+  left_join(gauges_df_valleys, by = "gauge")
 
 Tagg_gauge_ClimateCategories_LATERALgroup <- Timeseries_gauge_LATERALgroup|>
   group_by(gauge, Climate_Category)|>
   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
           ewr_achieved_unweighted = weighted.mean(ewr_achieved))|>
-  left_join(gauges_df_sld, by = "gauge")
+  left_join(gauges_df_valleys, by = "gauge")
 
 Tagg_ClimateCategoryArea_LATERALgroup <- Timeseries_ClimateCategoryArea_LATERALgroup |>
   group_by(Climate_category_area, geometry)|>
@@ -373,4 +392,40 @@ Tagg_ClimateCategoryArea_EWRgroup <- Timeseries_ClimateCategoryArea_EWRgroup |>
   dplyr::group_by(dplyr::across(c( -ewr_achieved, -year)))|>
   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
                  n_years = n())
+```
+
+## CHECKING MAPS
+
+```{r}
+temp <- Timeseries_gauge_LATERALgroup |>
+  ungroup()|>
+  distinct(gauge, ValleyName, geometry_gauge, geometry_valley)
+
+Valleys_included <- unique(temp$ValleyName)
+
+Valleys_excluded <- filter(cewo_valleys, !ValleyName %in% Valleys_included)
+Valleys_excluded <- Valleys_excluded$ValleyName
+
+gauges_df
+gauges_df_distinct <- gauges_df|>
+  distinct(gauge, .keep_all = TRUE)
+  
+ggplot() +
+  geom_sf(data = temp,  aes(geometry = geometry_valley), fill = "grey")+
+  geom_sf(data = gauges_df_distinct,  aes(geometry = geometry))+
+  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
+  geom_sf(data = sdl_units, aes(geometry = geometry), colour = "red", fill = NA)+
+  #geom_sf_text(data = filter(cewo_valleys, !ValleyName %in% Valleys_included), aes(geometry = geometry, label = ValleyName), colour = "red", size = 3)+
+  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
+  theme_werp_toolkit() +
+  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
+                      limits = c(0,1)) +
+  labs(fill = "Lateral connectivity IS", y = "", x = "", colour = "")
+
+
+
+temp <- Tagg_gauge_EWRversions |>
+  distinct(gauge, planning_unit_name, .keep_all = TRUE)|>
+  left_join(gauges_df, by = join_by(gauge, "planning_unit_name" == "planningunitname"))|>
+  left_join(gauges_df_valleys)
 ```
