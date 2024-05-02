@@ -3,6 +3,7 @@ title: "Black box analyses"
 format: html
 editor: visual
 echo: false
+bibliography: references.bib
 ---
 
 ```{r setup}
@@ -10,6 +11,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r}
+#| include: false
 library(CC2)
 library(sf)
 source('directorySet.R')
@@ -18,65 +20,16 @@ library(dplyr)
 library(ggplot2)
 library(foreach) # needed internally for some funs
 library(patchwork)
+library(kableExtra)
 ```
-
-## Intro
-
-Skipping the big-picture stuff, what set of comparisons do we want to make and why? (some/most of this goes to methods)
-
--   Strictures capture biological process- how much favourable area do we get for those processes?
-
--   Habitat definitions exist that capture current wetlands with characteristic veg (cite Shane)
-
-    -   Some are named (e.g. River red gum forest riparian zone or floodplain)
-
-    -   The species obviously live elsewhere as well, so we can also define 'acceptable' habitat types
-
--   We want to know how physical conditions (inundation and soil moisture - maybe temp but it's not in now) affect the spatio-temporal patterns of favourability across the basin.
-
--   We can judge this based on both biological process and habitat type and together
-
-    -   And compare them- they tell us different things
-
--   The two approaches have different benefits and drawbacks
-
-    -   Missing covariates in both cases
-
-    -   Inability to forecast with habitat- 'red gum' habitat will change as climate shifts
-
-    -   a gajillion others
-
--   Linking them together solves some problems (covariates, largely), but may exacerbate others (climate shifts)
-
-## Methods
-
-Adults are not connected to the rest of the life stages because the persistence time is too long- regeneration during the period considered is not likely to be the dominant driver of adult numbers.
-
-*Notes* Ana Backstrom made the points that a) some species (e.g. lignum) don't really regenerate from germination, but from vegetative sprouting, and b) the non-woody veg is likely highly correlated with the germination stricture. For a, we've changed the name to regeneration. We haven't explicitly addressed b, but it is a good point- this is just asking if there's inundation followed by a short wet period, so likely is a good estimate of a flush of annuals. If we can find cites for that, that would be good. *and* if we can find cites for the length of time those annuals need to survive to seed set (I think that might actually be the only thing that's really reffed in the original MER veg- will look), then we can use the machinery for 'seedling survival' here to have a 'survival until seed set' for herbacious veg. Which would also be great- that'd be a whole life cycle. But that wasn't in SRA, so hasn't been done (except to the extent we already did it in MER).
-
-I have called 'germ and then seed' 'recruitment'.
-
-The adults typically have long lookback windows, so have a lot of NA in the first part of the timeseries.
-
-Need to bring over a short summary of the ALA pull method for defining habitat type
-
-Need the actual stricture definitions- I'm going to need to write that for SRA anyway.
-
-I'm doing everything below for one species, because I'm focusing on the comparisons of different life stage and different model types, rather than comparison of species. Also, most species' strictures are very similar (as a result of limited info). Thinking we lay out all the arguments for one, then make appendices with parallel plots for the others, and draw out any interesting differences we see when we do that.
-
-Layout/structure of comparisons
-
--   Process-based strictures one at a time and sequentially (biological). No habitat
-
--   Inundation of habitat types (by name and ala records). No biology
-
--   Compare the strict biological to the strict habitat
-
--   Joint- process-based with a habitat filter (i.e. interactive)
 
 ## Data read-in
 
+I'm leading with this because we're tweaking the data, but it could all be offloaded to a script to focus on the ms. Or just collapse the section.
+
 I'm splitting this up into a few sections since the process and anae-clipped (2 ways) gets confusing to do in one go.
+
+### Background
 
 First, a few useful background pieces- which species, what are the anae types and a bit of a summary, etc
 
@@ -85,11 +38,40 @@ First, a few useful background pieces- which species, what are the anae types an
 species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
 ```
 
-The anae types- rather than read in the base ANAEs, read the result of the 'diversity' analyses (`diversity_anae_summary`), and so could be used if we want additional descriptions about the types that get inundated. It's big, though, so don't actually read it in if you don't end up using it.
+What are the anae types?
 
 ```{r}
-#| eval: false
-diversity_anae_summary <- catch_cat_sf('diversity_anae_summary', 'diversity')
+# all_anaes <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
+# bbala <- readRDS(file.path(datOut, 'vegmapping', 'black_box_anae_type.rds'))
+
+alatypes <- foreach(i = species,
+                    .combine = bind_rows, .multicombine = TRUE) %do% {
+  readRDS(file.path(datOut, 'vegmapping', paste0(i, '_anae_type.rds'))) |> 
+                        mutate(species = i)
+                    }
+
+# That's useful to have in a dataframe, but in a few places I want a list too
+type_list <- vector(mode = 'list', length = length(species)) |> setNames(species)
+for (s in species) {
+  
+  # stolen from woody_general
+    veg_grep <- dplyr::case_when(s == 'black_box' ~ 'black box',
+                               s == 'red_gum' ~ 'red gum',
+                               s == 'coolabah' ~ 'cool',
+                               s == 'lignum' ~ 'lignum')
+    
+    
+  spalatypes <- alatypes |> 
+    filter(species == s) |> 
+    pull(ANAE_DESC)
+  
+  spnametypes <- alatypes |> 
+    filter(grepl(veg_grep, ANAE_DESC, ignore.case = TRUE)) |> 
+    pull(ANAE_DESC)
+  
+  type_list[[s]] <- list(alatype = spalatypes, nametype = spnametypes)
+}
+
 ```
 
 Set up a standard color palette for the types. Could do the same for species if we every plot those, and should choose a standard ramp for things like maps. Could do it for catchments too, but there's a million. This is ugly, but changing it is easy.
@@ -157,11 +139,9 @@ We can put those in one dataframe, which is useful sometimes, but depending on t
 ```{r}
 all_process <- bind_rows(germ, seed, germ_and_seed, adult) |> 
   mutate(stage = factor(stage, levels = c('regeneration', 'seedling', 'recruitment', 'adult')))
-```
 
-And scale up to the basin
+# A basin-scaled version. We could obviously make this below, but the more we keep data manipulation up here, the less opportunity for doing things twice (differently)
 
-```{r}
 all_process_basin <- all_process |> 
   sf::st_drop_geometry() |> 
   summarise(area = sumna(area),
@@ -194,6 +174,28 @@ inun_anae_ala <- purrr::map(species,
 # and a combined version useful for comparisons
 inun_anae_types <- bind_rows(inun_anae_name, inun_anae_ala) |> 
     mutate(stage = factor(stage, levels = c('anae_name', 'anae_ala')))
+
+# Basin
+inun_anae_types_basin <- inun_anae_types |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sumna(area),
+            .by = c(date, stage, species)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+```
+
+We can join up the independent methods in a dataframe for comparison
+
+```{r}
+process_and_hab <- bind_rows(germ, germ_and_seed, adult, inun_anae_name, inun_anae_ala) |> 
+    mutate(stage = factor(stage, levels = c('regeneration', 'recruitment', 'adult', 'anae_name', 'anae_ala')))
+
+process_and_hab_basin <- process_and_hab |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sumna(area),
+            .by = c(date, stage, species)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
 ```
 
 ### Interactive
@@ -264,7 +266,92 @@ adult_hab <- bind_rows(adult, adult_name, adult_ala,
     mutate(stage = factor(stage, levels = c('adult',
                                             'adult_name', 'adult_ala',
                                             'anae_name', 'anae_ala')))
+
+# Basin
+germ_hab_basin <- germ_hab |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sumna(area),
+            .by = c(date, stage, species)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+
+# Basin
+germ_and_seed_hab_basin <- germ_and_seed_hab |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sumna(area),
+            .by = c(date, stage, species)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+
+# Basin
+adult_hab_basin <- adult_hab |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sumna(area),
+            .by = c(date, stage, species)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+
 ```
+
+# Intro
+
+Skipping the big-picture stuff, what set of comparisons do we want to make and why? (some/most of this goes to methods)
+
+-   Strictures capture biological process- how much favourable area do we get for those processes?
+
+-   Habitat definitions exist that capture current wetlands with characteristic veg (cite Shane)
+
+    -   Some are named (e.g. River red gum forest riparian zone or floodplain)
+
+    -   The species obviously live elsewhere as well, so we can also define 'acceptable' habitat types
+
+-   We want to know how physical conditions (inundation and soil moisture - maybe temp but it's not in now) affect the spatio-temporal patterns of favourability across the basin.
+
+-   We can judge this based on both biological process and habitat type and together
+
+    -   And compare them- they tell us different things
+
+-   The two approaches have different benefits and drawbacks
+
+    -   Missing covariates in both cases
+
+    -   Inability to forecast with habitat- 'red gum' habitat will change as climate shifts
+
+    -   a gajillion others
+
+-   Linking them together solves some problems (covariates, largely), but may exacerbate others (climate shifts)
+
+*The organisation here is very much a first pass.* It may be that, for example, we should set up the main arguments and comparisons with just a paneled set of the basin-scale figures from each section, since they're easier to read, and then dive into the catchments; i.e invert the nested structure that I have here.
+
+# Methods
+
+I'll work on writing them up for SRA anyway, and stuff them in here for the processing. Most of the strictures come from [@roberts2011; @casanova2015; @jensen2008; @rogers2011]. We'll need to cite the MER paper in review, probably, along with the github (for both this project and MER).
+
+Adults are not connected to the rest of the life stages because the persistence time is too long- regeneration during the period considered is not likely to be the dominant driver of adult numbers.
+
+*Notes* Ana Backstrom made the points that a) some species (e.g. lignum) don't really regenerate from germination, but from vegetative sprouting, and b) the non-woody veg is likely highly correlated with the germination stricture. For a, we've changed the name to regeneration. We haven't explicitly addressed b, but it is a good point- this is just asking if there's inundation followed by a short wet period, so likely is a good estimate of a flush of annuals. If we can find cites for that, that would be good. *and* if we can find cites for the length of time those annuals need to survive to seed set (I think that might actually be the only thing that's really reffed in the original MER veg- will look), then we can use the machinery for 'seedling survival' here to have a 'survival until seed set' for herbacious veg. Which would also be great- that'd be a whole life cycle. But that wasn't in SRA, so hasn't been done (except to the extent we already did it in MER).
+
+I have called 'germ and then seed' 'recruitment'.
+
+Area units are m\^2 to avoid errors when we adjust some and not others during processing. Hectares should /10000.
+
+The adults typically have long lookback windows, so have a lot of NA in the first part of the timeseries.
+
+Need to bring over a short summary of the ALA pull method for defining habitat type
+
+Need the actual stricture definitions- I'm going to need to write that for SRA anyway.
+
+I'm doing everything below for one species, because I'm focusing on the comparisons of different life stage and different model types, rather than comparison of species. Also, most species' strictures are very similar (as a result of limited info). Thinking we lay out all the arguments for one, then make appendices with parallel plots for the others, and draw out any interesting differences we see when we do that.
+
+Layout/structure of comparisons
+
+-   Process-based strictures one at a time and sequentially (biological). No habitat
+
+-   Inundation of habitat types (by name and ala records). No biology
+
+-   Compare the strict biological to the strict habitat
+
+-   Joint- process-based with a habitat filter (i.e. interactive)
 
 # Process-only analyses
 
@@ -272,9 +359,11 @@ Will need to clean figures up, obviously. All species are in the dataframes, I'm
 
 ## Regeneration
 
-Just based on requirements for preceding inundation and subsequent soil moisture, we get the area of wetlands with favourable germination/regeneration conditions.
+Just based on requirements for preceding inundation and subsequent soil moisture, we get the area of wetlands with favourable germination/regeneration conditions (@fig-regen-catch, @fig-regen-map).
 
 ```{r}
+#| label: fig-regen-catch
+#| fig-cap: Area favourable for black box regeneration in each catchment
 all_process |> 
   filter(stage == 'regeneration'& species == 'black_box') |> 
 ggplot(aes(x = date, y = area, color = ValleyName)) +
@@ -284,6 +373,8 @@ ggplot(aes(x = date, y = area, color = ValleyName)) +
 ```
 
 ```{r}
+#| label: fig-regen-map
+#| fig-cap: Area favourable for black box regeneration in each catchment as a map
 all_process |> 
   filter(stage == 'regeneration'& species == 'black_box') |> 
 ggplot(aes(fill = log(area))) +
@@ -292,9 +383,11 @@ ggplot(aes(fill = log(area))) +
   scale_fill_viridis_c()
 ```
 
-At the basin scale, that is
+At the basin scale, @fig-regen-basin, we see temporal variation. We should probably drop this and just use the one in the Lifecycle comparison section.
 
 ```{r}
+#| label: fig-regen-basin
+#| fig-cap: Area favourable for black box regeneration summed across the basin
 all_process_basin |> 
   filter(stage == 'regeneration'& species == 'black_box') |> 
   ggplot(aes(x = date, y = area)) +
@@ -305,9 +398,11 @@ all_process_basin |>
 
 ## Seedling survival
 
-The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), we get the following.
+The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), there is very little favourable area anywyere @fig-seed-catch, @fig-seed-map.
 
 ```{r}
+#| label: fig-seed-catch
+#| fig-cap: Area favourable for black box seedling survival in each catchment
 all_process |> 
   filter(stage == 'seedling'& species == 'black_box') |> 
 ggplot(aes(x = date, y = area, color = ValleyName)) +
@@ -317,6 +412,8 @@ ggplot(aes(x = date, y = area, color = ValleyName)) +
 ```
 
 ```{r}
+#| label: fig-seed-map
+#| fig-cap: Area favourable for black box seedling survival in each catchment
 all_process |> 
   filter(stage == 'seedling'& species == 'black_box') |> 
 ggplot(aes(fill = log(area))) +
@@ -325,9 +422,11 @@ ggplot(aes(fill = log(area))) +
   scale_fill_viridis_c()
 ```
 
-At the basin scale, that is
+At the basin scale, that is @fig-seed-basin.
 
 ```{r}
+#| label: fig-seed-basin
+#| fig-cap: Area favourable for black box seedling survival summed to basin
 all_process_basin |> 
   filter(stage == 'seedling'& species == 'black_box') |> 
   ggplot(aes(x = date, y = area)) +
@@ -341,6 +440,8 @@ And these are actually much more permissive seedling strictures than typical. 6 
 ## Recruitment
 
 The life cycle is sequential, and so what we are interested in ultimately is recruitment success; that is, germination and subsequent survival until maturity or at least some sort of 'establishment'. Here, we ask whether conditions supported seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper two, it takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
+
+*I'm going to stop cross-reffing and captioning figs unless there's somewhere where it's really needed, just need to get the story sorted first*
 
 ```{r}
 all_process |> 
@@ -393,7 +494,7 @@ ggplot(aes(fill = log(area))) +
   scale_fill_viridis_c()
 ```
 
-At the basin scale, that is
+There are already a million figs here, so I'll show the basin scale only in the comparison section
 
 ```{r}
 all_process_basin |> 
@@ -404,11 +505,11 @@ all_process_basin |>
   theme(legend.position = 'none')
 ```
 
-## Comparison
+## Lifecyle comparison
 
 We can compare these areas of favourability for each life stage
 
-The adults swamp the others. THough not everywhere- it's spatio-temporally variable.
+The adults swamp the others. Though not everywhere- it's spatio-temporally variable.
 
 ```{r}
 all_process |> 
@@ -430,13 +531,16 @@ ggplot(aes(x = date, y = area, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
-at the basin scale
+At the basin scale, we see the same pattern but cleaner @fig-process-basin . I use a log transform to better see the non-adult stages, though it makes the massive difference to the adult stage less obvious.
 
 ```{r}
+#| label: fig-process-basin
+#| fig-cap: Area favourable for black box life stages in the basin
 all_process_basin |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
+  scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
 geom_point()
 ```
@@ -445,51 +549,42 @@ geom_point()
 
 So, ignoring habitat information, we can see that seedling survival is the limiting factor. We haven't connected adults with the earlier stages, so we sort of have two measures of condition- recruitment and persistence. Note also that the germ and seedling survival is smaller than just seedling survival, because there has to have been germination first.
 
-# Habitat
+# Habitat only
 
 The above asks about whether conditions favour the biology of the plants. At the simplest, the habitat ignores the biology, and asks if there was inundation in the "correct" habitat type. We also have just straight up inundation area, but that seems like it would go in an appendix, if anywhere.
 
-```{r}
-# all_anaes <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
-# bbala <- readRDS(file.path(datOut, 'vegmapping', 'black_box_anae_type.rds'))
+We can also include habitat information, and do so in two ways: First, some of the ANAE types are explicitly 'Black box', `r type_list$black_box$nametype[1]`. There are also ALA records of of each species that we have intersected with the ANAE to get a list of ANAE types with records [@tbl-ala-records]. In the analysis, only those types with \> 0.5% of the total records were used (this is methods). *I've made the cut off ones lighter here, but might work better to have a different background. Or leave them off, but I think it's worth showing, probably.*
 
-alatypes <- foreach(i = species,
-                    .combine = bind_rows, .multicombine = TRUE) %do% {
-  readRDS(file.path(datOut, 'vegmapping', paste0(i, '_anae_type.rds'))) |> 
-                        mutate(species = i)
-}
-
-# we could pull the names out of all_anaes, but they're all in the ala set, and that's much faster
-bbnames <- alatypes |>
-  sf::st_drop_geometry() |> 
-  filter(grepl('black|box', ANAE_DESC)) |> 
-  select(ANAE_DESC) |> 
-  distinct()
-```
-
-We can also include habitat information, and do so in two ways: First, some of the ANAE types are explicitly 'Black box', `r pull(bbnames)`. There are also ALA records of of each species that we have intersected with the ANAE to get a list of ANAE types with records. In the analysis, only those types with \> 0.5% of the total records were used (this is methods). *should indicate here which were cut off with cell colors or something*.
-
-As with the figures elsewhere, we should/could make this table for all species, but I'm just checking with black box. I thought about having a n-records column for each species, but the idea is to focus on species requirements and it just gets confusing.
+As with the figures elsewhere, we should/could make this table for all species, but I'm just checking with black box. I thought about having a column for each species, but the anae types differ and the sorting changes, so since the idea is to focus on species requirements it just gets confusing.
 
 ```{r}
-alatypes |> 
+#| label: tbl-ala-records
+#| tbl-cap: Habitat types with black box records in Atlas of Living Australia, with number of records. Those in light grey are < 0.5% of the total, and were not included in the set of ALA habitat types used. 
+#| 
+bbtab <- alatypes |> 
   filter(species == 'black_box') |> 
   select(ANAE_DESC, n_records) |> 
-  arrange(desc(n_records)) |> 
-  knitr::kable()
+  arrange(desc(n_records))
+
+cutoff <- which(bbtab$n_records < sum(bbtab$n_records)*0.005)
+
+bbtab |> 
+  knitr::kable() |> 
+  kable_styling() |> 
+  row_spec(cutoff, color = 'grey')
 ```
 
 See veg1_anae_mapping.qmd for a map of the ALA records if we want to include that, maybe as an appendix.
 
-### Only habitat
-
-This just asks how much inundated area there is in each 'suitable' habitat type, as defined by name or ALA records. As above, it could be called 'favourable area' if favourability is just determined by wetland type.
+This just asks how much inundated area there is in each 'suitable' habitat type, as defined by name or ALA records @fig-habitat-catch . As above, it could be called 'favourable area' if favourability is just determined by wetland type.
 
 We might want to split the two habitat sets out- this shows they're very different, which we need to do, but they're so different we might want to look at them separately. Still, there's a simple but *very* important point here that species don't only live in 'their' habitat type, and there's likely much more opportunity across the basin for them to get inundated if we consider all the habitat types in which they're found. That's not surprising, but this quantifies it (and others don't seem to consider it).
 
 I haven't logged area here to illustrate how striking the difference is, but have logged it below. Not sure which is better.
 
 ```{r}
+#| label: fig-habitat-catch
+#| fig-cap: Area of inundation in ANAE types that match the name ('anae_name') or where there are ALA records ('anae_ala') for black box.
 inun_anae_types |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
@@ -518,17 +613,22 @@ ggplot(aes(fill = log(area+1))) +
   scale_fill_viridis_c()
 ```
 
-# Comparing process and habitat
-
-We've now seen what we get for 'favourable area' for process-based models and for habitat types. Now, we compare how they differ in terms of what they tell us when considered separately. In other words, what is the effect of actually considering biology?
-
-There are a couple very interesting comparisons to do here- what area do we get from the germ, adult, and these habitat requirements? Could put germ_and_seed in there, but we know it's basically 0 **and that's really important but makes a dumb plot**- if seeds are the dominant pinch point, that won't get picked up at all when you look at inundation of ANAES in the 'black box' type- just like germ and adult condition, the inundation of black box will look basically OK most of the time, but actual population condition depends on seedling survival which has a very different pattern. Is there a way to show that? Or is it just something to bring out in the discussion?
+At the basin scale
 
 ```{r}
-# we could do this all from one massive dataframe, but easier to just put the particular models in we want to compare
-gahab <- bind_rows(germ, germ_and_seed, adult, inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('regeneration', 'recruitment', 'adult', 'anae_name', 'anae_ala')))
+inun_anae_types_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
 ```
+
+# Comparing process and habitat
+
+We've now seen what we get for 'favourable area' for process-based models and for habitat types. Now, we compare how they differ in terms of what they tell us when considered separately @fig-hab-strict-catch, @fig-hab-strict-basin.
+
+There are a couple very interesting comparisons to do here- what area do we get from the germ, adult, and these habitat requirements @fig-hab-strict-catch ? Could put germ_and_seed in there, but we know it's basically 0 **and that's really important but makes a dumb plot**- if seeds are the dominant pinch point, that won't get picked up at all when you look at inundation of ANAES in the 'black box' type- just like germ and adult condition, the inundation of black box will look basically OK most of the time, but actual population condition depends on seedling survival which has a very different pattern. Is there a way to show that? Or is it just something to bring out in the discussion?
 
 Need to work on scales and presentation of the different types, but putting on log helps. Basically, adult is highest, ala is MUCH larger than name, and germ tends to be on the same order as name, though there's quite a lot of (particularly spatial) variation around that statement- some catchments have a lot more germ than 'Black Box' ANAE types, and others have a lot less.
 
@@ -541,13 +641,28 @@ What to say about it?
 -   Full recruitment is MUCH smaller and infrequent, and likely the limiting factor for the population. Its pattern does not get picked up at all by habitat inundation
 
 ```{r}
-gahab |> 
+#| label: fig-hab-strict-catch
+#| fig-cap: Area favourable for each black box life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
+process_and_hab |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
   scale_color_manual(values = stage_pal) +
   facet_wrap('ValleyName')
+```
+
+Basin
+
+```{r}
+#| label: fig-hab-strict-basin
+#| fig-cap: Area favourable for each black box life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
+process_and_hab_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
 ```
 
 # Interactive strictures and habitat
@@ -574,15 +689,23 @@ This lets us ask questions from two directions with the same set of data by comp
 
 Can make maps for all of this too, but not sure how useful they'll be.
 
-### Germination and habitat
+## Regeneration and habitat
 
-Do I want to include the inundated area as above? It's largely covered above, and the main question here is how the habitat further restricts the biology. But **it does give another (two) baseline(s), where we can ask how the biology restricts the habitat**. So I think include- it's important to consider both.
+The area of germination favourability declines when it has to occur in the proper habitat type, and is typically, but not always lower than the total inundation within the habitat @fig-germ-interact-catch, @fig-germ-interact-basin.
 
 First I plot just the raw results, and then I plot specific comparisons.
 
-Inun_ala is almost always highest, so we're not losing much if any germ habitat to the ala restriction. But see avoca, it does happen. We always lose a LOT to the habitat name (note log scale).
+anae_ala is almost always highest, so we're not losing much if any germ habitat to the ala restriction. But see avoca, it does happen, indicating favourable regeneration conditions outside typical habitat types. We always lose a LOT to the habitat name (note log scale).
 
 ```{r}
+#| label: fig-germ-interact-catch
+#| fig-cap: Area favourable for each black box germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
+process_and_hab_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
 germ_hab |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
@@ -590,6 +713,19 @@ ggplot(aes(x = date, y = area+1, color = stage)) +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
   facet_wrap('ValleyName')
+```
+
+Basin
+
+```{r}
+#| label: fig-germ-interact-basin
+#| fig-cap: Area favourable for each black box germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
+germ_hab_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
 ```
 
 Now let's draw out specific comparisons in both directions.
@@ -614,9 +750,11 @@ germ_compare_d <- germ_hab |>
                                  values_col = 'area', comp_fun = 'difference')
 ```
 
-What fraction of the area of the process-based strictures alone is lost when they are restricted to specific habitat types? Well, this shows the proportion that remains.
+If we relativise to the germination stricture alone, we get the proportional loss in favourability due to habitat requirements @fig-germ-relative-catch, @fig-germ-relative-basin.
 
 ```{r}
+#| label: fig-germ-relative-catch
+#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
 germ_compare_r |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
@@ -636,6 +774,26 @@ ggplot(aes(x = date, y = difference_area, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
+Basin
+
+```{r}
+#| label: fig-germ-relative-basin
+#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
+germ_compare_r_basin <- germ_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('regeneration', 'regeneration_ala', 'regeneration_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'regeneration',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+germ_compare_r_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = relative_area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
 How much do we lose from just looking at habitat inundation when we also ask if that inundation met germination conditions? Specifically, this compares the inundation in anae types to the regeneration stricture within that habitat type.
 
 Thus, we flip that around to the inuns as baseline, what proportion of the inundated habitat is lost when we consider the biological processes *within those types*? We do it for both the named types and the ALA-selected.
@@ -647,7 +805,7 @@ germ_inun_name_compare <- germ_hab |>
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
-germ_inun_ala_compare <- germ_hab |> 
+germ_anae_ala_compare <- germ_hab |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_ala', 'regeneration_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
@@ -655,11 +813,11 @@ germ_inun_ala_compare <- germ_hab |>
                                  values_col = 'area', comp_fun = 'relative')
 ```
 
-Kind of annoying this is two plots, but they are different comparisons, we can't just use the ala as a baseline.
-
-In both cases, there are *massive* drops in the area favourable within the wetland types when we require it to meet germination conditions.
+Whether 'habitat' is determined by name or ALA records, there are *massive* drops in the area favourable within the wetland types when we require it to meet germination conditions @fig-name-germ-relative-basin, @fig-name-germ-relative-catch, @fig-ala-germ-relative-catch, @fig-ala-germ-relative-basin.
 
 ```{r}
+#| label: fig-name-germ-relative-catch
+#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
 germ_inun_name_compare |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
@@ -670,7 +828,9 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 ```
 
 ```{r}
-germ_inun_ala_compare |> 
+#| label: fig-ala-germ-relative-catch
+#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+germ_anae_ala_compare |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
@@ -679,7 +839,47 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
-### Germ and seedling
+Basin
+
+```{r}
+#| label: fig-name-germ-relative-basin
+#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+germ_inun_name_compare_basin <- germ_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('anae_name', 'regeneration_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+germ_inun_name_compare_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = relative_area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
+```{r}
+#| label: fig-ala-germ-relative-basin
+#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+germ_anae_ala_compare_basin <- germ_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('anae_ala', 'regeneration_ala')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+germ_anae_ala_compare_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = relative_area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
+## Recruitment and habitat
+
+Keeping this straight is tricky, but I'm stopping writing fig caps for now. It follows the same set of logical steps as regeneration alone
 
 I could look at just seedling too, but this is already a TON
 
@@ -693,6 +893,18 @@ ggplot(aes(x = date, y = area+1, color = stage)) +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
   facet_wrap('ValleyName')
+```
+
+Basin, also logged so we can see the data.
+
+```{r}
+germ_and_seed_hab_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area+1, color = stage)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point()
 ```
 
 Now the comparisons
@@ -716,6 +928,7 @@ germ_and_seed_compare_d <- germ_and_seed_hab |>
 ```
 
 This is almost all NaN because there's so little recruitment it's all divide-by-zero. Could add one, but the message is captured in the next one.
+
 ```{r}
 germ_and_seed_compare_r |> 
   filter(species == 'black_box') |> 
@@ -738,6 +951,26 @@ ggplot(aes(x = date, y = difference_area, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
+Basin has enough we can use the relative. Sort of.
+
+```{r}
+
+germ_and_seed_compare_r_basin <- germ_and_seed_hab_basin |> 
+  #mutate(area = area + 1) |> # make it not NA
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('recruitment', 'recruitment_ala', 'recruitment_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'recruitment',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+germ_and_seed_compare_r_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = relative_area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
 How much do we lose from just looking at habitat inundation when we also ask if that inundation met recruitment conditions? Specifically, this compares the inundation in anae types to the recruitment strictures within that habitat type.
 
 Thus, we flip that around to the inuns as baseline, what proportion of the inundated habitat is lost when we consider the biological processes *within those types*? We do it for both the named types and the ALA-selected.
@@ -750,7 +983,7 @@ germ_and_seed_inun_name_compare <- germ_and_seed_hab |>
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
-germ_and_seed_inun_ala_compare <- germ_and_seed_hab |> 
+germ_and_seed_anae_ala_compare <- germ_and_seed_hab |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_ala', 'recruitment_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
@@ -771,8 +1004,9 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 ```
 
 For the ALA, there *is* some data, but it's not possible to see on an unscaled 0-1 axis
+
 ```{r}
-germ_and_seed_inun_ala_compare |> 
+germ_and_seed_anae_ala_compare |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
@@ -781,12 +1015,12 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
-We could log it (see commented out bit above), or we could just say that by definition the habitat is a line at 1 since it's the reference, and just plot the habitat * biology, which gets scaled automatically and makes the tiny fraction clear. 
+We could log it (see commented out bit above), or we could just say that by definition the habitat is a line at 1 since it's the reference, and just plot the habitat \* biology, which gets scaled automatically and makes the tiny fraction clear.
 
-In fact, we could drop the upper two plots, and just plot the name and ala together on here, if we're super clear they've been referenced to different things (their respective habitat inundation). The name is still be very boring (but important), since it's always 0. 
+In fact, we could drop the upper two plots, and just plot the name and ala together on here, if we're super clear they've been referenced to different things (their respective habitat inundation). The name is still be very boring (but important), since it's always 0.
 
 ```{r}
-germ_and_seed_inun_ala_compare |> 
+germ_and_seed_anae_ala_compare |> 
   bind_rows(germ_and_seed_inun_name_compare) |> 
   filter(species == 'black_box' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
@@ -797,9 +1031,34 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
   labs(y = 'favourable area relative to\ninundation of respective habitat types')
 ```
 
+Basin
 
+```{r}
+germ_and_seed_inun_name_compare_basin <- germ_and_seed_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('anae_name', 'recruitment_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
 
-### Adults
+germ_and_seed_anae_ala_compare_basin <- germ_and_seed_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('anae_ala', 'recruitment_ala')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+germ_and_seed_anae_ala_compare_basin |> 
+  bind_rows(germ_and_seed_inun_name_compare_basin) |> 
+  filter(species == 'black_box' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
+ggplot(aes(x = date, y = relative_area, color = stage)) +
+  geom_line() + 
+  geom_point() +
+    scale_color_manual(values = stage_pal) +
+  labs(y = 'favourable area relative to\ninundation of respective habitat types')
+```
+
+## Adults
 
 Again, start with the overall outputs
 
@@ -813,6 +1072,17 @@ ggplot(aes(x = date, y = area+1, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
+Basin, also logged so we can see the data.
+
+```{r}
+adult_hab_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area+1, color = stage)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
 
 Now, how much area do we lose from process if we restrict by habitat? Here, we use the process-only adult as the baseline, and ask how much less area there is when we cut that to the ANAE types with their name or where they have ALA records.
 
@@ -856,11 +1126,30 @@ ggplot(aes(x = date, y = difference_area, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
+Basin
+
+```{r}
+
+adult_compare_r_basin <- adult_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('adult', 'adult_ala', 'adult_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'adult',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+adult_compare_r_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = relative_area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
 How much do we lose from just looking at habitat inundation when we also ask if that inundation met adult conditions? Specifically, this compares the inundation in anae types to the adult stricture within that habitat type.
 
 Thus, we flip that around to the inuns as baseline, what proportion of the inundated habitat is lost when we consider the biological processes *within those types*? We do it for both the named types and the ALA-selected.
 
-**WHY ARE THE ADULT_NAME higher than the anae_type**? They shouldn't be able to be? Or is it because they hold the max over 20 years or something? Can we convince ourselves of that and show it?
+The adults can have more favourable area than inundated area even when clipped to habitat type the habitat area is the area inundated that year, and adult condition can persist for many years. It tends to track with the rolling maximum inundation, and does not ever go over the total area of the relevant habitat type (i.e. we haven't just stuffed something up). See appendix.
 
 ```{r}
 adult_inun_name_compare <- adult_hab |> 
@@ -870,7 +1159,7 @@ adult_inun_name_compare <- adult_hab |>
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
-adult_inun_ala_compare <- adult_hab |> 
+adult_anae_ala_compare <- adult_hab |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_ala', 'adult_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
@@ -878,7 +1167,7 @@ adult_inun_ala_compare <- adult_hab |>
                                  values_col = 'area', comp_fun = 'relative')
 ```
 
-Here, we have an interesting and counterintuitive result that there's actually MORE (often much more) favourable area in the adult stricture *even when cut to the ANAE type* than there is in the ANAE inundation. This is because an area can be favourable for adults without inundation that year- it just has to have been within the inter-event limit. So adult favourability falls off with time since maximum inundation. *I need a figure to show this*.
+Here, we have an interesting and counterintuitive result that there's actually MORE (often much more) favourable area in the adult stricture *even when cut to the ANAE type* than there is in the ANAE inundation. This is because an area can be favourable for adults without inundation that year- it just has to have been within the inter-event limit. So adult favourability falls off with time since maximum inundation. *See appendix*
 
 ```{r}
 adult_inun_name_compare |> 
@@ -891,7 +1180,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 ```
 
 ```{r}
-adult_inun_ala_compare |> 
+adult_anae_ala_compare |> 
   filter(species == 'black_box') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
@@ -900,7 +1189,42 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
   facet_wrap('ValleyName')
 ```
 
-## Discussion
+Basin
+
+```{r}
+
+adult_inun_name_compare_basin <- adult_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('anae_name', 'adult_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+adult_inun_name_compare_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
+```{r}
+adult_anae_ala_compare_basin <- adult_hab_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(stage %in% c('anae_ala', 'adult_ala')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
+                                 group_cols = c('date', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+adult_anae_ala_compare_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area, color = stage)) +
+  geom_line() +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
+# Discussion
 
 Biological processes are important- they're what determine where species actually can persist.
 
@@ -910,4 +1234,82 @@ But relying solely on habitat is particularly dangerous- it does not capture whe
 
 Moreover, with climate change, 'habitat type' as defined statically, will not stay the same, and we run the risk of missing and mis-modeling shifts.
 
-Here, we see areas of congruence and areas of major discrepancy between process-based strictures and habitat-based locations, though they can inform each other. This leads to hypothesis generation (where might 'black box' wetlands shift in the future, where should we loook for black box), and identifies critical periods for condition, whether or not they occur in the proper wetland type (seedling survival) that can be targeted by management.
+Here, we see areas of congruence and areas of major discrepancy between process-based strictures and habitat-based locations, though they can inform each other. This leads to hypothesis generation (where might 'black box' wetlands shift in the future, where should we look for black box), and identifies critical periods for condition, whether or not they occur in the proper wetland type (seedling survival) that can be targeted by management.
+
+# Appendices
+
+## Adult overperformance
+
+Why do the adults end up with more favourable area when clipped to the habitat types than the raw habitat types? Because adult favourability does not depend on yearly inundation, but only on some long return interval; i.e. there may not be any inundation in a given year, but that area is still favourable if it were inundated 8 years ago.
+
+To see this, we could plot the maxumum inundation each year, and we would see that the adult area tracks well with the maximum inundation within a species-specific x year lookback. *I haven't saved the max yearly inundation, but the mean. If we want that level of detail, I can tweak the outputs and re-run the strictures to also save the max to make this plot.* In the meantime, we can see that it is less than the total area of the anaes in each habitat type, and so we haven't just stuffed up the clipping.
+
+The anae types- rather than read in the base ANAEs, read the result of the 'diversity' analyses (`diversity_anae_summary`), and so could be used if we want additional descriptions about the types that get inundated. It's big, though, so don't actually read it in if you don't end up using it.
+
+```{r}
+# this dataset generated in the diversity analysis is really useful to get overall info about what got inundated, but it's massive. I need it here though to get an area. Could just save that out though.
+diversity_anae_summary <- catch_cat_sf('diversity_anae_summary', 'diversity')
+
+```
+
+```{r}
+# One use- total area of wetland habitat for each species in various ways
+# First, get rid of the yearly and simplify
+
+typearea <- diversity_anae_summary |> 
+  st_drop_geometry() |> 
+  summarise(total_area = unique(total_area), .by = c(ANAE_DESC, name_clean))
+
+# Now I want to get the total area attributable to each species' types. This seems like it should be a grouped operation, but they aren't mutually exclusive, so it's actually better to work with type_list and filter
+
+# using the same stage names lets us use the same colors
+total_wetland_area <- foreach(s = species, .combine = bind_rows, .multicombine = TRUE) %do% {
+  alaarea <- typearea |> 
+    filter(ANAE_DESC %in% type_list[[s]]$alatype) |> 
+    summarise(total_area = sum(total_area), .by = name_clean) |> 
+    mutate(species = s, stage = 'anae_ala')
+  
+  namearea <- typearea |> 
+    filter(ANAE_DESC %in% type_list[[s]]$nametype) |> 
+    summarise(total_area = sum(total_area), .by = name_clean) |> 
+    mutate(species = s, stage = 'anae_name')
+  
+  bind_rows(alaarea, namearea) |> 
+    rename(ValleyName = name_clean)
+}
+
+total_wetland_area_basin <- total_wetland_area |> 
+  summarise(total_area = sum(total_area), .by = c(species, stage))
+```
+
+So, the adult_name and adult_ala are always below the total available habitat in those groups. It's easies to see at the basin scale.
+
+```{r}
+adult_hab |> 
+  filter(species == 'black_box') |>
+ggplot(aes(x = date, y = area+1, color = stage)) +
+  geom_line() + 
+  geom_hline(data = total_wetland_area |> 
+              filter(species == 'black_box'),
+            aes(yintercept = total_area, color = stage),
+            linetype = 'dashed') +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+  facet_wrap('ValleyName')
+```
+
+Basin, also logged so we can see the data.
+
+```{r}
+adult_hab_basin |> 
+  filter(species == 'black_box') |> 
+ggplot(aes(x = date, y = area+1, color = stage)) +
+  geom_line() +
+  geom_hline(data = total_wetland_area_basin |> 
+              filter(species == 'black_box'),
+            aes(yintercept = total_area, color = stage),
+            linetype = 'dashed') +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```

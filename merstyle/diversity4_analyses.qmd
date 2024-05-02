@@ -181,6 +181,7 @@ shannon_expectations <- diversity_anae_summary |>
   summarise(n_anae_types = n_distinct(ANAE_DESC),
             max_shannon_catchment = log(n_anae_types),
             max_shannon_basin = log(total_basin_anae),
+            total_wetland_area = sum(total_area, na.rm = TRUE),
             .by = c(ValleyName, name_clean))
 ```
 
@@ -236,7 +237,8 @@ shannon_expectations <- shannon_expectations |>
                                              regional_probs = basin_probs$prob)) |> 
   select(ValleyName, name_clean, 
          n_anae_types, max_shannon_catchment, expected_catchment_shannon,
-         n_basin_types, max_shannon_basin, basin_shannon_overall)
+         n_basin_types, max_shannon_basin, basin_shannon_overall,
+         total_wetland_area)
 ```
 
 Save
@@ -431,3 +433,4 @@ ggplot(basin_shannon_prepost, aes(fill = diversity_shannon_area)) +
   facet_wrap('timeperiod') +
   scale_fill_viridis_c(option = 'mako')
 ```
+
