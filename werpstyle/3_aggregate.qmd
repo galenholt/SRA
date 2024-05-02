@@ -1,0 +1,246 @@
+---
+title: "Aggregate"
+format: html
+editor: visual
+---
+
+```{r}
+library(werptoolkitr)
+library(dplyr)
+library(sf)
+
+# get directories
+source('directorySet.R')
+```
+
+## Paths
+
+I'm going to set this up to dump data to the QAEL WERP share for now. Unfortunately, that calls itself something different for each of us.
+
+```{r}
+if (Sys.info()['user'] == 'galen') {
+  qaelpath <- '~/../Deakin University/QAEL - SRA - SRA'
+} else if (Sys.info()['user'] == 'Georgiad') {
+  qaelpath <- '~/Deakin University/QAEL - SRA - SRA'
+} else if (Sys.info()['user'] == 'georgiad') {
+  #qaelpath <- '~/Deakin University/QAEL - WERP - WERP'
+  qaelpath <- 'C:/Users/georgiad/Deakin University/QAEL - SRA - SRA'
+} else {
+  rlang::abort("YOU'RE NOT GALEN. PUT IN YOUR PATH TO QAEL-WERP")
+}
+```
+
+```{r}
+qaelpath <- myhome
+#qaelpath <- path.expand(qaelpath)
+datDir <- file.path(qaelpath, "Deakin University/QAEL - MER/Model/dataBase")
+datOut <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out")
+project_dir <- file.path(datOut, 'werpstyle')
+hydro_dir <- file.path(project_dir, 'hydrographs')
+
+# Generated data
+# EWR outputs (will be created here in controller, read from here in aggregator)
+ewr_results <- file.path(project_dir, 'module_output', 'EWR')
+
+# outputs of aggregator. There may be multiple modules
+agg_results <- file.path(project_dir, 'aggregator_output')
+
+```
+
+## Prep for aggregations
+
+-   specific for SRA because gauges are separate csvs, and otherwise are treated like scenarios
+
+```{r}
+
+#NOT SURE HOW TO DO THIS
+
+gauge_EWRS <- sdl_EWRS_agg$ewr_code |>
+  filter(scenario != "MAX")|>
+  mutate(scenario = "Historical")
+```
+
+## Aggregation sequencing
+
+-   Sequence (levels of each theme, space, time axis)
+
+-   Aggregation functions at each step
+
+-   Produces a list, with each sheet a step in the aggregation
+
+```{r}
+# !!!!!!!!!!!!!
+# keep in mind gauges are separate csvs, and are being treated like scenarios 
+# !!!!!!!!!!!!!
+# the MAX creation doesnt work with this data set. max is only being made for one gauge.
+# !!!!!!!!!!!!!
+
+
+# NOTE: I've been moving to Target as an outcome, since there seems to be appetite to aggregate to the broad ecological groupings. It means we lose some granularity and can't get to the 5,10,20 year targets. I'll do that too and put it in an internal directory.
+aggseq_simple <- list(ewr_code = c('ewr_code_timing', 'ewr_code'),
+               planning_unit = planning_units)
+
+funseq_simple <- list("ArithmeticMean",
+                      'ArithmeticMean') 
+
+system.time(agged_data_simple <- read_and_agg(datpath = ewr_results, 
+           type = 'achievement',
+           geopath = bom_basin_gauges,
+           causalpath = causal_ewr,
+           groupers = 'scenario',
+           aggCols = 'ewr_achieved',
+           group_until = list(planning_unit_name = is_notpoint,
+                                gauge = is_notpoint),
+           pseudo_spatial = 'planning_unit',
+           aggsequence = aggseq_simple,
+           funsequence = funseq_simple,
+           saveintermediate = TRUE,
+           namehistory = FALSE,
+           keepAllPolys = FALSE,
+           returnList = TRUE,
+           savepath = file.path(agg_results, 'Simple_agg') ))
+
+ewr_code_timing <- agged_data_simple$ewr_code_timing
+ewr_code <- agged_data_simple$ewr_code
+```
+
+```{r}
+aggseq <- list(ewr_code = c('ewr_code_timing', 'ewr_code'),
+               planning_unit = planning_units,
+               env_obj =  c('ewr_code', "env_obj"),
+               sdl_units = sdl_units,
+               Specific_goal = c('env_obj', "Specific_goal"),
+               Objective = c('Specific_goal', 'Objective'),
+               target_5_year_2024 = c('Objective', 'target_5_year_2024'))
+
+
+funseq <- list("ArithmeticMean", # changed from 'CompensatingFactor',
+               'ArithmeticMean',
+               'ArithmeticMean',
+               'SpatialWeightedMean',
+               'ArithmeticMean',
+               'ArithmeticMean',
+               'ArithmeticMean')
+
+system.time(agged_data <- read_and_agg(datpath = ewr_results, 
+           type = 'achievement',
+           geopath = bom_basin_gauges,
+           causalpath = causal_ewr,
+           groupers = 'scenario',
+           aggCols = 'ewr_achieved',
+           group_until = list(planning_unit_name = is_notpoint, 
+                                gauge = is_notpoint),
+           pseudo_spatial = 'planning_unit',
+           aggsequence = aggseq,
+           funsequence = funseq,
+           saveintermediate = TRUE,
+           namehistory = FALSE,
+           keepAllPolys = FALSE,
+           returnList = TRUE,
+           savepath = file.path(agg_results, 'sdl_specific_goal_objective_agg')))
+```
+
+```{r}
+target_aggseq <- list(ewr_code = c('ewr_code_timing', 'ewr_code'),
+               planning_unit = planning_units,
+               env_obj =  c('ewr_code', "env_obj"),
+               sdl_units = sdl_units,
+               Specific_goal = c('env_obj', "Specific_goal"),
+               Target = c('Specific_goal', 'Target'))
+
+target_funseq <- list("ArithmeticMean", # changed from 'CompensatingFactor',
+               'ArithmeticMean',
+               'ArithmeticMean',
+               'SpatialWeightedMean',
+               'ArithmeticMean',
+               'ArithmeticMean')
+
+system.time(agged_data_tar <- read_and_agg(datpath = ewr_results, 
+           type = 'achievement',
+           geopath = bom_basin_gauges,
+           causalpath = causal_ewr,
+           groupers = 'scenario',
+           aggCols = 'ewr_achieved',
+           group_until = list(planning_unit_name = is_notpoint, 
+                                gauge = is_notpoint),
+                        pseudo_spatial = 'planning_unit',
+
+           aggsequence = target_aggseq,
+           funsequence = target_funseq,
+           saveintermediate = TRUE,
+           namehistory = FALSE,
+           keepAllPolys = FALSE,
+           returnList = TRUE,
+           savepath = file.path(agg_results, 'sdl_specific_goal_agg')))
+```
+
+```{r}
+#Georgias version:
+EWRs_aggseq <- list(
+               ewr_code = c('ewr_code_timing', 'ewr_code'),
+               planning_unit = planning_units,
+               sdl_units = sdl_units)
+
+EWRs_funseq <- list(
+              c('ArithmeticMean', "NumberOfValues", "Variance"), #aggregates ewr_code_timing to ewr_code
+              c('ArithmeticMean', "NumberOfValues", "Sum"), #aggregate gauges to planning_unit
+              c('ArithmeticMean', "NumberOfValues", "Sum")) #planning_unit gauges to sdl_units
+
+system.time(agged_data_EWRs <- read_and_agg(datpath = ewr_results, 
+           type = 'achievement',
+           geopath = bom_basin_gauges,
+           causalpath = causal_ewr,
+           groupers = 'scenario',
+           aggCols = 'ewr_achieved',
+           group_until = list(planning_unit_name = is_notpoint, 
+                                gauge = is_notpoint),
+                        pseudo_spatial = 'planning_unit',
+
+           aggsequence = EWRs_aggseq,
+           funsequence = EWRs_funseq,
+           saveintermediate = TRUE,
+           namehistory = FALSE,
+           keepAllPolys = FALSE,
+           returnList = TRUE,
+           savepath = file.path(agg_results, 'sdl_EWRS_agg')))
+```
+
+```{r}
+Theme_aggseq <- list(
+               ewr_code = c('ewr_code_timing', 'ewr_code'),
+               planning_units = planning_units,
+               env_obj =  c('ewr_code', "env_obj"),
+               sdl_units = sdl_units,
+               Target = c('env_obj', 'Target'))
+
+Theme_funseq <- list(
+              c('ArithmeticMean', "NumberOfValues", "Variance"), #aggregates ewr_code_timing to ewr_code
+              c('ArithmeticMean', "NumberOfValues", "Sum"), #aggregate gauges to planning_unit
+              c('ArithmeticMean', "NumberOfValues", "Sum"), #ewr_code to env_obj              
+              c('ArithmeticMean', "NumberOfValues", "Sum"), #planning_unit to sdl_units              
+              c('ArithmeticMean', "NumberOfValues", "Sum")) #env_obj  to Target
+
+system.time(agged_data_Theme <- read_and_agg(datpath = ewr_results, 
+           type = 'achievement',
+           geopath = bom_basin_gauges,
+           causalpath = causal_ewr,
+           groupers = 'scenario',
+           aggCols = 'ewr_achieved',
+           # group_until = list(planning_unit_name = 'sdl_units', 
+           #                      gauge = is_notpoint),
+           #              pseudo_spatial = 'planning_units',
+           auto_ewr_PU = TRUE,
+           aggsequence = Theme_aggseq,
+           funsequence = Theme_funseq,
+           saveintermediate = TRUE,
+           namehistory = FALSE,
+           keepAllPolys = FALSE,
+           returnList = TRUE,
+           savepath = file.path(agg_results, 'sdl_target_agg')))
+```
+
+40 seconds
+
+```         
+#GD: user  system elapsed   128.84   12.03  264.08 
+```
