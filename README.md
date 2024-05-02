@@ -18,6 +18,55 @@ Output data (e.g. processed inundation into ANAEs, responses, EWRs) is in `QAEL 
 
 There is some processed data I've left on the HPC because it's 10s of Gb. 
 
+## Getting started
+
+Clone this repo.
+
+Open it via the package file. It will auto-install renv and ask you to install packages. Try that. If it fails, see next.
+
+Renv struggles to install git packages from the lockfile for some reason. The following will probably be done initially, and whenever we want to update these packages. Then after you manually install the toolkit and eFlowEval, run renv::install() again.
+
+If you have [generated ssh keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) and  [added them to github](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account), then use this. You might have to for werp.
+
+```
+renv::install('git@github.com:galenholt/CC2.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
+
+renv::install('git@github.com:MDBAuth/WERP_toolkit.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
+```
+
+If not, but are able to do credentials manually, i.e. [set up a PAT](https://github.com/settings/tokens). 
+
+If you set up a PAT, then use the following to manage it in R.
+```
+credentials::set_github_pat()
+```
+
+We used to have to install the toolkit with ssh because we're not able to have personal PAT on MDBA. But it just worked for me? And Renv didnt work for CC2 but devtools did.
+
+Then install with
+```
+renv::install('MDBAuth/WERP_toolkit')
+
+renv::install('galenholt/CC2', ref = 'dev')
+```
+
+or 
+```
+devtools::install_github('MDBAuth/WERP_toolkit')
+
+devtools::install_github('galenholt/CC2', ref = 'dev')
+```
+
+
+
+Then 
+```
+renv::install()
+```
+to get everything else.
+
+If sf fails, you'll need to install the requisite C libraries, which usually involves asking the HPC maintainer.
+
 ## HPC sequence
 
 I want to work in notebooks that work either locally or on an HPC.
@@ -69,44 +118,4 @@ R
 renv::status()
 ```
 
-Renv struggles to install git packages from the lockfile for some reason. The following should be done initially, and whenever we want to update the package.
 
-If you have ssh set up [github](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)[instructions](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
-```
-renv::install('git@github.com:galenholt/CC2.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
-
-renv::install('git@github.com:MDBAuth/WERP_toolkit.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
-```
-
-If not, but are able to do credentials manually, i.e. [set up a PAT](https://github.com/settings/tokens). 
-
-If you set up a PAT, then use the following to manage it in R.
-```
-credentials::set_github_pat()
-```
-
-We used to have to install the toolkit with ssh because we're not able to have personal PAT on MDBA. But it just worked for me? And Renv didnt work for CC2 but devtools did.
-
-Then install with
-```
-renv::install('MDBAuth/WERP_toolkit')
-
-renv::install('galenholt/CC2', ref = 'dev')
-```
-
-or 
-```
-devtools::install_github('MDBAuth/WERP_toolkit')
-
-devtools::install_github('galenholt/CC2', ref = 'dev')
-```
-
-
-
-Then 
-```
-renv::install()
-```
-to get everything else.
-
-If sf fails, you'll need to install the requisite C libraries, which usually involves asking the HPC maintainer.
