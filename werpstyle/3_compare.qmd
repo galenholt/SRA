@@ -1,0 +1,1568 @@
+---
+title: "Comparer"
+format: html
+editor: visual
+execute: 
+  cache: true
+---
+
+```{r}
+#| include: false
+#| 
+library(werptoolkitr)
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(patchwork)
+library(tidyr)
+
+# get directories
+source('directorySet.R')
+```
+
+## Paths
+
+I'm going to set this up to dump data to the QAEL WERP share for now. Unfortunately, that calls itself something different for each of us.
+
+```{r}
+#| include: false
+qaelpath <- myhome
+#qaelpath <- path.expand(qaelpath)
+datDir <- file.path(qaelpath, "Deakin University/QAEL - MER/Model/dataBase")
+datOut <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out")
+project_dir <- file.path(datOut, 'werpstyle')
+hydro_dir <- file.path(project_dir, 'hydrographs')
+
+# Generated data
+# EWR outputs (will be created here in controller, read from here in aggregator)
+ewr_results <- file.path(project_dir, 'module_output', 'EWR')
+
+# outputs of aggregator. There may be multiple modules
+agg_results <- file.path(project_dir, 'aggregator_output')
+
+comp_results <- file.path(project_dir, 'comparer_output') 
+```
+
+## Scenario info
+
+```{r}
+#| label: scenario-info
+#| include: false
+
+dig1 <- function(x) {
+  paste0(sprintf("%.1f", x))
+}
+dig2 <- function(x) {
+  paste0(sprintf("%.2f", x))
+  }
+
+# print(file.path(hydro_dir,'scenario_metadata.yml'))
+# 
+# scenarios <- yaml::read_yaml(file.path(hydro_dir,                                     
+#                                        'scenario_metadata.yml'))
+# 
+# scenarios <- scenarios |>  
+#   tibble::as_tibble() 
+# 
+# # set a sceneorder
+# scenarios <- scenarios |>
+#   dplyr::arrange(desc(scale_rain), scale_evap, desc(licvolfactor))
+# 
+# sceneorder <- scenarios$scenario
+# 
+# scenarios <- scenarios |>
+#   mutate(names_scenario = paste("SR",dig1(scale_rain), "_SE", dig2(scale_evap), "_LV", dig1(licvolfactor), sep = "")) |>
+#   mutate(names_climate_scenario = paste("SR",dig1(scale_rain), "_SE", dig2(scale_evap), sep = "")) |>
+#   mutate(names_climate_scenario = factor(names_climate_scenario, levels = unique(names_climate_scenario))) |>
+#   mutate(names_MDBA_climate_scenario_long = case_when(names_climate_scenario == "SR1.0_SE1.00" ~ "Historical climate",
+#                                                       names_climate_scenario == "SR0.8_SE1.07" ~ "Dry climate change",
+#                                                       names_climate_scenario == "SR1.0_SE1.07" ~ "Median climate change",
+#                                                       names_climate_scenario == "SR1.2_SE1.07" ~ "Wet climate change"))|>
+#   mutate(names_MDBA_climate_scenario = case_when(names_climate_scenario == "SR1.0_SE1.00" ~ "Historical climate",
+#                                                       names_climate_scenario == "SR0.8_SE1.07" ~ "Dry climate",
+#                                                       names_climate_scenario == "SR1.0_SE1.07" ~ "Median climate",
+#                                                       names_climate_scenario == "SR1.2_SE1.07" ~ "Wet climate"))|>
+#   mutate(names_MDBA_climate_scenario_long = factor(names_MDBA_climate_scenario_long, 
+#                                   levels = c("Historical climate", "Dry climate change", "Median climate change", "Wet climate change")))|>
+#   mutate(names_MDBA_climate_scenario = factor(names_MDBA_climate_scenario, 
+#                                   levels = c("Historical climate", "Dry climate", "Median climate", "Wet climate")))
+#   
+#   #Scenario names have change - this is a work around. hopefully in future the metadata and EWR outputs match.
+#   scenarios$scenario <- stringr::str_match(scenarios$scenario, '(.*)_(.*)')[, -1][,1]
+# 
+# # Add max
+# MAX_scenario_scenarios <- scenarios[1,]
+# MAX_scenario_scenarios[1,]<- NA
+# MAX_scenario_scenarios[1,1] <- "MAX"
+# 
+# scenarios <- bind_rows(scenarios, MAX_scenario_scenarios)
+# MAX_scenario_scenarios <- NULL
+# 
+# #other data:
+# objectives <- causal_ewr$ewr2obj |>
+#   select(-ewr_code_timing)|>
+#   distinct()
+# 
+# objectives_for_EWRs <- objectives |>
+#     select(planning_unit_name, gauge, ewr_code, env_obj)
+# 
+# 
+# #NSW Border Rivers has env_obj called "NF" WHY IS THAT APPEARING IN THIS DATA??
+```
+
+## Read in agged data
+
+```{r}
+
+#list.files(agg_results)
+sdl_EWRS_agg <- readRDS(file.path(agg_results, "sdl_EWRS_agg", 'achievement_aggregated.rds'))
+#sdl_specific_goal_agg <- readRDS(file.path(agg_results, "sdl_specific_goal_agg", 'achievement_aggregated.rds'))
+#sdl_specific_goal_objective_agg <- readRDS(file.path(agg_results, "sdl_specific_goal_objective_agg", 'achievement_aggregated.rds'))
+sdl_target_agg <- readRDS(file.path(agg_results, "sdl_target_agg", 'achievement_aggregated.rds'))
+# simple_agg <- readRDS(file.path(agg_results, "Simple_agg", 'achievement_aggregated.rds'))
+
+```
+
+## Prep agged data
+
+-   filter to relevant aggregations
+
+-   clean and order ewr_codes
+
+```{r}
+gauge_EWRS <- sdl_EWRS_agg$ewr_code |>
+  filter(aggfun_1 == "ArithmeticMean") |>
+#TEMP FIX FOR MAX - the MAX creation doesnt work with this data set. max is only being made for one gauge.
+  filter(scenario != "MAX")|>
+  mutate(scenario = "Historical")
+
+gauge_EWRS_dropgeo <- gauge_EWRS |>
+  st_drop_geometry()
+
+planning_unit_EWRS <- sdl_EWRS_agg$planning_unit |>
+  filter(aggfun_1 == "ArithmeticMean" & aggfun_2 == "ArithmeticMean")
+  
+planning_unit_EWRS_dropgeo <- planning_unit_EWRS |>
+  st_drop_geometry()
+
+sdl_EWRS <- sdl_EWRS_agg$sdl_units |>
+  filter(aggfun_1 == "ArithmeticMean" & aggfun_2 == "ArithmeticMean"  & aggfun_3 == "ArithmeticMean")
+  
+sdl_EWRS_dropgeo <- sdl_EWRS |>
+  st_drop_geometry()
+
+
+#aggregate EWRs to proportion of EWRS
+
+#paste(names(gauge_EWRS), collapse = "', '")
+gauge_aggEWR <- gauge_EWRS |>
+  dplyr::ungroup()|>
+  dplyr::group_by(scenario, planning_unit_name, gauge, polyID, geometry,
+                  aggfun_1, aggLevel_1) |>
+  dplyr::summarise(ewr_achieved = mean(ewr_achieved))
+
+gauge_aggEWR_dropgeo <- gauge_aggEWR |>
+  st_drop_geometry()
+
+planning_unit_aggEWR <- gauge_aggEWR |>
+  group_by(scenario, planning_unit_name, polyID,
+           aggfun_1, aggLevel_1) |>
+  summarise(ewr_achieved = mean(ewr_achieved))
+
+planning_unit_aggEWR_dropgeo <- planning_unit_aggEWR |>
+  st_drop_geometry()
+
+#not working yet - need to join SDL
+# sdl_aggEWR <- planning_unit_aggEWR |>
+#   group_by('ewr_code', 'polyID', 'PlanningUnitName', 'LTWPShortName', 'PU_Region', 'PU_Code', 'STATE', 'geometry', 'planning_unit_name', 'aggfun_1', 'aggLevel_1', 'aggfun_2', 'aggLevel_2') |>
+#   mutate(ewr_achieved == mean(ewr_achieved))
+
+
+# LIST OF ALL EWRS
+# paste(unique(sdl_EWRS$ewr_code), collapse = ", ")
+# "AC1, AC2, BF1, BF2, BK1, BK2, CF1, LF1, LF2, OB1, OB2, OB3, OB4, OB5, SF1, SF2, VF1, F1, BF3, F2, F3, F4, F5, F6, RFL, RRL, FLR, BK3, RFF, RRF, BKPP, LF3, VF, CF, LF4, NestS1, OB10, OB6, OB7, OB8, OB9, OB-S2, W-LF6, W-LF7, W-LF8, W-LF4, OB-L1, W-LF5, OB-S1, SF3, OB-WL1, OB-WL3, OB-WL4, WL3, SF, DR, FD1, FR2, LF5, LF6, WL1, WL2, WL4, OB-WS2, OB-WS3, OB-WS4, OB-WL, OB-WM, OB-WS1, DR1, FD2, FrL1, FrL2, FR1, DR2, FrC, LDF, WFT, ALT, HLLF, LLLF, MLLF, VHLL"
+
+#ORDER EWRS???? 
+#sdl_EWRS$ewr_code <- factor(sdl_units_nonrounding$ewr_code, levels = c("CF", "VF", "BF1", "BF2", "SF1", "SF2", "SF3", "LF1", "LF2", "OB-WL", "OB-WM", "OB-WS1", "OB-WS2", "OB-WS3", "OB-WS4")) 
+```
+
+\## To work out which gauges to include:
+
+```{r}
+#| include: false
+# to work out which gauges to include:
+# all_scenarios <- sdl_objective_nonrounding_agg$ewr_code_timing |>
+#   group_by(gauge, ewr_code) |>
+#   summarise(ewr_achieved = mean(ewr_achieved),
+#             n = n())
+# 
+# ggplot(data = all_scenarios, aes(x = ewr_code, y = 1))+
+#   geom_tile(aes(fill = ewr_achieved))+
+#   geom_text(aes(label = n))+
+#   facet_grid(gauge~.)
+# 
+# all_scenarios_allEWRS <- all_scenarios |>
+#   group_by(gauge) |>
+#   summarise(ewr_achieved = mean(ewr_achieved),
+#             n = n())
+
+```
+
+## Scenario subsets
+
+```{r}
+#| label: data-subsets
+#| include: false
+
+gauges_to_plot <- unique(gauge_EWRS$gauge)
+planning_units_to_plot <- unique(planning_unit_EWRS$PlanningUnitName)
+SWSDL_units_to_plot <- unique(sdl_EWRS$SWSDLName)
+
+# 
+# ODD_gauges <- c("421019", "421023", "421146") #(EWRS never pass)
+# 
+# scenarios_to_plot <- unique(scenarios$scenario)
+# 
+# # scenarios_to_compare_historical <- unique(filter(scenarios, scale_evap != 1.07)$scenario)
+# 
+# scenarios_scale_evap_climate_comp <- unique(scenarios$scenario)
+# 
+#  Dry_comparison <- c("SR1.0_SE1.00", "SR0.8_SE1.07")
+#  Median_comparison <- c("SR1.0_SE1.00", "SR1.0_SE1.07")
+#  Wet_comparison <- c("SR1.0_SE1.00", "SR1.2_SE1.07")
+#  
+#  MDBA_comparison <- c("SR1.0_SE1.00", "SR0.8_SE1.07", "SR1.0_SE1.07", "SR1.2_SE1.07")
+#  
+#  SWSDLName_subset <-  "Macquarie–Castlereagh"
+ 
+```
+
+## Palettes
+
+#maybe make palette based on end of sys flow???
+
+```{r}
+#| label: palettes
+#| include: false
+
+# I'm adding these from Georgia as needed
+# Trying to organise by the sort of palette we need for each
+
+# Qualitative
+pal_gauge <- make_pal(refvals = gauges_to_plot,                       
+                      refcols = 'ggsci::nrc_npg')
+scales::show_col(ggsci::pal_npg("nrc", 1))
+
+colorRampPalette()(180)
+nrc_npg()
+
+pal_planning_units <- make_pal(planning_units_to_plot, 
+                    palette = "impressionist.colors::la_recolte_des_foins_eragny")
+pal_SDL <- make_pal(SWSDL_units_to_plot, 
+                    palette = "impressionist.colors::la_recolte_des_foins_eragny")
+
+
+# scale_evap_pal <- make_pal(as.character(unique(scenarios$scale_evap)),
+#                       palette = 'nationalparkcolors::Redwoods')
+# 
+# scale_rain_pal <- make_pal(as.character(unique(scenarios$scale_rain)),
+#                       palette = 'nationalparkcolors::Redwoods')
+
+# pal_scale_evap_historical_comp <- make_pal(as.character(unique(scenarios$names_scale_evap_historical_comp)),
+#                       palette = 'nationalparkcolors::Redwoods')
+
+# pal_scenario <- make_pal(rev(as.character(unique(scenarios$names_scenario))),
+#                       palette = 'scico::roma')
+# 
+# pal_climate_scenario <- make_pal(
+#   rev(c("SR0.8_SE1.07", "SR0.8_SE1.00", "SR1.0_SE1.07",
+#          "SR1.0_SE1.00", "SR1.2_SE1.07", "SR1.2_SE1.00", NA)),
+#                       palette = 'scico::imola')
+# 
+# pal_MDBA_climate_scenario <- make_pal(rev(as.character(unique(scenarios$names_MDBA_climate_scenario))),
+#                       palette = 'scico::roma')
+# 
+# pal_licvolfactor <- make_pal(as.character(unique(scenarios$licvolfactor)),
+#                       palette = 'scico::cork')
+
+# these have to use quantitative even though they're not, or we run out of colors.
+pal_env = list(EB = 'grDevices::Grays',
+                EF = 'grDevices::Purp',
+                NF = 'grDevices::Mint',
+                NV = 'grDevices::Burg',
+                OS = 'grDevices::Blues 2',
+                WB = 'grDevices::Peach')
+
+# use the first level of each of those to make a named pal. I wish there were an easier way
+pal_envgroup <- purrr::imap_chr(pal_env,
+                                \(x,y) make_pal(levels = y, palette = x)) |> 
+  werptoolkitr:::as_colors()
+
+# Quantitative- sequential achievement
+pal_achieve <- 'grDevices::Blue-Yellow'
+
+# quantitative- diverging achievement (e.g. relative to baseline)
+pal_compare <- 'scico::bam'
+
+# pal_scene <- make_pal(unique(scenarios$scenario),                       
+#                       palette = "viridis::mako", #'ggsci::nrc_npg', 
+#                       refvals = 'base', refcols = 'black')
+```
+
+## Plots
+
+\## fig-causal-example
+
+```{r}
+#| eval: false
+#| include: false
+
+#| label: fig-causal-example
+#| fig-cap: The toolkit incorporates causal networks that describe the environmental objectives for a system. In the current example these causal networks are extracted from the Murray-Darling Basin Long Term Watering Plans (LTWPs), which sets environmental watering requirements (EWRs), objectives, and long-term targets for key water-dependent plants, waterbirds, fish and ecosystem functions. From left to right, the columns here represent EWR codes, proximate Environmental Objectives, Specific Goals, Target Groups, and 5-year Management Targets.
+
+edges <- make_edges(dflist = causal_ewr, 
+               fromtos = list(c('ewr_code', 'env_obj'), 
+                              c('env_obj', 'Specific_goal'), 
+                              c('Specific_goal', 'Target'), 
+                              c('env_obj', 'target_5_year_2024')),
+               gaugefilter = gauges_to_plot[1]) 
+
+nodes <- make_nodes(edges)
+
+
+# To work with both html and word, save out and read back in.
+causal_example <- make_causal_plot(nodes,
+                 edges,
+                 focalnodes = filter(nodes, NodeType == "ewr_code")$Name,
+                 edge_pal = 'black',
+                 node_pal = list(NodeType = 'nationalparkcolors::MtRainier'),
+                 render = FALSE,
+                 save = TRUE,
+                 savedir = 'images',
+                 savename = 'causal_structure') 
+
+# if (knitr::is_html_output()) {
+  # causal_example |> 
+  # DiagrammeR::render_graph()
+# } else {
+#   knitr::include_graphics("images/causal_structure.png")
+# }
+
+causal_structure <- png::readPNG('images/causal_structure.png')
+causal_structure_grob <- grid::rasterGrob(causal_structure, interpolate = TRUE)
+patchwork::wrap_plots(causal_structure_grob)
+
+
+```
+
+## Manual data for plots
+
+```{r}
+#| label: simplfy-for-plots
+#| include: false
+objectives <- causal_ewr$ewr2obj |>
+  select(-ewr_code_timing)|>
+  distinct()
+
+
+ewr_code_timing <- st_join(sdl_objective_nonrounding_agg$ewr_code_timing, sdl_units)
+
+# EWR timing scale
+# raw EWR tool output
+ewr_code_timing <- ewr_code_timing |>
+    st_drop_geometry()
+
+
+# THis is fixed already in the toolkit.
+# #Fix OB
+# ewr_code_timing <- ewr_code_timing|>
+#   dplyr::mutate(ewr_code = case_when(ewr_code == "OB" & ewr_code_timing == "WL" ~ "OB-WL",
+#                               ewr_code == "OB" & ewr_code_timing == "WM" ~ "OB-WM",
+#                               ewr_code == "OB" & ewr_code_timing == "WS1" ~ "OB-WS1",
+#                               ewr_code == "OB" & ewr_code_timing == "WS2" ~ "OB-WS2",
+#                               ewr_code == "OB" & ewr_code_timing == "WS3" ~ "OB-WS3",
+#                               ewr_code == "OB" & ewr_code_timing == "WS4" ~ "OB-WS4",
+#                               ewr_code != "OB" ~ ewr_code
+#                               ))
+
+ewr_code_timing$ewr_code <- factor(ewr_code_timing$ewr_code, 
+                                   levels = c("CF", "VF", "BF1", "BF2", "SF1", "SF2", "SF3", "LF1", "LF2", 
+                                              "OB-WL", "OB-WM", "OB-WS1", "OB-WS2", "OB-WS3", "OB-WS4")) 
+  
+
+# ewr_code_timing <- ewr_code_timing
+# mutate(ewr_code = factor(ewr_code, levels = c("CF", "VF", "BF1", "BF2", "SF1", "SF2", "SF3", "LF1", "LF2", 
+#                                                 "OB-WL","OB-WM", "OB-WS1", "OB-WS3", "OB-WS4")))|>
+
+#ewr_code_timing <- filter(ewr_code_timing, !gauge %in% c("421019", "421023", "421146"))
+
+# EWR scale
+# Aggregate EWR timings
+ewr_code_gauge <- ewr_code_timing |>
+  group_by(scenario, ewr_code, SWSDLName, planning_unit_name, gauge) |>
+  summarise(ewr_achieved = mean(ewr_achieved),
+            n_versions_of_EWR = n())
+
+ewr_code <- left_join(ewr_code_gauge, scenarios, by = join_by(scenario))
+
+
+#EWR scale
+# Aggregate gauges
+ewr_code_planning_unit <- ewr_code |>
+  group_by(scenario, ewr_code, SWSDLName, planning_unit_name,
+           # env_obj, Specific_goal, Objective, Target, Target_Category,
+           # target_5_year_2024, target_10_year_2029, target_20_year_2039,
+           scale_rain, scale_evap, licvolfactor, Tributary, `GS Irrig`, 
+           `HS Irrig`, OFH, Residential, `Link Loss`, `Storage Loss`, `End sys`,
+           filename, node_type_10.2, node_type_10.3, node_type_3, node_type_8,
+           node_type_8.2, node_type_9, node_type_9.1, names_scenario,
+           names_climate_scenario, names_MDBA_climate_scenario_long, names_MDBA_climate_scenario) |>
+  summarise(ewr_achieved = mean(ewr_achieved),
+            n_versions_of_EWR = sum(n_versions_of_EWR),
+            n_gauges = n())
+
+#EWR scale
+# Aggregate planning units to SWSDL
+ewr_code_SWSDLName <- ewr_code_planning_unit |>
+  group_by(scenario, ewr_code, SWSDLName,
+           # env_obj, Specific_goal, Objective, Target, Target_Category,
+           # target_5_year_2024, target_10_year_2029, target_20_year_2039,
+           scale_rain, scale_evap, licvolfactor, Tributary, `GS Irrig`, 
+           `HS Irrig`, OFH, Residential, `Link Loss`, `Storage Loss`, `End sys`,
+           filename, node_type_10.2, node_type_10.3, node_type_3, node_type_8,
+           node_type_8.2, node_type_9, node_type_9.1, names_scenario,
+           names_climate_scenario, names_MDBA_climate_scenario_long, names_MDBA_climate_scenario) |>
+  summarise(ewr_achieved = mean(ewr_achieved),
+            n_versions_of_EWR = sum(n_versions_of_EWR),
+            n_gauges = sum(n_gauges),
+            n_planning_unit = n())
+ewr_code_SWSDLName$names_climate_scenario <- factor(ewr_code_SWSDLName$names_climate_scenario, levels=c(rev(levels(scenarios$names_climate_scenario))))
+
+#Objective scale
+#Objectives have to be joined to gauge level data
+ewr_code_to_objectives_gauge <- left_join(ewr_code, objectives, by = join_by(ewr_code, gauge))
+# ewr_code_to_objectives_gauge <- left_join(ewr_code_to_objectives_gauge, causal_ewr$obj2target)
+# ewr_code_to_objectives_gauge <- left_join(ewr_code_to_objectives_gauge, causal_ewr$obj2yrtarget)
+ewr_code_to_objectives_gauge <- ewr_code_to_objectives_gauge |>
+filter(!is.na(env_obj)) # not all EWRS for each gauge are needed for an objective?
+
+# Aggregate gauges
+ewr_code_to_objectives_planning_unit <- ewr_code_to_objectives_gauge |>
+  group_by(scenario, ewr_code, SWSDLName, planning_unit_name,
+           env_obj, 
+           # Specific_goal, Objective, Target, Target_Category,
+           # target_5_year_2024, target_10_year_2029, target_20_year_2039,
+           scale_rain, scale_evap, licvolfactor, Tributary, `GS Irrig`, 
+           `HS Irrig`, OFH, Residential, `Link Loss`, `Storage Loss`, `End sys`,
+           filename, node_type_10.2, node_type_10.3, node_type_3, node_type_8,
+           node_type_8.2, node_type_9, node_type_9.1, names_scenario,
+           names_climate_scenario, names_MDBA_climate_scenario_long, names_MDBA_climate_scenario) |>
+  summarise(ewr_achieved = mean(ewr_achieved),
+            n_versions_of_EWR = sum(n_versions_of_EWR),
+            n_gauges = n())
+
+# Aggregate planning units
+ewr_code_to_objectives_SWSDLName <- ewr_code_to_objectives_planning_unit |>
+  group_by(scenario, ewr_code, SWSDLName,
+           env_obj, 
+           # Specific_goal, Objective, Target, Target_Category,
+           # target_5_year_2024, target_10_year_2029, target_20_year_2039,
+           scale_rain, scale_evap, licvolfactor, Tributary, `GS Irrig`, 
+           `HS Irrig`, OFH, Residential, `Link Loss`, `Storage Loss`, `End sys`,
+           filename, node_type_10.2, node_type_10.3, node_type_3, node_type_8,
+           node_type_8.2, node_type_9, node_type_9.1, names_scenario,
+           names_climate_scenario, names_MDBA_climate_scenario_long, names_MDBA_climate_scenario) |>
+  summarise(ewr_achieved = mean(ewr_achieved),
+            n_versions_of_EWR = sum(n_versions_of_EWR),
+            n_gauges = sum(n_gauges),
+            n_planning_unit = n())
+
+# Aggregate EWRs
+objectives_SWSDLName <- ewr_code_to_objectives_SWSDLName |>
+  group_by(scenario, SWSDLName,
+           env_obj, 
+           # Specific_goal, Objective, Target, Target_Category,
+           # target_5_year_2024, target_10_year_2029, target_20_year_2039,
+           scale_rain, scale_evap, licvolfactor, Tributary, `GS Irrig`, 
+           `HS Irrig`, OFH, Residential, `Link Loss`, `Storage Loss`, `End sys`,
+           filename, node_type_10.2, node_type_10.3, node_type_3, node_type_8,
+           node_type_8.2, node_type_9, node_type_9.1, names_scenario,
+           names_climate_scenario, names_MDBA_climate_scenario_long, names_MDBA_climate_scenario) |>
+  summarise(ewr_achieved = mean(ewr_achieved),
+            n_versions_of_EWR = sum(n_versions_of_EWR),
+            n_gauges = sum(n_gauges),
+            n_planning_unit = sum(n_planning_unit),
+            n_ewr_code = n())
+
+objectives_SWSDLName$env_group <- stringr::str_extract(objectives_SWSDLName$env_obj, "^.{2}")  
+ewr_code_to_objectives_SWSDLName$env_group <- stringr::str_extract(ewr_code_to_objectives_SWSDLName$env_obj, "^.{2}")  
+
+# Aggregate Objectives
+groups_SWSDLName <- objectives_SWSDLName |>
+    group_by(scenario, SWSDLName,
+           env_group, 
+           # Specific_goal, Objective, Target, Target_Category,
+           # target_5_year_2024, target_10_year_2029, target_20_year_2039,
+           scale_rain, scale_evap, licvolfactor, Tributary, `GS Irrig`, 
+           `HS Irrig`, OFH, Residential, `Link Loss`, `Storage Loss`, `End sys`,
+           filename, node_type_10.2, node_type_10.3, node_type_3, node_type_8,
+           node_type_8.2, node_type_9, node_type_9.1, names_scenario,
+           names_climate_scenario, names_MDBA_climate_scenario_long, names_MDBA_climate_scenario) |>
+  summarise(ewr_achieved = mean(ewr_achieved),
+            n_versions_of_EWR = sum(n_versions_of_EWR),
+            n_gauges = sum(n_gauges),
+            n_planning_unit = sum(n_planning_unit),
+            n_ewr_code = sum(n_ewr_code),
+            n_env_obj = n())
+
+
+
+
+```
+
+```{r}
+#| label: simplfy-for-plots
+#| include: false
+
+plot <- ggplot(data = filter(sdl_objective_nonrounding_agg$ewr_code, scenario == "historical_scale_rain_1_0_evap_1_0_licvolfactor_1_0"), aes(x = ewr_code, y = names_scenario))+
+  geom_tile(aes(fill = ewr_achieved))+
+  #geom_text(aes(label = n_versions_of_EWR))+
+  facet_grid(gauge~.)
+
+sdl_objective_nonrounding_agg$ewr_code_timing |>
+  filter(scale_rain == 1,
+         scale_evap == 1, 
+         licvolfactor == 1,
+         ewr_code == "CF",
+         gauge == "421090")
+
+plot
+```
+
+## table-scenarios
+
+```{r}
+#| label: tbl-scenarios
+#| tbl-cap: Demonstration scenarios are a factorial combination of 'climate' (scaled flow) and 'adaptation' (pulsed additions). Climate scenarios... Adaptation options were applied to each climate scenario with ... 
+
+#| layout-ncol: 3
+#| tbl-subcap: 
+#|  - "Climate scenarios"
+#|  - "Climate scenarios"
+#|  - "Adaptation option scenarios"
+gauges <- tibble(`Gauges` =  unique(sdl_objective_nonrounding_agg$ewr_code$gauge[!is.na(sdl_objective_rounding_agg$ewr_code$gauge)]))
+
+scale_evap_scenes <- tibble(`Change in evapo-transpiration` =  unique(scenarios$scale_evap[!is.na(scenarios$scale_evap)]))
+
+scale_rain_scenes <- tibble(`Change in rainfall` =  unique(scenarios$scale_rain[!is.na(scenarios$scale_rain)]))
+
+licvolfactor_scenes <- tibble(`Change in Licence volume` =  unique(scenarios$licvolfactor[!is.na(scenarios$licvolfactor)]))
+
+#Gauges:
+knitr::kable(gauges)
+#climate scenarios:
+knitr::kable(scale_evap_scenes)
+knitr::kable(scale_rain_scenes)
+#Adaptaion scenarios:
+knitr::kable(licvolfactor_scenes)
+```
+
+## table- causal network
+
+```{r}
+objectives <- causal_ewr$ewr2obj |>
+  select(-ewr_code_timing)|>
+  distinct()
+
+Planning_units_gauges_EWRS <- objectives|>
+  group_by(PlanningUnitID, gauge)|>
+  filter(gauge %in% c("421001", "421004", "421012", "421022", "421090"))|>
+  distinct(PlanningUnitID, gauge, ewr_code)|>
+  mutate(ewr_code = factor(ewr_code, levels = c("CF", "VF", "BF1", "BF2", "SF1", "SF2", "SF3", "LF1", "LF2", 
+                                                "OB-WL","OB-WM", "OB-WS1", "OB-WS3", "OB-WS4")))|>
+  arrange(ewr_code)|>
+  summarise(n_EWR = n(),
+            EWRs = paste(ewr_code, collapse = "; ")) |>
+ arrange(PlanningUnitID, gauge)
+  
+ewr_code_to_objectives <- objectives|>
+  group_by(ewr_code, env_obj)|>
+  filter(gauge %in% c("421001", "421004", "421012", "421022", "421090"))|>
+  mutate(ewr_code = factor(ewr_code, levels = c("CF", "VF", "BF1", "BF2", "SF1", "SF2", "SF3", "LF1", "LF2", 
+                                                "OB-WL","OB-WM", "OB-WS1", "OB-WS3", "OB-WS4")))|>
+  distinct(ewr_code, env_obj)|>
+  select(ewr_code, env_obj) |>
+  group_by(ewr_code)|>
+  summarise(n_env_obj = n(),
+            env_obj = paste(env_obj, collapse = "; ")) |>
+  arrange(ewr_code)
+
+
+# Three planning units use the same 2 gauges but have a few differences in the EWRs
+# Eastern Macquarie Marshes
+# Northern Macquarie Marshes
+# Southern Macquarie Marshes
+knitr::kable(Planning_units_gauges_EWRS)
+knitr::kable(ewr_code_to_objectives)
+
+#Dont know what that was 
+# paste(unique(Planning_units_gauges$PlanningUnitID), collapse = ", ")
+# paste(unique(Planning_units_gauges$gauge), collapse = ", ")
+
+```
+
+## Hydrographs
+
+```{r}
+#| label: fig-ewr-example
+#| fig-cap: !expr glue::glue("EWR are illustrated at two example gauges ({paste0(gauges_to_plot, collapse = ' and ')}) on the historical base level (scenario E1) hydrographs. See @sec-ewr-table for a table.")
+
+#Hydrographs- just read in the ones we use
+scenehydros <- read_hydro(hydro_dir,
+                          # scenariofilter = "historical_scale_rain_1_2_evap_1_0_licvolfactor_1_5_0",
+                          long = TRUE, format = 'nc') 
+
+#Scenario names have change - this is a work around. hopefully in future the metadata, hydrographs, and EWR outputs match.
+scenehydros$scenario <- stringr::str_match(scenehydros$scenario, '(.*)_(.*)')[, -1][,1]
+
+scenehydros <- left_join(scenehydros, scenarios, by = 'scenario')
+
+# # This relies on the NSW ewr definitions. We could keep passing them around, but better to pull from py-ewr directly
+pdi <- reticulate::import("py_ewr.data_inputs")
+
+# The second is 'bad', so just get the first
+ewrs_in_pyewr <- pdi$get_EWR_table()[[1]]
+
+NSWEWR_gauge <- filter(ewrs_in_pyewr, Gauge %in% gauges_to_plot) |>
+  tidyr::separate_wider_delim(cols = Code, delim = '_',
+                              names = c("Code", "Timing"),
+                              too_few = 'align_start',
+                              too_many = 'merge') |>
+  rename(gauge = Gauge) |>
+  group_by(gauge) %>%
+  distinct(Code, .keep_all = TRUE) |>
+  mutate(FlowThresholdMin = as.numeric(FlowThresholdMin)) |>
+  arrange(FlowThresholdMin) %>%
+  mutate(Date = seq(from = max(scenehydros$Date),
+                    to = min(scenehydros$Date),
+                    length.out = n())) %>%
+  ungroup()
+
+```
+
+## ODD gauges
+
+```{r}
+
+NSWEWR_ODD_gauges <- filter(ewrs_in_pyewr, Gauge %in% ODD_gauges) |>
+  tidyr::separate_wider_delim(cols = Code, delim = '_',
+                              names = c("Code", "Timing"),
+                              too_few = 'align_start',
+                              too_many = 'merge') |>
+  rename(gauge = Gauge) |>
+  group_by(gauge) %>%
+  distinct(Code, .keep_all = TRUE) |>
+  mutate(FlowThresholdMin = as.numeric(FlowThresholdMin)) |>
+  arrange(FlowThresholdMin) %>%
+  mutate(Date = seq(from = max(scenehydros$Date),
+                    to = min(scenehydros$Date),
+                    length.out = n())) %>%
+  ungroup()
+
+scenehydros_ODD_gauges <- scenehydros |>
+    dplyr::filter(scenario %in% "historical_scale_rain_1_2_evap_1_0_licvolfactor_1_5_0" & 
+                  gauge %in% ODD_gauges)
+
+hydro_plot_EWRs <- ggplot2::ggplot(data = scenehydros_ODD_gauges, ggplot2::aes(x = Date, y = (flow/1000) + 1)) +
+    ggplot2::geom_hline(data = NSWEWR_ODD_gauges,
+                        mapping = aes(yintercept = (FlowThresholdMin/1000) + 1),
+                        colour = "red")+ #
+    ggplot2::geom_line() +
+    ggplot2::facet_grid(gauge ~ names_scenario , scales = 'free') +
+    ggplot2::labs(y = paste0("Flow (GL/day +1)")) +
+    theme_werp_toolkit(legend.position = "bottom") +
+      guides(colour=guide_legend(nrow=2,byrow=TRUE)) +
+    ggplot2::geom_label(data = NSWEWR_ODD_gauges,
+                        mapping = aes(x = Date, y = (FlowThresholdMin/1000)+1,
+                                      label = Code), size = 3, colour = "black") +
+  # tempted to use 'pseudo_log' and not add 1, but the ticks aren't as nice
+  ggplot2::scale_y_continuous(trans = 'log10',
+                              sec.axis = sec_axis(~ . , name = "Gauge ID",
+                                                  breaks = NULL, labels = NULL))
+
+hydro_plot_EWRs
+
+
+scenehydros_ODD_gauges_421023 <- filter(scenehydros_ODD_gauges, gauge == "421023" & scenario == "historical_scale_rain_1_2_evap_1_0_licvolfactor_1_5_0")
+
+```
+
+## rounding non-rounding comparison
+
+```{r}
+
+# ewr_code_rounding_nonrounding |>
+# filter(ewr_achieved.rounding != ewr_achieved.nonrounding)
+
+```
+
+## bar plots - climate-comparison
+
+```{r}
+#| label: fig-sdl-comparison
+
+# Scenario comparison for different Sustainable Diversion Limit areas. This example shows the mean proportion of environmental watering requirements (EWRs) that are achieved under each scenario for each SDL unit. This approach illuminates broad-brush differences between scenarios and geographic locations, but does not address which EWRs may be more important to environmental assets or which assets are more sensitive to particular scenarios. Climate scenarios and adaptation options as in @tbl-scenarios. Panels a and b illustrate the same data with a emphasizing quantititive differences and b emphasizing spatial patterns.
+
+#| message: false
+
+# The bars
+sdl_achieve_bars_climate_nonrounding <- sdl_units_nonrounding |> 
+  filter(scenario != "MAX") |> 
+  mutate(scenario = paste0(licvolfactor)) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = 'Proportion\nEWR achieved',
+                x_col = 'scenario',
+                x_lab = 'Adaptation option scenario (Change in Licence volume)',
+                colorset = 'names_climate_scenario',
+                color_lab = 'Climate scenario:',
+                pal_list = pal_climate_scenario  |> setNames(stringr::str_replace(names(pal_climate_scenario ), '–', '-\n')),
+                position = 'dodge',
+                setLimits = c(0,1)) +
+  # guides(fill = guide_legend(nrow=2, label.position = 'top')) +
+  theme(legend.position = 'bottom')
+
+
+
+#MANUAL_sdl_achieve_bars_climate_nonrounding + 
+
+sdl_achieve_bars_climate_nonrounding 
+
+ggsave(plot = sdl_achieve_bars_climate_nonrounding, filename = file.path(comp_results, "sdl_achieve_bars_climate_nonrounding.tiff"), device = "tiff",
+       width = 7, height = 6)
+```
+
+## tile plots - individual EWRs per gauge
+
+```{r}
+
+Plot_EWRs_per_gauge1 <- ggplot(data = filter(ewr_code_per_gauge_nonrounding, names_climate_scenario %in% MDBA_comparison), 
+       aes(x = ewr_code, y = names_MDBA_climate_scenario))+
+  geom_tile(aes(fill = ewr_achieved), colour = "black")+
+  #geom_text(aes(label = n))+
+  facet_grid(licvolfactor~gauge, scales = "free", space = "free")+
+  paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "EWR", y = "Climate and adaptation option scenario", fill = "Proportion \nEWR achieved")+
+  theme(axis.text.x = element_text(angle = 90))
+
+Plot_EWRs_per_gauge2 <- ggplot(data = filter(ewr_code_per_gauge_nonrounding, names_climate_scenario %in% MDBA_comparison), 
+       aes(x = ewr_code, y = factor(licvolfactor, levels = unique(scenarios$licvolfactor))))+
+  geom_tile(aes(fill = ewr_achieved), colour = "black")+
+  #geom_text(aes(label = n))+
+  facet_grid(names_MDBA_climate_scenario~gauge, scales = "free", space = "free")+
+  paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "EWR", y = "Climate and adaptation option  scenario", fill = "Proportion \nEWR achieved")+
+  theme(axis.text.x = element_text(angle = 90))
+
+ggsave(plot = Plot_EWRs_per_gauge1, filename = file.path(comp_results, paste0("EWRs_per_gauge_compare_climate", Sys.Date(), ".tiff")), device = "tiff",
+       width = 10, height = 5)
+
+ggsave(plot = Plot_EWRs_per_gauge2, filename = file.path(comp_results, paste0("EWRs_per_gauge_compare_adaptation", Sys.Date(), ".tiff")), device = "tiff",
+       width = 10, height = 5)
+
+Plot_EWRs_per_gauge1
+Plot_EWRs_per_gauge2
+
+```
+
+## tile plots - individual EWRs per ENV OBJ
+
+```{r}
+
+Plot_EWRs_per_EnvGroup <- ggplot(data = filter(sdl_EWRs_objectives_nonrounding, names_climate_scenario %in% MDBA_comparison), 
+       aes(x = ewr_code, y = names_MDBA_climate_scenario))+
+  geom_tile(aes(fill = ewr_achieved), colour = "black")+
+  #geom_text(aes(label = n))+
+  facet_grid(licvolfactor~env_group, scales = "free", space = "free")+
+  paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "EWR", y = "Climate and adaptation option scenario", fill = "Proportion \nEWR achieved")+
+  theme(axis.text.x = element_text(angle = 90))
+
+Plot_EWRs_per_EnvGroup2 <- ggplot(data = filter(sdl_EWRs_objectives_nonrounding, names_climate_scenario %in% MDBA_comparison), 
+       aes(x = ewr_code, y = factor(licvolfactor, levels = unique(scenarios$licvolfactor))))+
+  geom_tile(aes(fill = ewr_achieved), colour = "black")+
+  #geom_text(aes(label = n))+
+  facet_grid(names_MDBA_climate_scenario~env_group, scales = "free", space = "free")+
+  paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  theme_werp_toolkit()+
+  labs(x = "EWR", y = "Climate and adaptation option  scenario", fill = "Proportion \nEWR achieved")+
+  theme(axis.text.x = element_text(angle = 90))
+
+ggsave(plot = Plot_EWRs_per_EnvGroup, filename = file.path(comp_results, 
+                                                           paste0("EWRs_per_EnvGroup_compare_climate", 
+                                                                  Sys.Date(), ".tiff")), device = "tiff",
+       width = 10, height = 5)
+
+ggsave(plot = Plot_EWRs_per_EnvGroup2, filename = file.path(comp_results, 
+                                                            paste0("EWRs_per_EnvGroup_compare_adaptation", 
+                                                                   Sys.Date(), ".tiff")), device = "tiff",
+       width = 10, height = 5)
+Plot_EWRs_per_EnvGroup2
+```
+
+## Problem with dry climate - seems like no EWRs pass
+
+```{r}
+#does nothing  ever pass in the dry climate?
+temp <- sdl_EWRs_nonrounding_agg$ewr_code |>
+  st_drop_geometry()|>
+  filter(aggfun_1 == "ArithmeticMean") 
+
+Dry_climate_EWRs <- temp|> 
+  filter(names_MDBA_climate_scenario ==  "Dry climate")
+  
+unique(Dry_climate_EWRs$ewr_achieved)
+
+```
+
+```{r}
+# comparing individual scenarios
+scenarios_to_compare <- c("SR0.8_SE1.00_LV1.0", "SR0.8_SE1.00_LV1.1")
+
+temp <- ewr_code_nonrounding |> 
+  filter(names_scenario %in% scenarios_to_compare)|>
+  ungroup()|>
+  select(names_scenario, gauge, ewr_achieved, ewr_code, planning_unit_name)|>
+  mutate(ewr_achieved = round(ewr_achieved,2))|>
+  tidyr::pivot_wider(names_from = names_scenario, values_from = ewr_achieved) |>
+  filter(`SR0.8_SE1.00_LV1.0` != `SR0.8_SE1.00_LV1.1`)
+  
+knitr::kable(temp)
+
+scenarios_to_compare_1 <- c("SR1.0_SE1.07_LV0.7", "SR1.0_SE1.07_LV0.9")
+
+comp_1 <- ewr_code_nonrounding |> 
+  filter(names_scenario %in% scenarios_to_compare_1)|>
+  ungroup()|>
+  select(names_scenario, gauge, ewr_achieved, ewr_code, planning_unit_name)|>
+  mutate(ewr_achieved = round(ewr_achieved,2))|>
+  tidyr::pivot_wider(names_from = names_scenario, values_from = ewr_achieved) |>
+  filter(`SR1.0_SE1.07_LV0.7` != `SR1.0_SE1.07_LV0.9`)
+  
+comp_1
+knitr::kable(comp_1)
+
+
+```
+
+## EWRs for target groups -
+
+NEXT - maybe just a line for hte max scenario? to make sure the scale includes the max?
+
+```{r}
+## | label: fig-obj_in_groups
+## | fig-cap: "Proportion of EWRs achieved for each environmental objective, grouped into broader environmental groups (EF = Priority Ecosystem Function, NF = Native Fish, NV = Native Vegetation, OS = Other Species, WB = Waterbirds). This view provides an assessment of the performance of individual environmental objectives, as well as how those contribute to the overall sensitivity of the broader groups across space. Not all EWR are applicable in all locations and there are not equal number of EWR in each category. The MAX column illustrates the total number of EWRs for reference, with each black box showing the situation where all EWRs contributing to an Environmental Objective are met. Where the max column does not exist, those objectives are not relevant to that particular planning unit. This illustration includes three climate scenarios: A (0.5x), E (historical base level/no change), and I (2x) and three adaptation options 1 (no adaptation), 2 (+250 ML/d), and 3 (+6500 ML/d)"
+## | message: false
+## | warning: false
+
+obj_in_groups <- sdl_objectives_nonrounding |>
+  ungroup()|>
+  dplyr::filter(scenario != "MAX") |> 
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison)|>
+  #filter(env_group != 'EB') |> # There's only one, this is just distracting.
+  #clean the names
+  mutate(scenario = paste0(licvolfactor),
+        SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n')) |>
+  #rename(env_obj2 = env_obj)|>
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "EWR achievement\n (summed proportion of objectives)",
+                x_lab = "Climate & adaptation option scenario", 
+                colorgroups = 'env_group',
+                colorset = 'env_obj',
+                pal_list = pal_env,
+                color_lab = "Envionmental objectives",
+                facet_col = 'names_MDBA_climate_scenario',
+                facet_row = 'env_group',
+                #sceneorder = sceneorder
+                )+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  guides(fill=guide_legend(ncol=3))+
+  facet_grid(env_group~names_MDBA_climate_scenario, scales = "free")
+
+#   ggplot2::geom_hline(aes(yintercept = sum(n_ewr_code)),
+#                     colour = "black", linetype = "longdash") 
+
+#obj_in_groups
+
+# obj_in_groups <- obj_in_groups +
+#   ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+#   scale_y_continuous(n.breaks = 3)+
+#   scale_x_discrete(labels= c(scenario_labels_to_plot, "MAX"))
+
+# ADD IN MAX: #Line ON TOP AT END
+Max_summary <- sdl_objectives_nonrounding |>
+  filter(scenario == "MAX")|>
+  group_by(env_group)|>
+  summarise(ewr_achieved = sum(ewr_achieved))
+
+obj_in_groups_MAXline <- obj_in_groups + 
+  ggplot2::geom_hline(data = Max_summary, 
+                    aes(yintercept = ewr_achieved),
+                    colour = "black", linetype = "longdash") 
+
+obj_in_groups_MAXline
+
+ggsave(plot = obj_in_groups_MAXline, filename = file.path(comp_results, paste0("EWRs_for_target_groups_MAX ", Sys.Date(), ".tiff")), device = "tiff",
+       width = 7, height = 5)
+
+```
+
+## Dry_comparison
+
+```{r}
+Dry_comparison_plot <- sdl_objectives_nonrounding |>
+  ungroup()|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor))|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor, levels = rev(levels(licvolfactor))))|>
+  #dplyr::filter(scenario != "MAX") |> 
+  dplyr::filter(names_climate_scenario %in% Dry_comparison) |>
+  dplyr::mutate(scenario = factor(names_MDBA_climate_scenario_long, levels = c("Historical climate", "Dry climate change")), 
+        SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n')) |>
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "EWR achievement\n (summed proportion of objectives)",
+                x_lab = "Climate & adaptation option scenario", 
+                colorgroups = 'env_group',
+                colorset = 'env_obj',
+                pal_list = pal_env,
+                color_lab = "\n \n \n \n \n \n \nEnvironmental objectives",
+                facet_col = 'names_climate_scenario',
+                facet_row = 'env_group',
+                #sceneorder = sceneorder
+                )+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  guides(fill=guide_legend(ncol=3))+
+  facet_grid(env_group~licvolfactor, scales = "free")
+
+# ADD IN MAX: #Line ON TOP AT END
+Max_summary <- sdl_objectives_nonrounding |>
+  filter(scenario == "MAX")|>
+  group_by(env_group)|>
+  summarise(ewr_achieved = sum(ewr_achieved))
+
+Dry_comparison_plot_MAXline <- Dry_comparison_plot + 
+  ggplot2::geom_hline(data = Max_summary, 
+                    aes(yintercept = ewr_achieved),
+                    colour = "black", linetype = "longdash") 
+
+Dry_comparison_plot_MAXline
+ggsave(plot = Dry_comparison_plot_MAXline, file.path(comp_results, paste0("Dry_comparison ", Sys.Date(), ".tiff")), device = "tiff",
+       width = 7, height = 6)
+```
+
+## Wet_comparison
+
+```{r}
+Wet_comparison_plot <- sdl_objectives_nonrounding |>
+  ungroup()|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor))|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor, levels = rev(levels(licvolfactor))))|>
+  #dplyr::filter(scenario != "MAX") |> 
+  dplyr::filter(names_climate_scenario %in% Wet_comparison) |>
+  dplyr::mutate(scenario = factor(names_MDBA_climate_scenario_long, levels = c("Historical climate", "Wet climate change")), 
+        SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n')) |>
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "EWR achievement\n (summed proportion of objectives)",
+                x_lab = "Climate & adaptation option scenario", 
+                colorgroups = 'env_group',
+                colorset = 'env_obj',
+                pal_list = pal_env,
+                color_lab = "\n \n \n \n \n \n \nEnvironmental\n objectives",
+                facet_col = 'names_climate_scenario',
+                facet_row = 'env_group',
+                #sceneorder = sceneorder
+                )+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  guides(fill=guide_legend(ncol=3))+
+  facet_grid(env_group~licvolfactor, scales = "free")
+
+# ADD IN MAX: #Line ON TOP AT END
+Max_summary <- sdl_objectives_nonrounding |>
+  filter(scenario == "MAX")|>
+  group_by(env_group)|>
+  summarise(ewr_achieved = sum(ewr_achieved))
+
+Wet_comparison_plot_MAXline <- Wet_comparison_plot + 
+  ggplot2::geom_hline(data = Max_summary, 
+                    aes(yintercept = ewr_achieved),
+                    colour = "black", linetype = "longdash") 
+
+Wet_comparison_plot_MAXline
+ggsave(plot = Wet_comparison_plot_MAXline, filename = file.path(comp_results, paste0("Wet_comparison",  Sys.Date(), ".tiff")), device = "tiff",
+       width = 7, height = 6)
+```
+
+## Median_comparison
+
+```{r}
+Median_comparison_plot <- sdl_objectives_nonrounding |>
+  ungroup()|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor))|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor, levels = rev(levels(licvolfactor))))|>
+  #dplyr::filter(scenario != "MAX") |> 
+  dplyr::filter(names_climate_scenario %in% Median_comparison) |>
+  dplyr::mutate(scenario = factor(names_MDBA_climate_scenario_long, levels = c("Historical climate", "Median climate change")), 
+        SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n')) |>
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "EWR achievement\n (summed proportion of objectives)",
+                x_lab = "Climate & adaptation option scenario", 
+                colorgroups = 'env_group',
+                colorset = 'env_obj',
+                pal_list = pal_env,
+                color_lab = "\n \n \n \n \n \n \nEnvironmental objectives",
+                facet_col = 'names_climate_scenario',
+                facet_row = 'env_group',
+                #sceneorder = sceneorder
+                )+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  guides(fill=guide_legend(ncol=3))+
+  facet_grid(env_group~licvolfactor, scales = "free")
+
+# ADD IN MAX: #Line ON TOP AT END
+Max_summary <- sdl_objectives_nonrounding |>
+  filter(scenario == "MAX")|>
+  group_by(env_group)|>
+  summarise(ewr_achieved = sum(ewr_achieved))
+
+Median_comparison_plot_MAXline <- Median_comparison_plot + 
+  ggplot2::geom_hline(data = Max_summary, 
+                    aes(yintercept = ewr_achieved),
+                    colour = "black", linetype = "longdash") 
+
+Median_comparison_plot_MAXline
+ggsave(plot = Median_comparison_plot_MAXline, filename = file.path(comp_results, paste0("Median_comparison", Sys.Date(), ".tiff")), device = "tiff",
+       width = 7, height = 6)
+```
+
+## MDBA_comparison
+
+```{r}
+ sdl_objectives_nonrounding2 <- sdl_objectives_nonrounding |>
+   #did this to order NF10,but it shouldnt be there any way, at some point it will be though
+   dplyr::mutate(env_obj = ordered(env_obj, levels = c(
+    'EF1', 'EF2', 'EF3', 'EF3a', 'EF3b', 'EF4', 'EF5', 'EF6', 'EF7', 'NF', 'NF1',  'NF2', 'NF3', 'NF4', 'NF5', 'NF6', 'NF7', 'NF8', 'NF9', 'NF10', 'NV1', 'NV2', 'NV3', 'NV4', 'NV4a', 'NV4b', 'NV4c', 'NV4d', 'NV4e', 'NV4f', 'OS1', 'OS2', 'OS4', 'WB1', 'WB2', 'WB3', 'WB4', 'WB5')))|> #is losing 'NF' here a problem 
+  dplyr::arrange(env_obj) #|>
+   
+  #  #dumb work arround until we fix problem with planning unit join
+  # dplyr::filter(env_obj %in% SWSDLName_objectives)
+
+
+MDBA_comparison_plot <- sdl_objectives_nonrounding2 |>
+  ungroup()|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor))|>
+  dplyr::mutate(licvolfactor = factor(licvolfactor))|>
+  #dplyr::mutate(licvolfactor = factor(licvolfactor, levels = rev(levels(licvolfactor))))|>
+  #dplyr::filter(scenario != "MAX") |> 
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison) |>
+  dplyr::mutate(scenario = names_MDBA_climate_scenario_long, 
+        SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n')) |>
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "EWR achievement\n (summed proportion of objectives)",
+                x_lab = "Climate & adaptation option scenario", 
+                colorgroups = 'env_group',
+                colorset = 'env_obj',
+                pal_list = pal_env,
+                color_lab = "\n \n \n \n \n \n \nEnvironmental objectives",
+                facet_col = 'names_climate_scenario',
+                facet_row = 'env_group',
+                #sceneorder = sceneorder
+                )+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  guides(fill=guide_legend(ncol=3))+
+  facet_grid(env_group~licvolfactor, scales = "free") + 
+  scale_y_continuous(breaks= scales::breaks_pretty())
+
+# ADD IN MAX: #Line ON TOP AT END
+Max_summary <- sdl_objectives_nonrounding2 |>
+  filter(scenario == "MAX")|>
+  group_by(env_group)|>
+  summarise(ewr_achieved = sum(ewr_achieved))
+
+MDBA_comparison_plot_MAXline <- MDBA_comparison_plot + 
+  ggplot2::geom_hline(data = Max_summary, 
+                    aes(yintercept = ewr_achieved),
+                    colour = "black", linetype = "longdash") 
+
+MDBA_comparison_plot_MAXline
+ggsave(plot = MDBA_comparison_plot_MAXline, filename = file.path(comp_results, paste0("MDBA_comparison", Sys.Date(), ".tiff")), device = "tiff",
+       width = 7, height = 6)
+```
+
+## End of system flows - adaptation comparison
+
+the current scenarios overlap a lot - but this may be a useful plot with other scenarios.
+
+```{r}
+#| label: fig-difference-baseline
+#| fig-cap: "Quantitative scenario comparison for Native Fish objectives for three SDL units. Scenarios defined here as the difference in mean flow (GL) from the baseline historical scenario (E1). A key message here is that the lines are not smooth- EWR achievement is not simply a function of the amount of water. Instead, the 'adaptation' options, particularly the '2' scenarios of adding 250 ML/d of water, have disproportionately large impact (steep slopes). Shading indicates different environmental objectives within the native fish target group. This illustration includes three climate scenarios: A (0.5x), E (historical base level/no change), and I (2x) and three adaptation options 1 (no adaptation), 2 (+250 ML/d), and 3 (+6500 ML/d)."
+#| message: false
+
+scenarios_end_sys <- sdl_objectives_nonrounding |>
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison) |>
+  dplyr::filter(scenario != "MAX") |>
+  mutate(scenario = names_scenario) |> 
+  group_by(scenario, env_group) |>
+  mutate(y = 0.45,
+         'ewr_achieved' = 0.3,
+         pointgroup = 1)
+
+gl_difference <- sdl_objectives_nonrounding |>
+  dplyr::filter(scenario != "MAX") |>
+    dplyr::filter(names_climate_scenario %in% MDBA_comparison) |>
+   mutate(scenario = names_scenario) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "Proportion EWR achieved",
+                x_col = "End sys",
+                x_lab = "End of system flow (GL)",
+               colorgroups = 'env_group',
+               colorset = 'env_obj',
+               pal_list = pal_env,
+                # base_lev = 'E1',
+                # comp_fun = 'difference',
+               # group_cols = c('env_obj'),
+                color_lab = "Envionmental objectives",
+                facet_row = 'env_group',
+                facet_col = '.'
+                ) +
+  ylim(0,1) +
+  geom_vline(mapping = aes(xintercept = `End sys`),
+             colour = "black", linetype = "solid")+
+    guides(colour=guide_legend(ncol=3))+
+  facet_grid(env_group~.)
+
+# gl_difference + 
+#   geom_text(data = scenarios_end_sys, mapping = aes(label = scenarios_end_sys$scenario, x = scenarios_end_sys$`End sys`, y = scenarios_end_sys$y), size = 3, angle = 90)
+
+header_difference <-  scenarios |> 
+    dplyr::filter(names_climate_scenario %in% MDBA_comparison) |>
+    dplyr::filter(scenario != "MAX") |>
+  mutate(scenario = names_scenario) |> 
+  ggplot(aes(x = `End sys`,
+             y = 1)) +
+  geom_text(mapping = aes(label = scenario), size = 2.5, angle = 90) +
+  theme_werp_toolkit(legend.position = "none", axis.title=element_blank(),
+                     axis.text=element_blank(), axis.ticks=element_blank())+
+  theme(plot.margin = margin(b = 2))+
+  expand_limits(y = c(-6,8))
+
+# put those together
+Plot_EndOfSysFlows1 <- header_difference + gl_difference + 
+  patchwork::plot_layout(ncol = 1, heights = c(7,15), guides = "collect") + 
+  theme(legend.position = "right")
+
+ggsave(plot = Plot_EndOfSysFlows1, filename = file.path(comp_results, paste0("Objectives_EndOfSysFlows_adaptation_comparison",Sys.Date(),".tiff")), device = "tiff",
+       width = 7, height = 4)
+
+```
+
+## End of system flows - climate comparison
+
+```{r}
+
+scenarios_end_sys <- filter(sdl_objectives_nonrounding, names_climate_scenario %in% MDBA_comparison) |>
+  group_by(scenario, env_group) |>
+  mutate(y = 0.45,
+         'ewr_achieved' = 0.3,
+         pointgroup = 1,
+         scenario = names_MDBA_climate_scenario)
+
+gl_difference <- sdl_objectives_nonrounding |>
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison) |>
+  mutate(scenario = names_MDBA_climate_scenario) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "Proportion EWR achieved",
+                x_col = "End sys",
+                x_lab = "End of system flow (GL)",
+                colorgroups = 'env_group',
+                colorset = 'env_obj',
+                pal_list = pal_env,
+                # base_lev = 'E1',
+                # comp_fun = 'difference',
+                #group_cols = c('env_obj'),
+                color_lab = "Envionmental objectives",
+                facet_row = 'env_group'
+                #facet_col = '.'
+                ) +
+  ylim(0,1) +
+  geom_vline(alpha = 0.5, mapping = aes(xintercept = `End sys`),
+             colour = "black", linetype = "solid")+
+  facet_grid(env_group~.)+
+    guides(colour=guide_legend(ncol=3))+
+  theme(plot.margin = margin(t = 0))
+
+# gl_difference + 
+#   geom_text(data = scenarios_end_sys, mapping = aes(label = scenarios_end_sys$scenario, x = scenarios_end_sys$`End sys`, y = scenarios_end_sys$y), size = 3, angle = 90)
+
+header_difference <-  scenarios |> 
+  filter(names_climate_scenario %in% MDBA_comparison) |> 
+  filter(licvolfactor == 1.0)|>
+  mutate(scenario = names_MDBA_climate_scenario) |> 
+  ggplot(aes(x = `End sys`,
+             y = 1)) +
+  geom_text(mapping = aes(label = scenario), size = 2.5, angle = 90) +
+  theme_werp_toolkit(legend.position = "none", axis.title=element_blank(),
+                     axis.text=element_blank(), axis.ticks=element_blank())+
+  theme(plot.margin = margin(b = 2))+
+  expand_limits(y = c(-5,7))
+
+# put those together
+Plot_EndOfSysFlows <- header_difference + gl_difference + 
+  patchwork::plot_layout(ncol = 1, heights = c(5,15), guides = "collect") + 
+  theme(legend.position = "right")
+
+ggsave(plot = Plot_EndOfSysFlows, filename = file.path(comp_results, paste0("Objectives_EndOfSysFlows_climate_comparison",Sys.Date(),".tiff")), device = "tiff",
+       width = 7, height = 4)
+Plot_EndOfSysFlows
+```
+
+## End of system flows - median climate adaptation comparison
+
+```{r}
+scenarios_end_sys <- sdl_objectives_nonrounding |>
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison[1]) |>
+  dplyr::filter(scenario != "MAX") |>
+  mutate(scenario = names_scenario) |> 
+  group_by(scenario, env_group) |>
+  mutate(y = 0.45,
+         'ewr_achieved' = 0.3,
+         pointgroup = 1)
+
+gl_difference <- sdl_objectives_nonrounding |>
+  dplyr::filter(scenario != "MAX") |>
+    dplyr::filter(names_climate_scenario %in% MDBA_comparison[1]) |>
+   mutate(scenario = names_scenario) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "Proportion EWR achieved",
+                x_col = "End sys",
+                x_lab = "End of system flow (GL)",
+               colorgroups = 'env_group',
+               colorset = 'env_obj',
+               pal_list = pal_env,
+                # base_lev = 'E1',
+                # comp_fun = 'difference',
+               # group_cols = c('env_obj'),
+                color_lab = "Envionmental objectives",
+                facet_row = 'env_group',
+                facet_col = '.'
+                ) +
+  ylim(0,1) +
+  geom_vline(mapping = aes(xintercept = `End sys`),
+             colour = "black", linetype = "solid")+
+    guides(colour=guide_legend(ncol=3))+
+  facet_grid(env_group~.)
+
+header_difference <-  scenarios |> 
+    dplyr::filter(names_climate_scenario %in% MDBA_comparison[1]) |>
+    dplyr::filter(scenario != "MAX") |>
+  mutate(scenario = names_scenario) |> 
+  ggplot(aes(x = `End sys`,
+             y = 1)) +
+  geom_text(mapping = aes(label = scenario), size = 2.5, angle = 90) +
+  theme_werp_toolkit(legend.position = "none", axis.title=element_blank(),
+                     axis.text=element_blank(), axis.ticks=element_blank())+
+  theme(plot.margin = margin(b = 2))+
+  expand_limits(y = c(-6,8))
+
+# put those together
+Plot_EndOfSysFlows3 <- header_difference + gl_difference + 
+  patchwork::plot_layout(ncol = 1, heights = c(7,15), guides = "collect") + 
+  theme(legend.position = "right")
+
+ggsave(plot = Plot_EndOfSysFlows3, filename = file.path(comp_results, paste0("Objectives_EndOfSysFlows_MedianClimate_adaptation_comparison",Sys.Date(),".tiff")), device = "tiff",
+       width = 7, height = 4)
+```
+
+## End of system flows - Dry climate adaptation comparison
+
+```{r}
+scenarios_end_sys <- sdl_objectives_nonrounding |>
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison[2]) |>
+  dplyr::filter(scenario != "MAX") |>
+  mutate(scenario = names_scenario) |> 
+  group_by(scenario, env_group) |>
+  mutate(y = 0.45,
+         'ewr_achieved' = 0.3,
+         pointgroup = 1)
+
+gl_difference <- sdl_objectives_nonrounding |>
+  dplyr::filter(scenario != "MAX") |>
+    dplyr::filter(names_climate_scenario %in% MDBA_comparison[2]) |>
+   mutate(scenario = names_scenario) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "Proportion EWR achieved",
+                x_col = "End sys",
+                x_lab = "End of system flow (GL)",
+               colorgroups = 'env_group',
+               colorset = 'env_obj',
+               pal_list = pal_env,
+                # base_lev = 'E1',
+                # comp_fun = 'difference',
+               # group_cols = c('env_obj'),
+                color_lab = "Envionmental objectives",
+                facet_row = 'env_group',
+                facet_col = '.'
+                ) +
+  ylim(0,1) +
+  geom_vline(mapping = aes(xintercept = `End sys`),
+             colour = "black", linetype = "solid")+
+    guides(colour=guide_legend(ncol=3))+
+  facet_grid(env_group~.)
+
+header_difference <-  scenarios |> 
+    dplyr::filter(names_climate_scenario %in% MDBA_comparison[2]) |>
+    dplyr::filter(scenario != "MAX") |>
+  mutate(scenario = names_scenario) |> 
+  ggplot(aes(x = `End sys`,
+             y = 1)) +
+  geom_text(mapping = aes(label = scenario), size = 2.5, angle = 90) +
+  theme_werp_toolkit(legend.position = "none", axis.title=element_blank(),
+                     axis.text=element_blank(), axis.ticks=element_blank())+
+  theme(plot.margin = margin(b = 2))+
+  expand_limits(y = c(-6,8))
+
+# put those together
+Plot_EndOfSysFlows4 <- header_difference + gl_difference + 
+  patchwork::plot_layout(ncol = 1, heights = c(7,15), guides = "collect") + 
+  theme(legend.position = "right")
+
+ggsave(plot = Plot_EndOfSysFlows4, filename = file.path(comp_results, paste0("Objectives_EndOfSysFlows_DryClimate_adaptation_comparison",Sys.Date(),".tiff")), device = "tiff",
+       width = 7, height = 4)
+```
+
+## Heatmap -Qual
+
+```{r}
+#| label: build-heatmaps
+# Use the Target here to get to the big groups
+
+# qualitative axes
+qual_heatmap <- sdl_target_nonrounding |>
+  dplyr::filter(scenario != 'MAX') |> 
+  dplyr::filter(!is.na(Target)) |> 
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison)|>
+  # clean names
+  mutate(scenario = names_scenario, 
+         #SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n'),
+         Target = stringr::str_replace(Target, 'Priority e', 'E')) |>
+  
+  
+qual_heatmap_plot <- qual_heatmap|>  
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = "Proportion EWR achieved",
+                y_col = 'licvolfactor', 
+                y_lab = 'Adaptation option',
+                x_col = 'names_MDBA_climate_scenario', 
+                x_lab = 'Climate scenario',
+                plot_type = 'heatmap',
+                colorset = 'ewr_achieved',
+                pal_list = pal_achieve,
+                facet_row = 'env_group',
+                facet_col = '.')
+```
+
+```{r}
+
+
+# Quantitative axes- it's more informative, but uglier
+quant_heatmap <- sdl_target_nonrounding |>
+  dplyr::filter(scenario != 'MAX') |> 
+  dplyr::filter(!is.na(Target)) |> 
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison)|>
+  # clean names
+  mutate(scenario = names_scenario, 
+         #SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n'),
+         Target = stringr::str_replace(Target, 'Priority e', 'E')) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = 'Condition',
+                y_col = 'flow_addition', 
+                y_lab = 'Flow addition',
+                x_col = 'flow_multiplier', 
+                x_lab = "Flow multiplier",
+                plot_type = 'heatmap',
+                transy = 'log10',
+                transx = 'log10',
+                colorset = 'ewr_achieved',
+                pal_list = 'grDevices::Viridis',
+                facet_row = 'Target',
+                facet_col = 'SWSDLName',
+                setLimits = c(0,1))
+
+# interpolated raster- just one argument different
+  # THe spacing is too uneven though
+quant_interp_heatmap <- sdl_target_nonrounding |>
+  dplyr::filter(adapt_code %in% c(1,2,3) &
+                  scenario != 'MAX') |> # max isn't really relevant here
+  dplyr::filter(!is.na(Target)) |> 
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison)|>
+  # clean names
+  mutate(scenario = paste0(climate_code, adapt_code), 
+         SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n'),
+         Target = stringr::str_replace(Target, 'Priority e', 'E'),
+         adapt_code = as.character(adapt_code)) |>
+  mutate(flow_addition = flow_addition + 1) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = 'Condition',
+                y_col = 'flow_addition', 
+                y_lab = 'Flow addition',
+                x_col = 'flow_multiplier', 
+                x_lab = "Flow multiplier",
+                plot_type = 'heatmap',
+                transy = 'log10',
+                transx = 'log10',
+                colorset = 'ewr_achieved',
+                pal_list = 'grDevices::Viridis',
+                facet_row = 'Target',
+                facet_col = 'SWSDLName',
+                setLimits = c(0,1),
+                contour_arglist = list(interpolate = TRUE))
+
+# This would be better if we had a more even and tighter set of scenarios
+  contour_heatmap <- agged_data_pooled_ewrs$Target |>
+  dplyr::filter(adapt_code %in% c(1,2,3) &
+                  scenario != 'MAX') |> # max isn't really relevant here
+  dplyr::filter(!is.na(Target)) |> 
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison)|>
+  # clean names
+  mutate(scenario = paste0(climate_code, adapt_code), 
+         SWSDLName = stringr::str_replace(SWSDLName, '–', '-\n'),
+         Target = stringr::str_replace(Target, 'Priority e', 'E'),
+         adapt_code = as.character(adapt_code)) |>
+  mutate(flow_addition = flow_addition + 1) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = 'Condition',
+                y_col = 'flow_addition', 
+                y_lab = 'Flow addition',
+                x_col = 'flow_multiplier', 
+                x_lab = "Flow multiplier",
+                plot_type = 'heatmap',
+                transy = 'log10',
+                transx = 'log10',
+                colorset = 'ewr_achieved',
+                pal_list = 'grDevices::Viridis',
+                facet_row = 'Target',
+                facet_col = 'SWSDLName',
+                setLimits = c(0,1),
+                contour_arglist = list()
+  )
+```
+
+```{r}
+# Quantitative axes- it's more informative, but uglier
+quant_heatmap <- agg_envgroup_sdl_to_plot |>
+  dplyr::filter(names_climate_scenario %in% MDBA_comparison) |>
+  dplyr::filter(env_group != 'EB') |> 
+  mutate(scenario = paste0("SE",scale_evap, "_LV",licvolfactor)) |> 
+  ggplot(aes(x = `End sys`, y = `GS Irrig`, fill = ewr_achieved)) + 
+  geom_raster(interpolate = TRUE) + # OR geom_point
+  geom_point(mapping = aes(colour = ewr_achieved), shape = 15, size = 6) +
+  facet_grid(. ~ env_group) +
+  theme_werp_toolkit() +
+  paletteer::scale_fill_paletteer_c('grDevices::Viridis', limits = c(0,1)) +
+  paletteer::scale_colour_paletteer_c('grDevices::Viridis', limits = c(0,1)) #+
+  #labs(x = "Flow multiplier", y = "Flow addition", fill = "Condition")# +
+  # scale_y_continuous(trans = 'log10') + 
+  # scale_x_continuous(trans = 'log10')
+quant_heatmap
+```
+
+```{r}
+#| label: fig-contour
+#| fig-cap: Condition results visualised as a surface with the two scenario definitions on the axes. This approach allows visualising changes in outcome as the result of multiple axes on which scenarios might differ. These axes might be different aspects of scenario creation (as here), or they might be different axes describing the outcome of scenarios (e.g. two different hydrometrics such as mean flow and flow variance)
+
+# This would be better if we had a more even and tighter set of scenarios
+contour_heatmap <- agg_envgroup_sdl_to_plot |>
+  dplyr::filter(scenario %in% scenarios_scale_evap_climate_comp) |>
+  dplyr::filter(env_group != 'EB') |> 
+  mutate(scenario = paste0("SE",scale_evap, "_LV",licvolfactor)) |> 
+  ggplot(aes(x = `End sys`, y = `GS Irrig`, z = ewr_achieved)) + 
+  geom_tile() + # OR geom_point
+  facet_grid(. ~ env_group) +
+  geom_contour_filled(breaks = seq(0, 1, 0.1)) + 
+  theme_werp_toolkit() 
+
+# This is for Galen's reference for developing the function, I think- overlay points and change the fill ramp
+
+# Changing the fill for geom_contour_filled needs bins. The easiest way to make that work from a continuous scale is to get the colors and then use manual.
+binpal <- paletteer::paletteer_c('grDevices::Plasma', n = 10)
+
+contour_point_heatmap <- contour_heatmap +
+  # Change the fill scale
+  scale_fill_manual(values = binpal) +
+  # ideally, we'd use the same color ramp and fill these points with a black circle around them. But that conflicts with the binned fill for the contour
+  # geom_point(shape = 21, color = 'black')
+  geom_point(mapping = aes(color = ewr_achieved)) +
+  paletteer::scale_color_paletteer_c('grDevices::Viridis')
+
+contour_heatmap
+contour_point_heatmap
+```
+
+## MAP
+
+```{r}
+# The map
+sdl_achieve_map <- planning_unit_aggEWR |> 
+  #filter(scenario %in% scenarios_to_plot) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = 'Proportion\nEWR achieved',
+                x_col = 'map',
+                #facet_row = 'climate_code',
+                #facet_col = 'adapt_code',
+                pal_list = pal_achieve,
+                underlay_list = list(underlay = basin, underlay_pal = 'azure'),
+                setLimits = c(0,1))
+
+sdl_achieve_map <- sdl_achieve_map +
+  theme(legend.position = 'bottom', 
+        axis.ticks = element_blank(), 
+        axis.text = element_blank()) +
+  scale_y_continuous(sec.axis = sec_axis(~ . , name = "Climate scenario", 
+                                         breaks = NULL, labels = NULL)) +
+    scale_x_continuous(sec.axis = sec_axis(~ . , name = "Adaptation option",
+                                           breaks = NULL, labels = NULL))
+
+sdl_achieve_bars + sdl_achieve_map + 
+  patchwork::plot_annotation(tag_levels = 'a')
+
+
+
+
+gauge_aggEWR
+# The map
+sdl_achieve_map <- planning_unit_aggEWR |> 
+  #filter(scenario %in% scenarios_to_plot) |> 
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = 'Proportion\nEWR achieved',
+                #x_col = 'map',
+                plot_type = 'map',
+                #facet_row = 'climate_code',
+                #facet_col = 'adapt_code',
+                colorset = 'ewr_achieved',
+                pal_list = pal_achieve,
+                underlay_list = list(underlay = basin, underlay_pal = 'azure'),
+                setLimits = c(0,1))
+
+
+  plot_outcomes(outcome_col = 'ewr_achieved',
+                outcome_lab = 'Proportion\nEWR achieved',
+                plot_type = 'map',
+                colorset = 'ewr_achieved',
+                pal_list = achieve_pal,
+                facet_row = 'scenario',
+                facet_col = 'env_obj',
+                underlay_list = list(list(underlay = basin,
+                                     pal_list = 'azure'),
+                                    
+                setLimits = c(0,1)) )
+```
