@@ -168,12 +168,6 @@ Climate_Categories_sdl
 ## For joining EWR groups and connectivity groups
 
 ```{r}
-#FOR LOOKING AT EWRS
-# EWR_table <- get_ewr_table()
-# EWR_table <- left_join(EWR_table, gauges_df_sld, by = c("Gauge" = "gauge"))
-# EWR_table$ewr_code <- sub("_[^_]+$", "", EWR_table$Code)
-
-
 EWRS_df <- Tagg_gauge_EWRversions |>
   distinct(ewr_code) |>
   mutate(ewr_group_temp1 = substr(ewr_code, start = 1, stop = 2)) |>
@@ -429,3 +423,37 @@ temp <- Tagg_gauge_EWRversions |>
   left_join(gauges_df, by = join_by(gauge, "planning_unit_name" == "planningunitname"))|>
   left_join(gauges_df_valleys)
 ```
+## Checking EWRS
+```{r}
+#checking that i have some lateral and longitudinal EWRs for each catchment:
+
+
+temp <- Timeseries_gauge_EWR |>
+  group_by(ValleyName)|>
+  filter(paste(unique(Longitudinal_connectivity_CF), collapse = "") == "N" & paste(unique(Longitudinal_connectivity_FD), collapse = "") == "N")
+
+Valleys_no_long <- unique(temp$ValleyName)
+
+
+temp <- Timeseries_gauge_EWR |>
+  group_by(ValleyName)|>
+  filter(paste(unique(Lateral_connectivity_including_SF), collapse = "") == "N" & paste(unique(Lateral_connectivity_including_SF), collapse = "") == "N")
+
+unique(temp$ValleyName)
+
+
+#FOR LOOKING AT EWRS
+EWR_table <- get_ewr_table()
+EWR_table <- left_join(EWR_table, gauges_df_valleys, by = c("Gauge" = "gauge"))
+EWR_table$ewr_code <- sub("_[^_]+$", "", EWR_table$Code)
+
+temp <- EWR_table |>
+  filter(ValleyName %in% Valleys_no_long)
+
+```
+
+
+
+
+```
+

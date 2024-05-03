@@ -58,9 +58,7 @@ comparison_years <- data.frame(timeperiod = c("pre-BP", "current"),
 
 save_plots <- TRUE
 
-```
 
-```{r}
 #| include: false
 qaelpath <- myhome
 #qaelpath <- path.expand(qaelpath)
@@ -80,7 +78,7 @@ agg_results <- file.path(project_dir, 'aggregator_output_numeric_gauges')
 comp_results <- file.path(project_dir, 'comparer_output') 
 
 data_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Final_datasets")
-plot_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Final_plots")
+plot_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/DraftReport_plots")
 ```
 
 ## Climate categories
@@ -106,9 +104,6 @@ Climate_Category_to_polygons_MER <- Climate_Category_to_polygons_MER |>
   filter(ValleyName != "")|>
   distinct(Climate_category.data, ValleyName)
 
-#NEED to REMEMBER TO REMOVE THIS::::
-Climate_Category_to_polygons_MER <- filter(Climate_Category_to_polygons_MER, !row_number() %in% c(2))
-
 Climate_Category_to_polygons_MER <- Climate_Category_to_polygons_MER |> 
    mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
 
@@ -123,6 +118,9 @@ class(pal_score) <- 'colors'
 
 #"#ED202480" "#FAA41A80" "#F6EB1480" "#87CDE980" "#282A7380"
 
+pal_indicator <-  stats::setNames(c("#ED2024", "#282A73"), c("Lateral connectivity", "ANAE inundation"))
+class(pal_climate) <- 'colors'
+
 
 ```
 
@@ -130,54 +128,77 @@ class(pal_score) <- 'colors'
 ```{r}
 #LATERALconnectivity - Valley
 Timeseries_Valley_LATERALconnectivity <- readRDS(file.path(data_path, "Timeseries_Valley_LATERALconnectivity.rds"))
-
-Timeseries_Valley_LATERALconnectivity <- left_join(Timeseries_Valley_LATERALconnectivity, Climate_Category_to_polygons_MER, by = join_by(ValleyName)) 
-  
-Timeseries_Valley_LATERALconnectivity <- Timeseries_Valley_LATERALconnectivity |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
+Timeseries_Valley_LATERALconnectivity$Indicator <- "Lateral connectivity"
+Timeseries_Valley_LATERALconnectivity$Label <- "Lateral connectivity (EWR achieved)"
+Timeseries_Valley_LATERALconnectivity$Scale <- "Valley"
 
 #LATERALconnectivity - Basin
 Timeseries_Basin_LATERALconnectivity <- readRDS(file.path(data_path, "Timeseries_Basin_LATERALconnectivity.rds"))
-
-Timeseries_Basin_LATERALconnectivity$Climate_category.data <- "Total MDB"
-
-Timeseries_Basin_LATERALconnectivity <- Timeseries_Basin_LATERALconnectivity |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
+Timeseries_Basin_LATERALconnectivity$Indicator <- "Lateral connectivity"
+Timeseries_Basin_LATERALconnectivity$Label <- "Lateral connectivity (EWR achieved)"
+Timeseries_Basin_LATERALconnectivity$Scale <- "Basin"
 
 #LONGITUDINALconnectivity - Valley
 Timeseries_Valley_LONGITUDINALconnectivity <- readRDS(file.path(data_path, "Timeseries_Valley_LONGITUDINALconnectivity.rds"))
-
-Timeseries_Valley_LONGITUDINALconnectivity <- left_join(Timeseries_Valley_LONGITUDINALconnectivity, Climate_Category_to_polygons_MER, by = join_by(ValleyName)) 
-  
-Timeseries_Valley_LONGITUDINALconnectivity <- Timeseries_Valley_LONGITUDINALconnectivity |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
+Timeseries_Valley_LONGITUDINALconnectivity$Indicator <- "Longitudinal connectivity"
+Timeseries_Valley_LONGITUDINALconnectivity$Label <- "Longitudinal connectivity (EWR achieved)"
+Timeseries_Valley_LONGITUDINALconnectivity$Scale <- "Valley"
 
 #LONGITUDINALconnectivity - Basin
 Timeseries_Basin_LONGITUDINALconnectivity <- readRDS(file.path(data_path, "Timeseries_Basin_LONGITUDINALconnectivity.rds"))
+Timeseries_Basin_LONGITUDINALconnectivity$Indicator <- "Longitudinal connectivity"
+Timeseries_Basin_LONGITUDINALconnectivity$Label <- "Longitudinal connectivity (EWR achieved)"
+Timeseries_Basin_LONGITUDINALconnectivity$Scale <- "Basin"
 
-Timeseries_Basin_LONGITUDINALconnectivity$Climate_category.data <- "Total MDB"
+#Valley
+Timeseries_Valley_EWRconnectivity <- bind_rows(Timeseries_Valley_LATERALconnectivity,
+                                              Timeseries_Valley_LONGITUDINALconnectivity)
+
+Timeseries_Valley_EWRconnectivity <- left_join(Timeseries_Valley_EWRconnectivity, Climate_Category_to_polygons_MER, by = join_by(ValleyName)) 
   
-Timeseries_Basin_LONGITUDINALconnectivity <- Timeseries_Basin_LONGITUDINALconnectivity |>
+Timeseries_Valley_EWRconnectivity <- Timeseries_Valley_EWRconnectivity |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
+
+# unique(Climate_Categories$Climate_category.data) #"Border Rivers"
+# unique(Timeseries_Valley_EWRconnectivity$Climate_category.data) #"Border Rivers"
+# unique(Climate_Category_to_polygons_MER$Climate_category.data)
+# unique(Climate_Category_to_polygons_MER$ValleyName)
+
+#Basin
+Timeseries_Basin_EWRconnectivity <- bind_rows(Timeseries_Basin_LATERALconnectivity,
+                                              Timeseries_Basin_LONGITUDINALconnectivity)
+
+Timeseries_Basin_EWRconnectivity$Climate_category.data <- "Total MDB"
+  
+Timeseries_Basin_EWRconnectivity <- Timeseries_Basin_EWRconnectivity |>
+  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
+
+# NEED TO CUT DATA IN BIG SHEET to 1988 and cut off 2023 -->
+Timeseries_Valley_EWRconnectivity <- filter(Timeseries_Valley_EWRconnectivity, year > 1987 & year < 2023)
+Timeseries_Basin_EWRconnectivity <- filter(Timeseries_Basin_EWRconnectivity, year > 1987 & year < 2023)
 
 ```
 
-
-
-## Data - ANAE diversity and inundation
+## Data - ANAE diversity
 ```{r}
 #ANAEdiversity
 #ANAEdiversity - Valley
 Timeseries_Valley_ANAEdiversity <- catch_cat_sf('diversity_shannon_area', outerdir = 'diversity')
+
+Timeseries_Valley_ANAEdiversity$Indicator <- "ANAE diversity"
+Timeseries_Valley_ANAEdiversity$Label <- "ANAE diversity (shannon diversity)"
+Timeseries_Valley_ANAEdiversity$Scale <- "Valley"
+
 Timeseries_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
   mutate(year = lubridate::year(lubridate::ymd(time)))|>
-  left_join(Climate_Category_to_polygons_MER, by = join_by(ValleyName, name_clean)) 
+  left_join(Climate_Category_to_polygons_MER, by = join_by(ValleyName, name_clean))
+
 Timeseries_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
 
+#ANAEdiversity - Basin
 diversity_anae_summary <- catch_cat_sf('diversity_anae_summary', outerdir = 'diversity')
 
-#ANAEdiversity - Basin
 Timeseries_Basin_ANAEdiversity <- diversity_anae_summary |>
     st_drop_geometry() |>
     summarise(total_area = sum(area_inundated), .by = c(ANAE_DESC, time)) |> # the 'abundance', e.g. number of wetlands of each type
@@ -187,6 +208,10 @@ Timeseries_Basin_ANAEdiversity <- diversity_anae_summary |>
   bind_cols(basin) |> 
   st_as_sf()
 
+Timeseries_Basin_ANAEdiversity$Indicator <- "ANAE diversity"
+Timeseries_Basin_ANAEdiversity$Label <- "ANAE diversity (shannon diversity)"
+Timeseries_Basin_ANAEdiversity$Scale <- "Basin"
+
 Timeseries_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
   mutate(year = lubridate::year(lubridate::ymd(time)),
          Climate_category.data = "Total MDB")
@@ -194,9 +219,14 @@ Timeseries_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
 Timeseries_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
 
-##ANAEinudation
 
-total_inun_area <- diversity_anae_summary |>
+```
+
+## Data - ANAE inundation
+```{r}
+##ANAEinundation
+#Valley
+Timeseries_Valley_ANAEinundation <- diversity_anae_summary |>
   sf::st_drop_geometry() |>
   summarise(area_inundated = sum(area_inundated),
             total_area = sum(total_area),
@@ -207,736 +237,516 @@ total_inun_area <- diversity_anae_summary |>
   left_join(werptoolkitr::cewo_valleys, by = 'ValleyName') |>
   st_as_sf()
 
-#ggplot(total_inun_area, aes(x = time, y = prop_wetland_inundated)) + geom_point() + geom_line() + facet_wrap('ValleyName')
-#area_inundated is raw, prop_wetland_inundated is the proportion of wetland in each catchment that is inundated
+Timeseries_Valley_ANAEinundation$Indicator <- "ANAE inundation"
+Timeseries_Valley_ANAEinundation$Label <- "ANAE inundation (area)" 
+Timeseries_Valley_ANAEinundation$Scale <- "Valley"
+
+Timeseries_Valley_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
+  mutate(year = lubridate::year(lubridate::ymd(time)))|>
+  left_join(Climate_Category_to_polygons_MER, by = join_by(ValleyName, name_clean))
+
+Timeseries_Valley_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
+  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
+
+#Basin
+Timeseries_Basin_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
+    st_drop_geometry() |>
+    summarise(area_inundated = sum(area_inundated), 
+              total_area = sum(total_area),
+              .by = c(time)) |> # the 'abundance', e.g. number of wetlands of each type
+  bind_cols(basin) |> 
+  st_as_sf()
+
+Timeseries_Basin_ANAEinundation$Indicator <- "ANAE inundation"
+Timeseries_Basin_ANAEinundation$Label <- "ANAE inundation (area)"
+Timeseries_Basin_ANAEinundation$Scale <- "Basin"
+
+Timeseries_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
+  mutate(year = lubridate::year(lubridate::ymd(time)),
+         Climate_category.data = "Total MDB")
+
+Timeseries_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
+  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
 
 ```
 
 
 ## Data - ANAE veg
-
 ```{r}
-#Data with climate categories attached or attach here
-#LATERALconnectivity
-#LONGITUDINALconnectivity
-#ANAEdiversity
-#BLACKBOXgermination
-#BLACKBOXseedlings
-#BLACKBOXgerminationseedlings
-#BLACKBOXadult
-#REDGUMgermination
-#REDGUMseedlings
-#REDGUMgerminationseedlings
-#REDGUMadult
-#LIGNUMgermination
-#LIGNUMseedlings
-#LIGNUMgerminationseedlings
-#LIGNUMadult
-#COOLABAHgermination
-#COOLABAHseedlings
-#COOLABAHgerminationseedlings
-#COOLABAHadult
+# Read in data
+# Setting these up to read in all the species at once with purrr
+species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
+# species <- c('black_box', 'coolabah', 'lignum')
 
-#BLACKBOXgermination
-Timeseries_Valley_BLACKBOXgermination <- catch_cat_sf('germ_catch', outerdir = 'black_box') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'regeneration')
+# Germination
+# The first step in the life cycle is germination. It requires
+germ <- purrr::map(species, \(x) catch_cat_sf('germ_area', outerdir = x) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'regeneration',
+         species = x)) |> 
+  bind_rows()
 
-Timeseries_Basin_BLACKBOXgermination <- Timeseries_Valley_BLACKBOXgermination |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
+# Seedling survival
+# 
+# The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), we get the following.
+seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area', outerdir = x) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'seedling',
+         species = x)) |> 
+  bind_rows()
 
-#BLACKBOXseedlings
-Timeseries_Valley_BLACKBOXseedlings <- catch_cat_sf('seed_catch', outerdir = 'black_box_old') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'seed')
+# Germination and seedlings
+# The life cycle is sequential, and so what we are interested in ultimately is regeneration success; that is, germination and subsequent survival. Here, we as whether conditions supported seedling survival after successful germination conditions. Thus, this is not simply the minimum of the upper two, it actually takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
+germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed', outerdir = x) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'recruitment',
+         species = x)) |> 
+  bind_rows()
 
-Timeseries_Basin_BLACKBOXseedlings <- Timeseries_Valley_BLACKBOXseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
+# Adult condition
+# Here, we assess area of favourable adult condition, primarily as a consequence of inundation duration and periods between events. This is not connected to the regeneration due to the length of available data and tree life spans.
 
-#BLACKBOXgerminationseedlings
-Timeseries_Valley_BLACKBOXgerminationseedlings <- catch_cat_sf('germ_and_seed_catch', outerdir = 'black_box') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'germ_and_seed')
+adult <- purrr::map(species, \(x) catch_cat_sf('adult_area', outerdir = x) |> 
+  # There's no adult data prior to 1995 because of the lookback period
+  filter(date > lubridate::ymd(19950101)) |> 
+  mutate(stage = 'adult',
+         species = x)) |> 
+  bind_rows()
 
-Timeseries_Basin_BLACKBOXgerminationseedlings <- Timeseries_Valley_BLACKBOXgerminationseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
+# All together
+all_strictures <- bind_rows(germ, seed, germ_and_seed, adult)
 
-#BLACKBOXadult
-Timeseries_Valley_BLACKBOXadult <- catch_cat_sf('adult_catch', outerdir = 'black_box') |> 
-  filter(date > lubridate::ymd(19950101)) |>   # There's no adult data prior to 1995 because of the lookback period
-  mutate(stage = 'adult')
+all_strictures <- all_strictures |>
+  mutate(Indicator = paste(sub("_", " ", species), stage, sep = " "),
+         Label = paste(Indicator, "(area)", sep = " "),
+         Scale = "Valley")
 
-Timeseries_Basin_BLACKBOXadult <- Timeseries_Valley_BLACKBOXadult |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#BLACKBOX - Valley
-Timeseries_Valley_BLACKBOX <- bind_rows(Timeseries_Valley_BLACKBOXgermination, Timeseries_Valley_BLACKBOXseedlings)
-Timeseries_Valley_BLACKBOX <- bind_rows(Timeseries_Valley_BLACKBOX, Timeseries_Valley_BLACKBOXgerminationseedlings)
-Timeseries_Valley_BLACKBOX <- bind_rows(Timeseries_Valley_BLACKBOX, Timeseries_Valley_BLACKBOXadult)
-
-Timeseries_Valley_BLACKBOX <- Timeseries_Valley_BLACKBOX |>
+Timeseries_Valley_ANAEvegetation <- all_strictures |>
   mutate(year = lubridate::year(lubridate::ymd(date)))|>
   rename(name_clean = ValleyName)|>
-  left_join(Climate_Category_to_polygons_MER, by = join_by(name_clean)) 
+  left_join(Climate_Category_to_polygons_MER, by = join_by(name_clean))
 
-Timeseries_Valley_BLACKBOX <- Timeseries_Valley_BLACKBOX |>
+Timeseries_Valley_ANAEvegetation <- Timeseries_Valley_ANAEvegetation |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
 
-#BLACKBOX - Basin
-Timeseries_Basin_BLACKBOX <- bind_rows(Timeseries_Basin_BLACKBOXgermination, Timeseries_Basin_BLACKBOXseedlings)
-Timeseries_Basin_BLACKBOX <- bind_rows(Timeseries_Basin_BLACKBOX, Timeseries_Basin_BLACKBOXgerminationseedlings)
-Timeseries_Basin_BLACKBOX <- bind_rows(Timeseries_Basin_BLACKBOX, Timeseries_Basin_BLACKBOXadult)
+# Basin
+Timeseries_Basin_ANAEvegetation <- all_strictures |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sum(area),
+            .by = c(date, stage, species, Indicator, Label)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
 
-Timeseries_Basin_BLACKBOX <- Timeseries_Basin_BLACKBOX |>
+Timeseries_Basin_ANAEvegetation$Scale <- "Basin"
+
+Timeseries_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
   mutate(year = lubridate::year(lubridate::ymd(date)),
          Climate_category.data = "Total MDB")
 
-Timeseries_Basin_BLACKBOX <- Timeseries_Basin_BLACKBOX |>
+Timeseries_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
-
-
-#REDGUMgermination
-Timeseries_Valley_REDGUMgermination <- catch_cat_sf('germ_catch', outerdir = 'black_box') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'germ')
-
-Timeseries_Basin_REDGUMgermination <- Timeseries_Valley_REDGUMgermination |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#REDGUMseedlings
-Timeseries_Valley_REDGUMseedlings <- catch_cat_sf('seed_catch', outerdir = 'red_gum') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'seed')
-
-Timeseries_Basin_REDGUMseedlings <- Timeseries_Valley_REDGUMseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#REDGUMgerminationseedlings
-Timeseries_Valley_REDGUMgerminationseedlings <- catch_cat_sf('germ_and_seed_catch', outerdir = 'red_gum') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'germ_and_seed')
-
-Timeseries_Basin_REDGUMgerminationseedlings <- Timeseries_Valley_REDGUMgerminationseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#REDGUMadult
-Timeseries_Valley_REDGUMadult <- catch_cat_sf('adult_catch', outerdir = 'red_gum') |> 
-  filter(date > lubridate::ymd(19950101)) |>   # There's no adult data prior to 1995 because of the lookback period
-  mutate(stage = 'adult')
-
-Timeseries_Basin_REDGUMadult <- Timeseries_Valley_REDGUMadult |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#REDGUM - Valley
-Timeseries_Valley_REDGUM <- bind_rows(Timeseries_Valley_REDGUMgermination, Timeseries_Valley_REDGUMseedlings)
-Timeseries_Valley_REDGUM <- bind_rows(Timeseries_Valley_REDGUM, Timeseries_Valley_REDGUMgerminationseedlings)
-Timeseries_Valley_REDGUM <- bind_rows(Timeseries_Valley_REDGUM, Timeseries_Valley_REDGUMadult)
-
-Timeseries_Valley_REDGUM <- Timeseries_Valley_REDGUM |>
-  mutate(year = lubridate::year(lubridate::ymd(date)))|>
-  rename(name_clean = ValleyName)|>
-  left_join(Climate_Category_to_polygons_MER, by = join_by(name_clean)) 
-
-Timeseries_Valley_REDGUM <- Timeseries_Valley_REDGUM |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
-
-#REDGUM - Basin
-Timeseries_Basin_REDGUM <- bind_rows(Timeseries_Basin_REDGUMgermination, Timeseries_Basin_REDGUMseedlings)
-Timeseries_Basin_REDGUM <- bind_rows(Timeseries_Basin_REDGUM, Timeseries_Basin_REDGUMgerminationseedlings)
-Timeseries_Basin_REDGUM <- bind_rows(Timeseries_Basin_REDGUM, Timeseries_Basin_REDGUMadult)
-
-Timeseries_Basin_REDGUM <- Timeseries_Basin_REDGUM |>
-  mutate(year = lubridate::year(lubridate::ymd(date)),
-         Climate_category.data = "Total MDB")
-
-Timeseries_Basin_REDGUM <- Timeseries_Basin_REDGUM |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
-
-
-#LIGNUMgermination
-Timeseries_Valley_LIGNUMgermination <- catch_cat_sf('germ_catch', outerdir = 'lignum') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'germ')
-
-Timeseries_Basin_LIGNUMgermination <- Timeseries_Valley_LIGNUMgermination |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#LIGNUMseedlings
-Timeseries_Valley_LIGNUMseedlings <- catch_cat_sf('seed_catch', outerdir = 'lignum') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'seed')
-
-Timeseries_Basin_LIGNUMseedlings <- Timeseries_Valley_LIGNUMseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#LIGNUMgerminationseedlings
-Timeseries_Valley_LIGNUMgerminationseedlings <- catch_cat_sf('germ_and_seed_catch', outerdir = 'lignum') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'germ_and_seed')
-
-Timeseries_Basin_LIGNUMgerminationseedlings <- Timeseries_Valley_LIGNUMgerminationseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#LIGNUMadult
-Timeseries_Valley_LIGNUMadult <- catch_cat_sf('adult_catch', outerdir = 'lignum') |> 
-  filter(date > lubridate::ymd(19950101)) |>   # There's no adult data prior to 1995 because of the lookback period
-  mutate(stage = 'adult')
-
-Timeseries_Basin_LIGNUMadult <- Timeseries_Valley_LIGNUMadult |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#LIGNUM - Valley
-Timeseries_Valley_LIGNUM <- bind_rows(Timeseries_Valley_LIGNUMgermination, Timeseries_Valley_LIGNUMseedlings)
-Timeseries_Valley_LIGNUM <- bind_rows(Timeseries_Valley_LIGNUM, Timeseries_Valley_LIGNUMgerminationseedlings)
-Timeseries_Valley_LIGNUM <- bind_rows(Timeseries_Valley_LIGNUM, Timeseries_Valley_LIGNUMadult)
-
-Timeseries_Valley_LIGNUM <- Timeseries_Valley_LIGNUM |>
-  mutate(year = lubridate::year(lubridate::ymd(date)))|>
-  rename(name_clean = ValleyName)|>
-  left_join(Climate_Category_to_polygons_MER, by = join_by(name_clean)) 
-
-Timeseries_Valley_LIGNUM <- Timeseries_Valley_LIGNUM |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
-
-#LIGNUM - Basin
-Timeseries_Basin_LIGNUM <- bind_rows(Timeseries_Basin_LIGNUMgermination, Timeseries_Basin_LIGNUMseedlings)
-Timeseries_Basin_LIGNUM <- bind_rows(Timeseries_Basin_LIGNUM, Timeseries_Basin_LIGNUMgerminationseedlings)
-Timeseries_Basin_LIGNUM <- bind_rows(Timeseries_Basin_LIGNUM, Timeseries_Basin_LIGNUMadult)
-
-Timeseries_Basin_LIGNUM <- Timeseries_Basin_LIGNUM |>
-  mutate(year = lubridate::year(lubridate::ymd(date)),
-         Climate_category.data = "Total MDB")
-
-Timeseries_Basin_LIGNUM <- Timeseries_Basin_LIGNUM |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
-
-
-#COOLABAHgermination
-Timeseries_Valley_COOLABAHgermination <- catch_cat_sf('germ_catch', outerdir = 'coolabah') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'germ')
-
-Timeseries_Basin_COOLABAHgermination <- Timeseries_Valley_COOLABAHgermination |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#COOLABAHseedlings
-Timeseries_Valley_COOLABAHseedlings <- catch_cat_sf('seed_catch', outerdir = 'coolabah') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'seed')
-
-Timeseries_Basin_COOLABAHseedlings <- Timeseries_Valley_COOLABAHseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#COOLABAHgerminationseedlings
-Timeseries_Valley_COOLABAHgerminationseedlings <- catch_cat_sf('germ_and_seed_catch', outerdir = 'coolabah') |> 
-  filter(date > lubridate::ymd(19880101)) |>   # There's no data prior ot 1988
-  mutate(stage = 'germ_and_seed')
-
-Timeseries_Basin_COOLABAHgerminationseedlings <- Timeseries_Valley_COOLABAHgerminationseedlings |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#COOLABAHadult
-Timeseries_Valley_COOLABAHadult <- catch_cat_sf('adult_catch', outerdir = 'coolabah') |> 
-  filter(date > lubridate::ymd(19950101)) |>   # There's no adult data prior to 1995 because of the lookback period
-  mutate(stage = 'adult')
-
-Timeseries_Basin_COOLABAHadult <- Timeseries_Valley_COOLABAHadult |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sum(area, na.rm = TRUE),
-            .by = c(date, stage)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-#COOLABAH - Valley
-Timeseries_Valley_COOLABAH <- bind_rows(Timeseries_Valley_COOLABAHgermination, Timeseries_Valley_COOLABAHseedlings)
-Timeseries_Valley_COOLABAH <- bind_rows(Timeseries_Valley_COOLABAH, Timeseries_Valley_COOLABAHgerminationseedlings)
-Timeseries_Valley_COOLABAH <- bind_rows(Timeseries_Valley_COOLABAH, Timeseries_Valley_COOLABAHadult)
-
-Timeseries_Valley_COOLABAH <- Timeseries_Valley_COOLABAH |>
-  mutate(year = lubridate::year(lubridate::ymd(date)))|>
-  rename(name_clean = ValleyName)|>
-  left_join(Climate_Category_to_polygons_MER, by = join_by(name_clean)) 
-
-Timeseries_Valley_COOLABAH <- Timeseries_Valley_COOLABAH |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
-
-#COOLABAH - Basin
-Timeseries_Basin_COOLABAH <- bind_rows(Timeseries_Basin_COOLABAHgermination, Timeseries_Basin_COOLABAHseedlings)
-Timeseries_Basin_COOLABAH <- bind_rows(Timeseries_Basin_COOLABAH, Timeseries_Basin_COOLABAHgerminationseedlings)
-Timeseries_Basin_COOLABAH <- bind_rows(Timeseries_Basin_COOLABAH, Timeseries_Basin_COOLABAHadult)
-
-Timeseries_Basin_COOLABAH <- Timeseries_Basin_COOLABAH |>
-  mutate(year = lubridate::year(lubridate::ymd(date)),
-         Climate_category.data = "Total MDB")
-
-Timeseries_Basin_COOLABAH <- Timeseries_Basin_COOLABAH |>
-  left_join(Climate_Categories, by = join_by(year, Climate_category.data))
-
-```
-
-## IS Scaling
-
-```{r}
-#LATERALconnectivity
-Timeseries_Valley_LATERALconnectivity <- Timeseries_Valley_LATERALconnectivity |>
-  ungroup()|>
-  filter(year>=1988)|>
-  #Outcome
-  mutate(Outcome = ewr_achieved)|>
-  #Total 
-  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
-  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
-  #Basin 
-  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
-  #Valley
-  group_by(ValleyName)|>  
-  mutate(Outcome_ValScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_ValScaled    = ifelse(is.nan(Outcome_ValScaled), 0, Outcome_ValScaled)) |>
-  #YrType
-  group_by(ValleyName, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
-
-Trend_Valley_LATERALconnectivity <- Timeseries_Valley_LATERALconnectivity |>
-    filter(year>=2009)|>
-    group_by(ValleyName)|>
-    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
-      data.frame(broom::tidy(model))})|>          # get model info
-    filter(term == "year")
-
-Condition_Valley_LATERALconnectivity <- Timeseries_Valley_LATERALconnectivity |>
-  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
-    group_by(ValleyName)|>
-    summarise(Outcome_mean = mean(Outcome),
-              Outcome_SE = plotrix::std.error(Outcome),
-              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
-              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
-              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
-              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
-              Outcome_ValScaled_mean = mean(Outcome_ValScaled),
-              Outcome_ValScaled_SE = plotrix::std.error(Outcome_ValScaled),
-              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
-              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
-
-Condition_Trend_Valley_LATERALconnectivity <- left_join(Condition_Valley_LATERALconnectivity, Trend_Valley_LATERALconnectivity, by = join_by(ValleyName))
-Condition_Trend_Valley_LATERALconnectivity$Indicator <- "Lateral connectivity" 
-Condition_Trend_Valley_LATERALconnectivity$Label <- "Lateral connectivity (EWR achieved)" 
-Condition_Trend_Valley_LATERALconnectivity$Scale <- "Valley" 
-
-Timeseries_Basin_LATERALconnectivity <- Timeseries_Basin_LATERALconnectivity |>
-  ungroup()|>
-  filter(year>=1988)|>
-  #Outcome
-  mutate(Outcome = ewr_achieved)|>
-  #Total 
-  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
-  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
-  #Basin 
-  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
-  #YrType
-  group_by(Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
-
-Trend_Basin_LATERALconnectivity <- Timeseries_Basin_LATERALconnectivity |>
-  ungroup()|>  
-  filter(year>=2009)|>
-    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
-      data.frame(broom::tidy(model))})|>          # get model info
-    filter(term == "year")
-
-Condition_Basin_LATERALconnectivity <- Timeseries_Basin_LATERALconnectivity |>
-  ungroup()|>  
-  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
-    summarise(Outcome_mean = mean(Outcome),
-              Outcome_SE = plotrix::std.error(Outcome),
-              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
-              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
-              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
-              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
-              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
-              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
-
-Condition_Trend_Basin_LATERALconnectivity <- bind_cols(Condition_Basin_LATERALconnectivity, Trend_Basin_LATERALconnectivity)
-Condition_Trend_Basin_LATERALconnectivity$Indicator <- "Lateral connectivity" 
-Condition_Trend_Basin_LATERALconnectivity$Label <- "Lateral connectivity (EWR achieved)" 
-Condition_Trend_Basin_LATERALconnectivity$Scale <- "Basin" 
-
-#LONGITUDINALconnectivity
-Timeseries_Valley_LONGITUDINALconnectivity <- Timeseries_Valley_LONGITUDINALconnectivity |>
-  ungroup()|>
-  filter(year>=1988)|>
-  #Outcome
-  mutate(Outcome = ewr_achieved)|>
-  #Total 
-  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
-  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
-  #Basin 
-  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
-  #Valley
-  group_by(ValleyName)|>  
-  mutate(Outcome_ValScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_ValScaled    = ifelse(is.nan(Outcome_ValScaled), 0, Outcome_ValScaled)) |>
-  #YrType
-  group_by(ValleyName, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
-
-Trend_Valley_LONGITUDINALconnectivity <- Timeseries_Valley_LONGITUDINALconnectivity |>
-    filter(year>=2009)|>
-    group_by(ValleyName)|>
-    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
-      data.frame(broom::tidy(model))})|>          # get model info
-    filter(term == "year")
-
-Condition_Valley_LONGITUDINALconnectivity <- Timeseries_Valley_LONGITUDINALconnectivity |>
-  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
-    group_by(ValleyName)|>
-    summarise(Outcome_mean = mean(Outcome),
-              Outcome_SE = plotrix::std.error(Outcome),
-              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
-              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
-              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
-              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
-              Outcome_ValScaled_mean = mean(Outcome_ValScaled),
-              Outcome_ValScaled_SE = plotrix::std.error(Outcome_ValScaled),
-              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
-              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
-
-Condition_Trend_Valley_LONGITUDINALconnectivity <- left_join(Condition_Valley_LONGITUDINALconnectivity, Trend_Valley_LONGITUDINALconnectivity, by = join_by(ValleyName))
-Condition_Trend_Valley_LONGITUDINALconnectivity$Indicator <- "Longitudinal connectivity" 
-Condition_Trend_Valley_LONGITUDINALconnectivity$Label <- "Longitudinal connectivity (EWR achieved)" 
-Condition_Trend_Valley_LONGITUDINALconnectivity$Scale <- "Valley" 
-
-Timeseries_Basin_LONGITUDINALconnectivity <- Timeseries_Basin_LONGITUDINALconnectivity |>
-  ungroup()|>
-  filter(year>=1988)|>
-  #Outcome
-  mutate(Outcome = ewr_achieved)|>
-  #Total 
-  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
-  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
-  #Basin 
-  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
-  #YrType
-  group_by(Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
-
-Trend_Basin_LONGITUDINALconnectivity <- Timeseries_Basin_LONGITUDINALconnectivity |>
-  ungroup()|>  
-  filter(year>=2009)|>
-    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
-      data.frame(broom::tidy(model))})|>          # get model info
-    filter(term == "year")
-
-Condition_Basin_LONGITUDINALconnectivity <- Timeseries_Basin_LONGITUDINALconnectivity |>
-  ungroup()|>  
-  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
-    summarise(Outcome_mean = mean(Outcome),
-              Outcome_SE = plotrix::std.error(Outcome),
-              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
-              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
-              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
-              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
-              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
-              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
-
-Condition_Trend_Basin_LONGITUDINALconnectivity <- bind_cols(Condition_Basin_LONGITUDINALconnectivity, Trend_Basin_LONGITUDINALconnectivity)
-Condition_Trend_Basin_LONGITUDINALconnectivity$Indicator <- "Longitudinal connectivity" 
-Condition_Trend_Basin_LONGITUDINALconnectivity$Label <- "Longitudinal connectivity (EWR achieved)" 
-Condition_Trend_Basin_LONGITUDINALconnectivity$Scale <- "Basin" 
-
-
-# done up to here.
-
-
-#REDGUM
-Timeseries_Valley_REDGUM <- Timeseries_Valley_REDGUM |>
-  ungroup()|>
-  #Total 
-  group_by(stage)|>
-  mutate(Outcome_TotalScaled  = (area-min(area))/(max(area)-min(area))) |>  
-  mutate(Outcome_TotalScaled  = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
-  #Obs
-  group_by(stage, ValleyName)|>
-  mutate(Outcome_ObsScaled    = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_ObsScaled    = ifelse(is.nan(Outcome_ObsScaled), 0, Outcome_ObsScaled)) |>
-  #YrType
-  group_by(stage, ValleyName, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) |>  
-  #IS
-  mutate(Outcome_IS = (Outcome_TotalScaled*0.3)+ (Outcome_ObsScaled*0.4)+ (Outcome_YrTypeScaled*0.3))
-
-#   #CS
-# Timeseries_Valley_REDGUMcs <- Timeseries_Valley_REDGUM|>
-#   select(stage, ValleyName, geometry, year, Climate_Category, Outcome_IS)|>
-#   pivot_wider(names_from = stage, values_from = Outcome_IS) |>
-#   mutate(Outcome_CS = (germ_and_seed*0.5)+(adult*0.5))
-
-Timeseries_Basin_REDGUM <- Timeseries_Basin_REDGUM |>
-  ungroup()|>
-  #Obs 
-  group_by(stage)|>
-  mutate(Outcome_ObsScaled    = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_ObsScaled    = ifelse(is.nan(Outcome_ObsScaled), 0, Outcome_ObsScaled)) |>  
-  #YrType
-  group_by(stage, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) |>  
-  #IS
-  mutate(Outcome_IS = (Outcome_ObsScaled*0.5)+ (Outcome_YrTypeScaled*0.5))
-
-#   #CS
-# Timeseries_Basin_REDGUMcs <- Timeseries_Basin_REDGUM|>
-#   select(stage, geometry, year, Climate_Category, Outcome_IS)|>
-#   pivot_wider(names_from = stage, values_from = Outcome_IS) |>
-#   mutate(Outcome_CS = (germ_and_seed*0.5)+(adult*0.5))
-
-
-#LIGNUM
-Timeseries_Valley_LIGNUM <- Timeseries_Valley_LIGNUM |>
-  ungroup()|>
-  #Total 
-  group_by(stage)|>
-  mutate(Outcome_TotalScaled  = (area-min(area))/(max(area)-min(area))) |>  
-  mutate(Outcome_TotalScaled  = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
-  #Obs
-  group_by(stage, ValleyName)|>
-  mutate(Outcome_ObsScaled    = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_ObsScaled    = ifelse(is.nan(Outcome_ObsScaled), 0, Outcome_ObsScaled)) |>
-  #YrType
-  group_by(stage, ValleyName, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) |>  
-  #IS
-  mutate(Outcome_IS = (Outcome_TotalScaled*0.3)+ (Outcome_ObsScaled*0.4)+ (Outcome_YrTypeScaled*0.3))
-
-#   #CS
-# Timeseries_Valley_LIGNUMcs <- Timeseries_Valley_LIGNUM|>
-#   select(stage, ValleyName, geometry, year, Climate_Category, Outcome_IS)|>
-#   pivot_wider(names_from = stage, values_from = Outcome_IS) |>
-#   mutate(Outcome_CS = (germ_and_seed*0.5)+(adult*0.5))
-
-Timeseries_Basin_LIGNUM <- Timeseries_Basin_LIGNUM |>
-  ungroup()|>
-  #Obs 
-  group_by(stage)|>
-  mutate(Outcome_ObsScaled    = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_ObsScaled    = ifelse(is.nan(Outcome_ObsScaled), 0, Outcome_ObsScaled)) |>  
-  #YrType
-  group_by(stage, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) |>  
-  #IS
-  mutate(Outcome_IS = (Outcome_ObsScaled*0.5)+ (Outcome_YrTypeScaled*0.5))
-
-#   #CS
-# Timeseries_Basin_LIGNUMcs <- Timeseries_Basin_LIGNUM|>
-#   select(stage, geometry, year, Climate_Category, Outcome_IS)|>
-#   pivot_wider(names_from = stage, values_from = Outcome_IS) |>
-#   mutate(Outcome_CS = (germ_and_seed*0.5)+(adult*0.5))
-
-#COOLABAH
-Timeseries_Valley_COOLABAH <- Timeseries_Valley_COOLABAH |>
-  ungroup()|>
-  #Total 
-  group_by(stage)|>
-  mutate(Outcome_TotalScaled  = (area-min(area))/(max(area)-min(area))) |>  
-  mutate(Outcome_TotalScaled  = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
-  #Obs
-  group_by(stage, ValleyName)|>
-  mutate(Outcome_ObsScaled    = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_ObsScaled    = ifelse(is.nan(Outcome_ObsScaled), 0, Outcome_ObsScaled)) |>
-  #YrType
-  group_by(stage, ValleyName, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) |>  
-  #IS
-  mutate(Outcome_IS = (Outcome_TotalScaled*0.3)+ (Outcome_ObsScaled*0.4)+ (Outcome_YrTypeScaled*0.3))
-
-#   #CS
-# Timeseries_Valley_COOLABAHcs <- Timeseries_Valley_COOLABAH|>
-#   select(stage, ValleyName, geometry, year, Climate_Category, Outcome_IS)|>
-#   pivot_wider(names_from = stage, values_from = Outcome_IS) |>
-#   mutate(Outcome_CS = (germ_and_seed*0.5)+(adult*0.5))
-
-Timeseries_Basin_COOLABAH <- Timeseries_Basin_COOLABAH |>
-  ungroup()|>
-  #Obs 
-  group_by(stage)|>
-  mutate(Outcome_ObsScaled    = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_ObsScaled    = ifelse(is.nan(Outcome_ObsScaled), 0, Outcome_ObsScaled)) |>  
-  #YrType
-  group_by(stage, Climate_Category)|>
-  mutate(Outcome_YrTypeScaled = (area-min(area))/(max(area)-min(area))) |>
-  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) |>  
-  #IS
-  mutate(Outcome_IS = (Outcome_ObsScaled*0.5)+ (Outcome_YrTypeScaled*0.5))
-
-#   #CS
-# Timeseries_Basin_COOLABAHcs <- Timeseries_Basin_COOLABAH|>
-#   select(stage, geometry, year, Climate_Category, Outcome_IS)|>
-#   pivot_wider(names_from = stage, values_from = Outcome_IS) |>
-#   mutate(Outcome_CS = (germ_and_seed*0.5)+(adult*0.5))
 
 
 ```
 
-## Add geometry 
-
+## IS Scaling - EWRconnectivity
 ```{r}
-#LATERALconnectivity
-Timeseries_Valley_LATERALconnectivity <- left_join(Timeseries_Valley_LATERALconnectivity, cewo_valleys, by = join_by(ValleyName))
+#EWRconnectivity
+#ANAEinundation
+#ANAEvegetation
 
-Timeseries_Basin_LATERALconnectivity$geometry <- basin$geometry
-
-#LONGITUDINALconnectivity
-Timeseries_Valley_LONGITUDINALconnectivity <- left_join(Timeseries_Valley_LONGITUDINALconnectivity, cewo_valleys, by = join_by(ValleyName))
-
-Timeseries_Basin_LONGITUDINALconnectivity$geometry <- basin$geometry
-
-```
-
-
-```{r}
-#Data with climate categories attached or attach here
-Timeseries_Valley_LATERALconnectivity$Indicator <- "LATERALconnectivity"
-Timeseries_Valley_LONGITUDINALconnectivity$Indicator <-  "LONGITUDINALconnectivity"
-Timeseries_Valley_ANAEdiversity$Indicator <- "ANAEdiversity"
-Timeseries_Valley_BLACKBOX$Indicator <- paste("BLACKBOX", Timeseries_Valley_BLACKBOX$stage, sep = "")
-Timeseries_Valley_REDGUM$Indicator <- paste("REDGUM", Timeseries_Valley_REDGUM$stage, sep = "")
-Timeseries_Valley_LIGNUM$Indicator <- paste("LIGNUM", Timeseries_Valley_LIGNUM$stage, sep = "")
-Timeseries_Valley_COOLABAH$Indicator <- paste("COOLABAH", Timeseries_Valley_COOLABAH$stage, sep = "")
-
-All_indicators <- bind_rows(Timeseries_Valley_LATERALconnectivity, Timeseries_Valley_LONGITUDINALconnectivity)
-#All_indicators <-  bind_rows(All_indicators, Timeseries_Valley_ANAEdiversity)
-All_indicators <-  bind_rows(Timeseries_Valley_ANAEdiversity, Timeseries_Valley_BLACKBOX)
-All_indicators <-  bind_rows(All_indicators, Timeseries_Valley_REDGUM)
-All_indicators <-  bind_rows(All_indicators, Timeseries_Valley_LIGNUM)
-All_indicators <-  bind_rows(All_indicators, Timeseries_Valley_COOLABAH)
-#All_indicators <-  bind_rows(All_indicators, Timeseries_Valley_LATERALconnectivity)
-# All_indicators <-  bind_rows(All_indicators, Timeseries_Valley_LONGITUDINALconnectivity)
-
-
-```
-
-```{r}
-max(All_indicators$year, rm.na = TRUE)
-
-All_indicators_summary <- All_indicators |>
-  group_by(ValleyName, Indicator)|>
-  filter(year %in% c(2022:2018))|>
-  reframe(Outcome_TotalScaled = weighted.mean(Outcome_TotalScaled, year),
-          Outcome_BasScaled = weighted.mean(Outcome_BasScaled, year),
-          Outcome_ObsScaled  = weighted.mean(Outcome_ObsScaled, year),
-          Outcome_YrTypeScaled  = weighted.mean(Outcome_YrTypeScaled, year))
-
-All_indicators_summary <- All_indicators_summary|>
+#EWRconnectivity
+#Valley
+Timeseries_Valley_EWRconnectivity <- Timeseries_Valley_EWRconnectivity |>
+  ungroup()|>
   group_by(Indicator)|>
-  pivot_longer(cols = Outcome_TotalScaled:Outcome_YrTypeScaled)
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = ewr_achieved)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #Valley
+  group_by(ValleyName)|>  
+  mutate(Outcome_ValScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_ValScaled    = ifelse(is.nan(Outcome_ValScaled), 0, Outcome_ValScaled)) |>
+  #YrType
+  group_by(ValleyName, Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
 
+Trend_Valley_EWRconnectivity <- Timeseries_Valley_EWRconnectivity |>
+    filter(year>=2009)|>
+    group_by(Indicator, ValleyName)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
+
+Condition_Valley_EWRconnectivity <- Timeseries_Valley_EWRconnectivity |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, ValleyName, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_ValScaled_mean = mean(Outcome_ValScaled),
+              Outcome_ValScaled_SE = plotrix::std.error(Outcome_ValScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
+
+Condition_Trend_Valley_EWRconnectivity <- left_join(Condition_Valley_EWRconnectivity, Trend_Valley_EWRconnectivity, by = join_by(Indicator, ValleyName))
+
+#Basin
+Timeseries_Basin_EWRconnectivity <- Timeseries_Basin_EWRconnectivity |>
+  ungroup()|>
+  group_by(Indicator)|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = ewr_achieved)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #YrType
+  group_by(Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
+
+Trend_Basin_EWRconnectivity <- Timeseries_Basin_EWRconnectivity |>
+    filter(year>=2009)|>
+    group_by(Indicator)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
+
+Condition_Basin_EWRconnectivity <- Timeseries_Basin_EWRconnectivity |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
+
+Condition_Trend_Basin_EWRconnectivity <- left_join(Condition_Basin_EWRconnectivity, Trend_Basin_EWRconnectivity, by = join_by(Indicator))
 ```
 
+## IS Scaling - diversity 
 ```{r}
+#EWRconnectivity
+#ANAEinundation
+#ANAEvegetation
 
-Tile_plot1 <- ggplot(data = filter(All_indicators_summary, ValleyName == "Avoca"), 
-       aes(x = name, y = Indicator, fill = value))+
-  geom_tile()+
-  #scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  labs(x = "Year", colour = "SWC", y = "Indicator")+
-  theme(axis.text.x = element_text(angle = 90))
+#ANAEinundation
+#Valley
+Timeseries_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
+  ungroup()|>
+  group_by(Indicator)|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = diversity_shannon_area)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #Valley
+  group_by(ValleyName)|>  
+  mutate(Outcome_ValScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_ValScaled    = ifelse(is.nan(Outcome_ValScaled), 0, Outcome_ValScaled)) |>
+  #YrType
+  group_by(ValleyName, Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
 
-Tile_plot1
+Trend_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
+    filter(year>=2009)|>
+    group_by(Indicator, ValleyName)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
 
-ggsave(plot = Tile_plot1, filename = file.path(plot_path, paste0("Tile_plot_AVOCA", Sys.Date(), ".tiff")), device = "tiff",
-       width = 4, height = 8)
+Condition_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, ValleyName, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_ValScaled_mean = mean(Outcome_ValScaled),
+              Outcome_ValScaled_SE = plotrix::std.error(Outcome_ValScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
 
+Condition_Trend_Valley_ANAEdiversity <- left_join(Condition_Valley_ANAEdiversity, Trend_Valley_ANAEdiversity, by = join_by(Indicator, ValleyName))
 
+#Basin
+Timeseries_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
+  ungroup()|>
+  group_by(Indicator)|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = diversity_shannon_area)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #YrType
+  group_by(Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
 
-Tile_plot2 <- ggplot(data = filter(All_indicators_summary, Indicator == "ANAEdiversity"), 
-       aes(x = name, y = ValleyName, fill = value))+
-  geom_tile()+
-  #scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  labs(x = "Year", colour = "SWC", y = "Indicator")+
-  theme(axis.text.x = element_text(angle = 90))
+Trend_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
+    filter(year>=2009)|>
+    group_by(Indicator)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
 
-Tile_plot2
+Condition_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
 
-ggsave(plot = Tile_plot2, filename = file.path(plot_path, paste0("Tile_plot_ANAEdiversity", Sys.Date(), ".tiff")), device = "tiff",
-       width = 4, height = 8)
-
+Condition_Trend_Basin_ANAEdiversity <- left_join(Condition_Basin_ANAEdiversity, Trend_Basin_ANAEdiversity, by = join_by(Indicator))
 ```
 
+
+## IS Scaling - ANAEinundation 
+```{r}
+#EWRconnectivity
+#ANAEinundation
+#ANAEvegetation
+
+#ANAEinundation
+#Valley
+Timeseries_Valley_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
+  ungroup()|>
+  group_by(Indicator)|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = area_inundated)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #Valley
+  group_by(ValleyName)|>  
+  mutate(Outcome_ValScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_ValScaled    = ifelse(is.nan(Outcome_ValScaled), 0, Outcome_ValScaled)) |>
+  #YrType
+  group_by(ValleyName, Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
+
+Trend_Valley_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
+    filter(year>=2009)|>
+    group_by(Indicator, ValleyName)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
+
+Condition_Valley_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, ValleyName, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_ValScaled_mean = mean(Outcome_ValScaled),
+              Outcome_ValScaled_SE = plotrix::std.error(Outcome_ValScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
+
+Condition_Trend_Valley_ANAEinundation <- left_join(Condition_Valley_ANAEinundation, Trend_Valley_ANAEinundation, by = join_by(Indicator, ValleyName))
+
+#Basin
+Timeseries_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
+  ungroup()|>
+  group_by(Indicator)|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = area_inundated)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #YrType
+  group_by(Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
+
+Trend_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
+    filter(year>=2009)|>
+    group_by(Indicator)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
+
+Condition_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
+
+Condition_Trend_Basin_ANAEinundation <- left_join(Condition_Basin_ANAEinundation, Trend_Basin_ANAEinundation, by = join_by(Indicator))
+```
+
+## IS Scaling - ANAEvegetation
+```{r}
+#ANAEvegetation
+#Valley
+Timeseries_Valley_ANAEvegetation <- Timeseries_Valley_ANAEvegetation |>
+  ungroup()|>
+  filter(!is.na(area))|>
+  group_by(Indicator)|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = area)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #Valley
+  group_by(ValleyName)|>  
+  mutate(Outcome_ValScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_ValScaled    = ifelse(is.nan(Outcome_ValScaled), 0, Outcome_ValScaled)) |>
+  #YrType
+  group_by(ValleyName, Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
+
+Trend_Valley_ANAEvegetation <- Timeseries_Valley_ANAEvegetation |>
+    filter(year>=2009)|>
+    group_by(Indicator, ValleyName)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
+
+Condition_Valley_ANAEvegetation <- Timeseries_Valley_ANAEvegetation |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, ValleyName, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_ValScaled_mean = mean(Outcome_ValScaled),
+              Outcome_ValScaled_SE = plotrix::std.error(Outcome_ValScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
+
+Condition_Trend_Valley_ANAEvegetation <- left_join(Condition_Valley_ANAEvegetation, Trend_Valley_ANAEvegetation, by = join_by(Indicator, ValleyName))
+
+#Basin
+Timeseries_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
+  ungroup()|>
+  group_by(Indicator)|>
+  filter(!is.na(area))|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = area)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #YrType
+  group_by(Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
+
+Trend_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
+    filter(year>=2009 & year != 2023)|>
+    group_by(Indicator)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
+
+Condition_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
+
+Condition_Trend_Basin_ANAEvegetation <- left_join(Condition_Basin_ANAEvegetation, Trend_Basin_ANAEvegetation, by = join_by(Indicator))
+```
+## Joins
+```{r}
+Indicators_keep <- c('black box adult', 'black box recruitment', 'coolabah adult', 'coolabah recruitment',  'lignum adult', 'lignum recruitment',  'red gum adult', 'red gum recruitment')
+
+Condition_Trend_Valley <- bind_rows(    st_drop_geometry(Condition_Trend_Valley_EWRconnectivity),
+st_drop_geometry(Condition_Trend_Valley_ANAEdiversity),
+st_drop_geometry(Condition_Trend_Valley_ANAEinundation),
+st_drop_geometry(filter(Condition_Trend_Valley_ANAEvegetation, Indicator %in% Indicators_keep)))
+
+Condition_Trend_Basin <- bind_rows(    st_drop_geometry(Condition_Trend_Basin_EWRconnectivity),
+st_drop_geometry(Condition_Trend_Basin_ANAEdiversity),
+st_drop_geometry(Condition_Trend_Basin_ANAEinundation),
+st_drop_geometry(filter(Condition_Trend_Basin_ANAEvegetation, Indicator %in% Indicators_keep)))
+
+Timeseries_Valley <- bind_rows(st_drop_geometry(Timeseries_Valley_EWRconnectivity),
+st_drop_geometry(Timeseries_Valley_ANAEdiversity),
+st_drop_geometry(Timeseries_Valley_ANAEinundation),
+st_drop_geometry(filter(Timeseries_Valley_ANAEvegetation, stage == "recruitment" | stage == "adult")))
+
+Timeseries_Basin <- bind_rows(st_drop_geometry(Timeseries_Basin_EWRconnectivity),
+st_drop_geometry(Timeseries_Basin_ANAEdiversity),
+st_drop_geometry(Timeseries_Basin_ANAEinundation),
+st_drop_geometry(filter(Timeseries_Basin_ANAEvegetation, stage == "recruitment" | stage == "adult")))
+
+Timeseries_Basin$ValleyName <- "Basin wide"
+
+Timeseries <- bind_rows(Timeseries_Valley, Timeseries_Basin)
+
+```
 
 ## Stepping through scaling
 
@@ -1352,1239 +1162,370 @@ ggsave(plot = CS_example_plot, filename = file.path(plot_path, paste0("CS_exampl
        width = 8, height = 8)
 ```
 
-## LATERALconnectivity - Valley
-
-i dont seem to have gauges in the: "Avoca"        "Kiewa"        "Mitta Mitta"  "Upper Murray" "Wimmera" 
+## LATERALconnectivity - EXAMPLE - Barwon Darling
 
 ```{r}
 #Timeseries
-Plot_Timeseries_Valley_LATERALconnectivity <- ggplot(data = Timeseries_Valley_LATERALconnectivity, aes(x = year, y = Outcome_IS))+
+Plot_Timeseries_BarwonDarling_LATERALconnectivity <- ggplot(data = filter(Timeseries_Valley_EWRconnectivity, Indicator == "Lateral connectivity" & ValleyName == "Barwon Darling") , aes(x = year, y = Outcome))+
   geom_line(colour = "grey80")+
   geom_point(aes(colour = Climate_Category))+#, colour = "black")+
   scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Lateral connectivity IS")+
+  theme_bw()+
+  theme(strip.background =element_rect(fill=NA),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  facet_wrap(~ValleyName)+
+  labs(x = "Year", colour = "SWC", y = "Lateral connectivity (EWR achieved)")+
   theme(axis.text.x = element_text(angle = 90))+
   ylim(0,1)+ 
-  xlim(1900,NA)
+  xlim(1988,NA)
 
-Plot_Timeseries_Valley_LATERALconnectivity
+Plot_Timeseries_BarwonDarling_LATERALconnectivity
 
-ggsave(plot = Plot_Timeseries_Valley_LATERALconnectivity, filename = file.path(plot_path, paste0("Plot_Timeseries_Valley_LATERALconnectivity", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 8)
+ggsave(plot = Plot_Timeseries_BarwonDarling_LATERALconnectivity, filename = file.path(plot_path, paste0("Plot_Timeseries_BarwonDarling_LATERALconnectivity", "_", Sys.Date(), ".tiff")), device = "tiff",
+       width = 5, height = 3)
+
+Timeseries_Valley_EWRconnectivity$Climate_Category
 
 #Boxplot
-Boxplot_Timeseries_Valley_LATERALconnectivity <- ggplot(data = Timeseries_Valley_LATERALconnectivity, 
-       aes(x = Climate_Category, y = Outcome_IS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
+Boxplot_Timeseries_BarwonDarling_LATERALconnectivity <- ggplot(data = filter(Timeseries_Valley_EWRconnectivity, Indicator == "Lateral connectivity" & ValleyName == "Barwon Darling" & year > 1988
+                                                                             & !is.na(Climate_Category)), 
+       aes(x = Climate_Category, y = Outcome, colour = Climate_Category))+
+  geom_boxplot(aes())+#, colour = "black")+
   scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Lateral connectivity IS")+
+  facet_wrap(~ValleyName)+
+  theme_bw()+
+  theme(strip.background =element_rect(fill=NA),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  labs(x = "SWC", colour = "SWC", y = "Lateral connectivity (EWR achieved)")+
+  theme(axis.text.x = element_text(angle = 90))
+
+Boxplot_Timeseries_BarwonDarling_LATERALconnectivity
+
+ggsave(plot = Boxplot_Timeseries_BarwonDarling_LATERALconnectivity, filename = file.path(plot_path, paste0("Boxplot_Timeseries_BarwonDarling_LATERALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
+       width = 5, height = 3)
+
+#Timeseries - Climate category scaled for trend
+Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity <- ggplot(data = filter(Timeseries_Valley_EWRconnectivity, Indicator == "Lateral connectivity" & ValleyName == "Barwon Darling" & year>=2009), 
+                                                            aes(x = year, y = Outcome_YrTypeScaled))+
+  geom_line(colour = "grey80")+
+  geom_point(colour = "black")+ # i think keep these points black so it doesn't look weird that all the very wet points fall at the bottom??
+  geom_smooth(formula = "y ~ x", method = "lm", colour = "black") +
+  theme_bw()+
+  theme(strip.background =element_rect(fill=NA),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  facet_wrap(~ValleyName)+
+  labs(x = "Year", colour = "SWC", y = "Lateral connectivity (EWR achieved)")+
   theme(axis.text.x = element_text(angle = 90))+
   ylim(0,1)
 
-Boxplot_Timeseries_Valley_LATERALconnectivity
+Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity
 
-ggsave(plot = Boxplot_Timeseries_Valley_LATERALconnectivity, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Valley_LATERALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
+ggsave(plot = Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity, filename = file.path(plot_path, paste0("Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity", "_", Sys.Date(), ".tiff")), device = "tiff",
+       width = 5, height = 3)
+```
+## LIST OF VALLEYS BY INDICATOR:
+```{r}
+#MAKE LIST OF VALLEYS BY INDICATORS:
+Valley_indicator_list <- tibble(
+  IndicatorX = (sort(rep(unique(Timeseries$Indicator), 
+                           times = length(unique(Timeseries$ValleyName))))),
+  ValleyNameY = (rep(unique(Timeseries$ValleyName), 
+                     times = length(unique(Timeseries$Indicator)))),
+)
 
-#Map Climate Categories 
-#NEED TO JOIN GEOMETRY
-Tagg_ClimCats_Valley_LATERALconnectivity <- Timeseries_Valley_LATERALconnectivity|>
-  group_by(ValleyName, geometry, Climate_Category)|>
-  reframe(Outcome_IS = weighted.mean(Outcome_IS, year))
+# EXCLUSIONS:
+#Some valleys dont have EWRs - cannot assess lateral or longitudinal connectivity
+Valleys_no_EWRs <- c("Avoca", "Kiewa", "Mitta Mitta", "Upper Murray", "Wimmera")
+Indicators_no_EWRs <- c("Longitudinal connectivity", "Lateral connectivity")
+
+#Castlereagh does not have CF or BF EWRs (only SF LF and OB) - cannot assess longitudinal connectivity
+Valley_indicator_list<- Valley_indicator_list |>
+  filter(!(ValleyNameY == "Castlereagh" & IndicatorX == "Longitudinal connectivity"))|>
+  filter(!(ValleyNameY %in% Valleys_no_EWRs & IndicatorX %in% Indicators_no_EWRs))
+
+#Tibble should have this many rows:
+312 - 1 - 10
 
 
-Map_Tagg_ClimCats_Valley_LATERALconnectivity <- ggplot(data = Tagg_ClimCats_Valley_LATERALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Lateral connectivity IS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
 
-Map_Tagg_ClimCats_Valley_LATERALconnectivity
-
-ggsave(plot = Map_Tagg_ClimCats_Valley_LATERALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Valley_LATERALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Valley_LATERALconnectivity <- Timeseries_Valley_LATERALconnectivity |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(ValleyName, geometry, timeperiod) |>
-  reframe(Outcome_IS = mean(Outcome_IS))
-
-Map_Tagg_PrePostBP_Valley_LATERALconnectivity <- ggplot(data = Tagg_PrePostBP_Valley_LATERALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1), na.value="white") +
-  labs(fill = "Lateral connectivity IS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Valley_LATERALconnectivity
-
-ggsave(plot = Map_Tagg_PrePostBP_Valley_LATERALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Valley_LATERALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
 ```
 
-## LATERALconnectivity - Basin
+## Timeseries plots
+<!-- # BRoken works for lateral but not longitudinal???? same for Central Murray. -->
+ #BASIN PLOTS
 
 ```{r}
 #Timeseries
-Plot_Timeseries_Basin_LATERALconnectivity <- ggplot(data = Timeseries_Basin_LATERALconnectivity, aes(x = year, y = Outcome_IS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  #facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Lateral connectivity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)+ 
-  xlim(1900,NA)
 
-Plot_Timeseries_Basin_LATERALconnectivity
+Plot_Timeseries <- function(IndicatorX, ValleyNameY, data) {
+ data1 <- data |>
+    filter(Indicator == IndicatorX & ValleyName == ValleyNameY)
+  
+ plot1 <- ggplot(data = data1, aes(x = year, y = Outcome))+
+    geom_line(colour = "grey80")+
+    geom_point(aes(colour = Climate_Category))+#, colour = "black")+
+    scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+    theme_bw()+
+    theme(strip.background =element_rect(fill=NA),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())+
+    facet_wrap(~ValleyName)+
+    labs(x = "Year", colour = "SWC", y = unique(data1$Label))+
+    theme(axis.text.x = element_text(angle = 90))
+  
+ ggsave(plot = plot1, 
+         filename = file.path(plot_path, "Timeseries", paste0("Plot_Timeseries_", 
+                                                              stringr::str_remove_all(unique(data1$ValleyName), ' '), "_",
+                                                              stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         device = "tiff", width = 5, height = 3)
+}
 
-ggsave(plot = Plot_Timeseries_Basin_LATERALconnectivity, filename = file.path(plot_path, paste0("Plot_Timeseries_Basin_LATERALconnectivity", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 4)
+# RUN and SAVE PLOT
+purrr::pmap(Valley_indicator_list, ~Plot_Timeseries(IndicatorX = .x, ValleyNameY = .y, data = Timeseries))
 
-#Boxplot
-Boxplot_Timeseries_Basin_LATERALconnectivity <- ggplot(data = Timeseries_Basin_LATERALconnectivity, 
-       aes(x = Climate_Category, y = Outcome_IS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Lateral connectivity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
+#Valley_indicator_list<- Valley_indicator_list[271,]
 
-Boxplot_Timeseries_Basin_LATERALconnectivity
-
-ggsave(plot = Boxplot_Timeseries_Basin_LATERALconnectivity, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Basin_LATERALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Basin_LATERALconnectivity <- Timeseries_Basin_LATERALconnectivity|>
-  group_by(Climate_Category, geometry)|>
-  reframe(Outcome_IS = weighted.mean(Outcome_IS, year))
-
-Map_Tagg_ClimCats_Basin_LATERALconnectivity <- ggplot(data = Tagg_ClimCats_Basin_LATERALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Lateral connectivity IS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Basin_LATERALconnectivity
-
-ggsave(plot = Map_Tagg_ClimCats_Basin_LATERALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Basin_LATERALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Basin_LATERALconnectivity <- Timeseries_Basin_LATERALconnectivity |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(timeperiod, geometry) |>
-  reframe(Outcome_IS = mean(Outcome_IS))
-
-Map_Tagg_PrePostBP_Basin_LATERALconnectivity <- ggplot(data = Tagg_PrePostBP_Basin_LATERALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Lateral connectivity IS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Basin_LATERALconnectivity
-
-ggsave(plot = Map_Tagg_PrePostBP_Basin_LATERALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Basin_LATERALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
 ```
 
-## LONGITUDINALconnectivity - Valley
+## Boxplots
 
 ```{r}
-#Timeseries
-Plot_Timeseries_Valley_LONGITUDINALconnectivity <- ggplot(data = Timeseries_Valley_LONGITUDINALconnectivity, aes(x = year, y = Outcome_IS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
+#boxplots
+
+Plot_Boxplots <- function(IndicatorX, ValleyNameY, data) {
+ data1 <- data |>
+    filter(Indicator == IndicatorX & ValleyName == ValleyNameY)|>
+    filter(year > 1988)|>
+    filter(!is.na(Climate_Category))
+    
+ plot1 <- ggplot(data = data1, 
+       aes(x = Climate_Category, y = Outcome, colour = Climate_Category))+
+  geom_boxplot(aes())+#, colour = "black")+
   scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Longitudinal connectivity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)+ 
-  xlim(1900,NA)
+  facet_wrap(~ValleyName)+
+  theme_bw()+
+  theme(strip.background =element_rect(fill=NA),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  labs(x = "SWC", colour = "SWC", y = unique(data1$Label))+
+  theme(axis.text.x = element_text(angle = 90))
 
-Plot_Timeseries_Valley_LONGITUDINALconnectivity
+ ggsave(plot = plot1, 
+         filename = file.path(plot_path, "Boxplots", paste0("Boxplot_Timeseries_", unique(data1$name_clean), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         device = "tiff", width = 5, height = 3)
+ 
+}
 
-ggsave(plot = Plot_Timeseries_Valley_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Plot_Timeseries_Valley_LONGITUDINALconnectivity", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 8)
+# RUN and SAVE PLOT
+purrr::pmap(Valley_indicator_list, ~Plot_Boxplots(IndicatorX = .x, ValleyNameY = .y, data = Timeseries))
 
-#Boxplot
-Boxplot_Timeseries_Valley_LONGITUDINALconnectivity <- ggplot(data = Timeseries_Valley_LONGITUDINALconnectivity, 
-       aes(x = Climate_Category, y = Outcome_IS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Longitudinal connectivity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
+#Valley_indicator_list<- Valley_indicator_list[101,]
 
-Boxplot_Timeseries_Valley_LONGITUDINALconnectivity
-
-ggsave(plot = Boxplot_Timeseries_Valley_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Valley_LONGITUDINALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Valley_LONGITUDINALconnectivity <- Timeseries_Valley_LONGITUDINALconnectivity|>
-  group_by(ValleyName, Climate_Category, geometry)|>
-  reframe(Outcome_IS = weighted.mean(Outcome_IS, year))
-
-Map_Tagg_ClimCats_Valley_LONGITUDINALconnectivity <- ggplot(data = Tagg_ClimCats_Valley_LONGITUDINALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Longitudinal connectivity IS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Valley_LONGITUDINALconnectivity
-
-ggsave(plot = Map_Tagg_ClimCats_Valley_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Valley_LONGITUDINALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Valley_LONGITUDINALconnectivity <- Timeseries_Valley_LONGITUDINALconnectivity |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(ValleyName, geometry, timeperiod) |>
-  reframe(Outcome_IS = mean(Outcome_IS))
-
-Map_Tagg_PrePostBP_Valley_LONGITUDINALconnectivity <- ggplot(data = Tagg_PrePostBP_Valley_LONGITUDINALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Longitudinal connectivity IS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Valley_LONGITUDINALconnectivity
-
-ggsave(plot = Map_Tagg_PrePostBP_Valley_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Valley_LONGITUDINALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
 ```
 
-## LONGITUDINALconnectivity - Basin
+# Trend timeseries
 
 ```{r}
-#Timeseries
-Plot_Timeseries_Basin_LONGITUDINALconnectivity <- ggplot(data = Timeseries_Basin_LONGITUDINALconnectivity, aes(x = year, y = Outcome_IS))+
+#Trend timeseries
+
+Plot_Trend_Timeseries <- function(IndicatorX, ValleyNameY, data) {
+ data1 <- data |>
+    filter(Indicator == IndicatorX & ValleyName == ValleyNameY)|>
+    filter(year >= 2009)|>
+    filter(!is.na(Climate_Category))
+    
+ plot1 <- ggplot(data = data1, 
+       aes(x = year, y = Outcome_YrTypeScaled))+
   geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  #facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Longitudinal connectivity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)+ 
-  xlim(1900,NA)
+  geom_point(colour = "black")+ # i think keep these points black so it doesn't look weird that all the very wet points fall at the bottom??
+  geom_smooth(formula = "y ~ x", method = "lm", colour = "black") +
+  theme_bw()+
+  theme(strip.background =element_rect(fill=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  facet_wrap(~ValleyName)+
+  labs(x = "Year", y = unique(data1$Label))+
+  theme(axis.text.x = element_text(angle = 90))
 
-Plot_Timeseries_Basin_LONGITUDINALconnectivity
+ ggsave(plot = plot1, 
+         filename = file.path(plot_path, "Trend", paste0("Trend_Timeseries_", unique(data1$name_clean), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         device = "tiff", width = 5, height = 3)
+ 
+}
 
-ggsave(plot = Plot_Timeseries_Basin_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Plot_Timeseries_Basin_LONGITUDINALconnectivity", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 4)
+# RUN and SAVE PLOT
+purrr::pmap(Valley_indicator_list, ~Plot_Trend_Timeseries(IndicatorX = .x, ValleyNameY = .y, data = Timeseries))
 
-#Boxplot
-Boxplot_Timeseries_Basin_LONGITUDINALconnectivity <- ggplot(data = Timeseries_Basin_LONGITUDINALconnectivity, 
-       aes(x = Climate_Category, y = Outcome_IS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Longitudinal connectivity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
+#Valley_indicator_list<- Valley_indicator_list[34,]
 
-Boxplot_Timeseries_Basin_LONGITUDINALconnectivity
+# Timeseries|>
+#     filter(Indicator == Valley_indicator_list[34,]$IndicatorX & ValleyName == Valley_indicator_list[34,]$ValleyNameY)
 
-ggsave(plot = Boxplot_Timeseries_Basin_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Basin_LONGITUDINALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Basin_LONGITUDINALconnectivity <- Timeseries_Basin_LONGITUDINALconnectivity|>
-  group_by(Climate_Category)|>
-  reframe(Outcome_IS = weighted.mean(Outcome_IS, year))
-Tagg_ClimCats_Basin_LONGITUDINALconnectivity$geometry <- basin$geometry
-
-
-Map_Tagg_ClimCats_Basin_LONGITUDINALconnectivity <- ggplot(data = Tagg_ClimCats_Basin_LONGITUDINALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Longitudinal connectivity IS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Basin_LONGITUDINALconnectivity
-
-ggsave(plot = Map_Tagg_ClimCats_Basin_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Basin_LONGITUDINALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Basin_LONGITUDINALconnectivity <- Timeseries_Basin_LONGITUDINALconnectivity |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(timeperiod) |>
-  reframe(Outcome_IS = mean(Outcome_IS))
-Tagg_PrePostBP_Basin_LONGITUDINALconnectivity$geometry <- basin$geometry
-
-Map_Tagg_PrePostBP_Basin_LONGITUDINALconnectivity <- ggplot(data = Tagg_PrePostBP_Basin_LONGITUDINALconnectivity,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Longitudinal connectivity IS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Basin_LONGITUDINALconnectivity
-
-ggsave(plot = Map_Tagg_PrePostBP_Basin_LONGITUDINALconnectivity, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Basin_LONGITUDINALconnectivity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
 ```
+## Connecting Inundation to EWR lateral connectivity 
+```{r}
+Timeseries_Connecting_Basin <- Timeseries |>
+  ungroup()|>
+  filter(ValleyName == "Basin wide")|>
+  select(ValleyName, Indicator, year, Outcome_BasScaled, Climate_Category)|>
+  filter(Indicator == "ANAE inundation" | Indicator == "Lateral connectivity")|>
+  pivot_wider(names_from = Indicator, values_from = Outcome_BasScaled)
 
-## ANAEdiversity - Valley
+plot1 <- ggplot(data = Timeseries_Connecting_Basin, aes(x = `Lateral connectivity`, y = `ANAE inundation`))+
+    smplot2::sm_statCorr(corr_method = 'spearman', colour = "black")+
+    geom_point(aes(colour = Climate_Category))+
+    scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+    theme_bw()+
+    theme(strip.background =element_rect(fill=NA),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())+
+    facet_wrap(~ValleyName)+
+    labs(colour = "SWC")+
+    theme(axis.text.x = element_text(angle = 90))
+
+ ggsave(plot = plot1, 
+         filename = file.path(plot_path, "Inundation_correlation", paste0("CorrelationPlot_", 
+                                                              stringr::str_remove_all(unique(Timeseries_Connecting_Basin$ValleyName), ' '), "_", Sys.Date(), ".tiff")), 
+         device = "tiff", width = 5, height = 3)
+
+```
+## Connecting Inundation to EWR lateral connectivity 
 
 ```{r}
-#Timeseries
-Plot_Timeseries_Valley_ANAEdiversity <- ggplot(data = Timeseries_Valley_ANAEdiversity, aes(x = year, y = Outcome_IS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "ANAE diversity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)#+ 
-  #xlim(1900,NA)
-
-Plot_Timeseries_Valley_ANAEdiversity
-
-ggsave(plot = Plot_Timeseries_Valley_ANAEdiversity, filename = file.path(plot_path, paste0("Plot_Timeseries_Valley_ANAEdiversity", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 8)
-
-#Boxplot
-Boxplot_Timeseries_Valley_ANAEdiversity <- ggplot(data = Timeseries_Valley_ANAEdiversity, 
-       aes(x = Climate_Category, y = Outcome_IS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "ANAE diversity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Valley_ANAEdiversity
-
-ggsave(plot = Boxplot_Timeseries_Valley_ANAEdiversity, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Valley_ANAEdiversity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity|>
-  group_by(ValleyName, Climate_Category, geometry)|>
-  reframe(Outcome_IS = weighted.mean(Outcome_IS, year))
-
-Map_Tagg_ClimCats_Valley_ANAEdiversity <- ggplot(data = Tagg_ClimCats_Valley_ANAEdiversity,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "ANAE diversity IS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Valley_ANAEdiversity
-
-ggsave(plot = Map_Tagg_ClimCats_Valley_ANAEdiversity, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Valley_ANAEdiversity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |> 
+## Connecting Inundation to EWR lateral connectivity 
+Plot_Timeseries_ANAEInundation_EWRLateralconnectivity <- function(IndicatorX, ValleyNameY, data) {
+ data1 <- data |>
   ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(ValleyName, geometry, timeperiod) |>
-  reframe(Outcome_IS = mean(Outcome_IS))
+  filter(ValleyName == ValleyNameY)|>
+  select(ValleyName, Indicator, year, Outcome_ValScaled, Climate_Category)|>
+  filter(Indicator == "ANAE inundation" | Indicator == "Lateral connectivity")|>
+  pivot_wider(names_from = Indicator, values_from = Outcome_ValScaled)
+  
+ plot1 <- ggplot(data = data1, aes(x = `Lateral connectivity`, y = `ANAE inundation`))+
+    smplot2::sm_statCorr(corr_method = 'spearman', colour = "black")+
+    geom_point(aes(colour = Climate_Category))+
+    scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+    theme_bw()+
+    theme(strip.background =element_rect(fill=NA),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())+
+    facet_wrap(~ValleyName)+
+    labs(colour = "SWC")+
+    theme(axis.text.x = element_text(angle = 90))
+  
+ ggsave(plot = plot1, 
+         filename = file.path(plot_path, "Inundation_correlation", paste0("CorrelationPlot_", 
+                                                              stringr::str_remove_all(unique(data1$ValleyName), ' '), "_",
+                                                              stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         device = "tiff", width = 5, height = 3)
+}
 
-Map_Tagg_PrePostBP_Valley_ANAEdiversity <- ggplot(data = Tagg_PrePostBP_Valley_ANAEdiversity,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "ANAE diversity IS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
+#SUBSET LIST
+Valley_indicator_list_subset <- Valley_indicator_list |>
+  filter(IndicatorX == "Lateral connectivity")
 
-Map_Tagg_PrePostBP_Valley_ANAEdiversity
+# RUN and SAVE PLOT
+purrr::pmap(Valley_indicator_list_subset, ~Plot_Timeseries_ANAEInundation_EWRLateralconnectivity(IndicatorX = .x, ValleyNameY = .y, data = Timeseries))
 
-ggsave(plot = Map_Tagg_PrePostBP_Valley_ANAEdiversity, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Valley_ANAEdiversity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
+#Valley_indicator_list<- Valley_indicator_list[271,]
 
-#Trend
-# TREND PLOT HERE
+
+Timeseries |>
+  filter(ValleyName == "Basin wide")|>
+  filter(Indicator == "ANAE inundation" | Indicator == "Lateral connectivity")
+
 ```
-
-## ANAEdiversity - Basin
-
-```{r}
-#Timeseries
-Plot_Timeseries_Basin_ANAEdiversity <- ggplot(data = Timeseries_Basin_ANAEdiversity, aes(x = year, y = Outcome_IS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  #facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "ANAE diversity IS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)#+ 
-  #xlim(1900,NA)
-
-Plot_Timeseries_Basin_ANAEdiversity
-
-ggsave(plot = Plot_Timeseries_Basin_ANAEdiversity, filename = file.path(plot_path, paste0("Plot_Timeseries_Basin_ANAEdiversity", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 4)
-
-#Boxplot
-Boxplot_Timeseries_Basin_ANAEdiversity <- ggplot(data = Timeseries_Basin_ANAEdiversity, 
-       aes(x = Climate_Category, y = Outcome_IS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "ANAE diversity IS")+
-  theme(axis.text.x = element_text(angle = 90))#+
-  #ylim(0,1)
-
-Boxplot_Timeseries_Basin_ANAEdiversity
-
-ggsave(plot = Boxplot_Timeseries_Basin_ANAEdiversity, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Basin_ANAEdiversity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity|>
-  group_by(Climate_Category)|>
-  reframe(Outcome_IS = weighted.mean(Outcome_IS, year))
-Tagg_ClimCats_Basin_ANAEdiversity$geometry <- basin$geometry
-
-
-Map_Tagg_ClimCats_Basin_ANAEdiversity <- ggplot(data = Tagg_ClimCats_Basin_ANAEdiversity,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "ANAE diversity IS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Basin_ANAEdiversity
-
-ggsave(plot = Map_Tagg_ClimCats_Basin_ANAEdiversity, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Basin_ANAEdiversity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(timeperiod) |>
-  reframe(Outcome_IS = mean(Outcome_IS))
-Tagg_PrePostBP_Basin_ANAEdiversity$geometry <- basin$geometry
-
-Map_Tagg_PrePostBP_Basin_ANAEdiversity <- ggplot(data = Tagg_PrePostBP_Basin_ANAEdiversity,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_IS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "ANAE diversity IS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Basin_ANAEdiversity
-
-ggsave(plot = Map_Tagg_PrePostBP_Basin_ANAEdiversity, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Basin_ANAEdiversity","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
-```
-
-## BLACKBOX CS - Valley
-
-```{r}
-#Timeseries
-Plot_Timeseries_Valley_BLACKBOX <- ggplot(data = Timeseries_Valley_BLACKBOXcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Plot_Timeseries_Valley_BLACKBOX
-
-ggsave(plot = Plot_Timeseries_Valley_BLACKBOX, filename = file.path(plot_path, paste0("Plot_Timeseries_Valley_BLACKBOX", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 8)
-
-#Boxplot
-Boxplot_Timeseries_Valley_BLACKBOX <- ggplot(data = Timeseries_Valley_BLACKBOXcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Valley_BLACKBOX
-
-ggsave(plot = Boxplot_Timeseries_Valley_BLACKBOX, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Valley_BLACKBOX","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Valley_BLACKBOXcs <- Timeseries_Valley_BLACKBOXcs|>
-  group_by(ValleyName, Climate_Category, geometry)|>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = weighted.mean(Outcome_CS, year))
-
-Map_Tagg_ClimCats_Valley_BLACKBOX <- ggplot(data = Tagg_ClimCats_Valley_BLACKBOXcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Valley_BLACKBOX
-
-ggsave(plot = Map_Tagg_ClimCats_Valley_BLACKBOX, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Valley_BLACKBOX","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Valley_BLACKBOXcs <- Timeseries_Valley_BLACKBOXcs |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(ValleyName, geometry, timeperiod) |>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = mean(Outcome_CS))
-
-Map_Tagg_PrePostBP_Valley_BLACKBOX <- ggplot(data = Tagg_PrePostBP_Valley_BLACKBOXcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Valley_BLACKBOX
-
-ggsave(plot = Map_Tagg_PrePostBP_Valley_BLACKBOX, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Valley_BLACKBOX","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
-```
-
-## BLACKBOX CS - Basin
-
-```{r}
-#Timeseries
-Plot_Timeseries_Basin_BLACKBOX <- ggplot(data = Timeseries_Basin_BLACKBOXcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  #facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Plot_Timeseries_Basin_BLACKBOX
-
-ggsave(plot = Plot_Timeseries_Basin_BLACKBOX, filename = file.path(plot_path, paste0("Plot_Timeseries_Basin_BLACKBOX", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 4)
-
-#Boxplot
-Boxplot_Timeseries_Basin_BLACKBOX <- ggplot(data = Timeseries_Basin_BLACKBOXcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Basin_BLACKBOX
-
-ggsave(plot = Boxplot_Timeseries_Basin_BLACKBOX, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Basin_BLACKBOX","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Basin_BLACKBOXcs <- Timeseries_Basin_BLACKBOXcs|>
-  group_by(Climate_Category)|>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = weighted.mean(Outcome_CS, year))
-Tagg_ClimCats_Basin_BLACKBOXcs$geometry <- basin$geometry
-
-
-Map_Tagg_ClimCats_Basin_BLACKBOX <- ggplot(data = Tagg_ClimCats_Basin_BLACKBOXcs,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Basin_BLACKBOX
-
-ggsave(plot = Map_Tagg_ClimCats_Basin_BLACKBOX, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Basin_BLACKBOX","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Basin_BLACKBOXcs <- Timeseries_Basin_BLACKBOXcs |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(timeperiod) |>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = mean(Outcome_CS))
-Tagg_PrePostBP_Basin_BLACKBOXcs$geometry <- basin$geometry
-
-Map_Tagg_PrePostBP_Basin_BLACKBOX <- ggplot(data = Tagg_PrePostBP_Basin_BLACKBOXcs,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Basin_BLACKBOX
-
-ggsave(plot = Map_Tagg_PrePostBP_Basin_BLACKBOX, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Basin_BLACKBOX","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
-```
-
-## REDGUM CS - Valley
+ 
+ 
+ 
+## Condition and Trend Values
  
 ```{r}
-#Timeseries
-Plot_Timeseries_Valley_REDGUM <- ggplot(data = Timeseries_Valley_REDGUMcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
+write.csv(
+  Condition_Trend_Basin,
+  file.path(plot_path, "Condition_and_Trend_values", paste0("Condition_and_Trend_Basin", "_", Sys.Date(), ".csv")))
 
-Plot_Timeseries_Valley_REDGUM
-
-ggsave(plot = Plot_Timeseries_Valley_REDGUM, filename = file.path(plot_path, paste0("Plot_Timeseries_Valley_REDGUM", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 8)
-
-#Boxplot
-Boxplot_Timeseries_Valley_REDGUM <- ggplot(data = Timeseries_Valley_REDGUMcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Valley_REDGUM
-
-ggsave(plot = Boxplot_Timeseries_Valley_REDGUM, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Valley_REDGUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Valley_REDGUMcs <- Timeseries_Valley_REDGUMcs|>
-  group_by(ValleyName, Climate_Category, geometry)|>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = weighted.mean(Outcome_CS, year))
-
-Map_Tagg_ClimCats_Valley_REDGUM <- ggplot(data = Tagg_ClimCats_Valley_REDGUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Valley_REDGUM
-
-ggsave(plot = Map_Tagg_ClimCats_Valley_REDGUM, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Valley_REDGUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Valley_REDGUMcs <- Timeseries_Valley_REDGUMcs |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(ValleyName, geometry, timeperiod) |>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = mean(Outcome_CS))
-
-Map_Tagg_PrePostBP_Valley_REDGUM <- ggplot(data = Tagg_PrePostBP_Valley_REDGUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Valley_REDGUM
-
-ggsave(plot = Map_Tagg_PrePostBP_Valley_REDGUM, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Valley_REDGUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
+write.csv(
+  Condition_Trend_Valley,
+  file.path(plot_path, "Condition_and_Trend_values", paste0("Condition_and_Trend_Valley", "_", Sys.Date(), ".csv")))
 ```
 
-## REDGUM CS - Basin
- 
+## TILE plots
+
 ```{r}
-#Timeseries
-Plot_Timeseries_Basin_REDGUM <- ggplot(data = Timeseries_Basin_REDGUMcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  #facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
 
-Plot_Timeseries_Basin_REDGUM
-
-ggsave(plot = Plot_Timeseries_Basin_REDGUM, filename = file.path(plot_path, paste0("Plot_Timeseries_Basin_REDGUM", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 4)
-
-#Boxplot
-Boxplot_Timeseries_Basin_REDGUM <- ggplot(data = Timeseries_Basin_REDGUMcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Basin_REDGUM
-
-ggsave(plot = Boxplot_Timeseries_Basin_REDGUM, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Basin_REDGUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Basin_REDGUMcs <- Timeseries_Basin_REDGUMcs|>
-  group_by(Climate_Category)|>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = weighted.mean(Outcome_CS, year))
-Tagg_ClimCats_Basin_REDGUMcs$geometry <- basin$geometry
-
-
-Map_Tagg_ClimCats_Basin_REDGUM <- ggplot(data = Tagg_ClimCats_Basin_REDGUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Basin_REDGUM
-
-ggsave(plot = Map_Tagg_ClimCats_Basin_REDGUM, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Basin_REDGUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Basin_REDGUMcs <- Timeseries_Basin_REDGUMcs |> 
+Condition_Trend_Basin_data <- Condition_Trend_Basin |>
   ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(timeperiod) |>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = mean(Outcome_CS))
-Tagg_PrePostBP_Basin_REDGUMcs$geometry <- basin$geometry
+  group_by()|>
+  mutate(estimate_scaled = estimate + 0.5)|>
+  select(-term)|>
+  mutate(estimate_scaled = estimate + 0.5)|>
+  pivot_longer(cols = c(Outcome_TotalScaled_mean, Outcome_BasScaled_mean, Outcome_YrTypeScaled_mean, estimate_scaled), names_to = "Variable", values_to = "Value")|>
+  mutate(Error = case_when(Variable == "Outcome_TotalScaled_mean" ~ Outcome_TotalScaled_SE,
+                           Variable == "Outcome_BasScaled_mean" ~ Outcome_BasScaled_SE,
+                           Variable == "Outcome_YrTypeScaled_mean" ~ Outcome_YrTypeScaled_SE,
+                           Variable == "estimate_scaled" ~ std.error))|>
+  mutate(Condition = ifelse(Value > 0.75, "Very good",
+                       ifelse(Value > 0.50, "Good",
+                        ifelse(Value == 0.50, "No slope",
+                              ifelse(Value > 0.25, "Poor",
+                                     ifelse(Value >= 0.00, "Very poor", "NOT SURE"))))))
 
-Map_Tagg_PrePostBP_Basin_REDGUM <- ggplot(data = Tagg_PrePostBP_Basin_REDGUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
+ggplot(data = Condition_Trend_Basin_data, 
+       aes(x = Variable, y = Indicator, fill = Condition))+
+  geom_tile()+
+  #scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+  #geom_smooth(colour = "grey20", linewidth = 0.5)+
+  theme_werp_toolkit()+
+  labs(x = "Year", colour = "SWC", y = "Indicator")+
+  theme(axis.text.x = element_text(angle = 90))
 
-Map_Tagg_PrePostBP_Basin_REDGUM
+Tile_plot1
 
-ggsave(plot = Map_Tagg_PrePostBP_Basin_REDGUM, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Basin_REDGUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
+ggsave(plot = Tile_plot1, filename = file.path(plot_path, paste0("Tile_plot_AVOCA", Sys.Date(), ".tiff")), device = "tiff",
+       width = 4, height = 8)
 
-#Trend
-# TREND PLOT HERE
+
+
+Tile_plot2 <- ggplot(data = filter(All_indicators_summary, Indicator == "ANAEdiversity"), 
+       aes(x = name, y = ValleyName, fill = value))+
+  geom_tile()+
+  #scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+  #geom_smooth(colour = "grey20", linewidth = 0.5)+
+  theme_werp_toolkit()+
+  #labs(x = "Year", colour = "SWC", y = "Indicator")+
+  theme(axis.text.x = element_text(angle = 90))
+
+Tile_plot2
+
+ggsave(plot = Tile_plot2, filename = file.path(plot_path, paste0("Tile_plot_ANAEdiversity", Sys.Date(), ".tiff")), device = "tiff",
+       width = 4, height = 8)
+-1*-1
+
 ```
 
-## LIGNUM CS - Valley
- 
+
+
+
+
+## Add geometry 
+
 ```{r}
-#Timeseries
-Plot_Timeseries_Valley_LIGNUM <- ggplot(data = Timeseries_Valley_LIGNUMcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
 
-Plot_Timeseries_Valley_LIGNUM
 
-ggsave(plot = Plot_Timeseries_Valley_LIGNUM, filename = file.path(plot_path, paste0("Plot_Timeseries_Valley_LIGNUM", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 8)
+#EWRconnectivity
+Timeseries_Valley_EWRconnectivity <- left_join(Timeseries_Valley_EWRconnectivity, cewo_valleys, by = join_by(ValleyName))
 
-#Boxplot
-Boxplot_Timeseries_Valley_LIGNUM <- ggplot(data = Timeseries_Valley_LIGNUMcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
+Timeseries_Basin_EWRconnectivity$geometry <- basin$geometry
 
-Boxplot_Timeseries_Valley_LIGNUM
-
-ggsave(plot = Boxplot_Timeseries_Valley_LIGNUM, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Valley_LIGNUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Valley_LIGNUMcs <- Timeseries_Valley_LIGNUMcs|>
-  group_by(ValleyName, Climate_Category, geometry)|>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = weighted.mean(Outcome_CS, year))
-
-Map_Tagg_ClimCats_Valley_LIGNUM <- ggplot(data = Tagg_ClimCats_Valley_LIGNUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Valley_LIGNUM
-
-ggsave(plot = Map_Tagg_ClimCats_Valley_LIGNUM, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Valley_LIGNUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Valley_LIGNUMcs <- Timeseries_Valley_LIGNUMcs |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(ValleyName, geometry, timeperiod) |>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = mean(Outcome_CS))
-
-Map_Tagg_PrePostBP_Valley_LIGNUM <- ggplot(data = Tagg_PrePostBP_Valley_LIGNUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Valley_LIGNUM
-
-ggsave(plot = Map_Tagg_PrePostBP_Valley_LIGNUM, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Valley_LIGNUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
 ```
 
-## LIGNUM CS - Basin
- 
+## MAPs - not done yet
+
 ```{r}
-#Timeseries
-Plot_Timeseries_Basin_LIGNUM <- ggplot(data = Timeseries_Basin_LIGNUMcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  #facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Plot_Timeseries_Basin_LIGNUM
-
-ggsave(plot = Plot_Timeseries_Basin_LIGNUM, filename = file.path(plot_path, paste0("Plot_Timeseries_Basin_LIGNUM", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 4)
-
-#Boxplot
-Boxplot_Timeseries_Basin_LIGNUM <- ggplot(data = Timeseries_Basin_LIGNUMcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Basin_LIGNUM
-
-ggsave(plot = Boxplot_Timeseries_Basin_LIGNUM, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Basin_LIGNUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Basin_LIGNUMcs <- Timeseries_Basin_LIGNUMcs|>
-  group_by(Climate_Category)|>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = weighted.mean(Outcome_CS, year))
-Tagg_ClimCats_Basin_LIGNUMcs$geometry <- basin$geometry
-
-
-Map_Tagg_ClimCats_Basin_LIGNUM <- ggplot(data = Tagg_ClimCats_Basin_LIGNUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Basin_LIGNUM
-
-ggsave(plot = Map_Tagg_ClimCats_Basin_LIGNUM, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Basin_LIGNUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Basin_LIGNUMcs <- Timeseries_Basin_LIGNUMcs |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(timeperiod) |>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = mean(Outcome_CS))
-Tagg_PrePostBP_Basin_LIGNUMcs$geometry <- basin$geometry
-
-Map_Tagg_PrePostBP_Basin_LIGNUM <- ggplot(data = Tagg_PrePostBP_Basin_LIGNUMcs,  
-       aes(geometry = geometry)) +
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Basin_LIGNUM
-
-ggsave(plot = Map_Tagg_PrePostBP_Basin_LIGNUM, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Basin_LIGNUM","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
-```
-
-## COOLABAH CS - Valley
- 
-```{r}
-#Timeseries
-Plot_Timeseries_Valley_COOLABAH <- ggplot(data = Timeseries_Valley_COOLABAHcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Plot_Timeseries_Valley_COOLABAH
-
-ggsave(plot = Plot_Timeseries_Valley_COOLABAH, filename = file.path(plot_path, paste0("Plot_Timeseries_Valley_COOLABAH", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 8)
-
-#Boxplot
-Boxplot_Timeseries_Valley_COOLABAH <- ggplot(data = Timeseries_Valley_COOLABAHcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Valley_COOLABAH
-
-ggsave(plot = Boxplot_Timeseries_Valley_COOLABAH, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Valley_COOLABAH","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Climate Categories
-Tagg_ClimCats_Valley_COOLABAHcs <- Timeseries_Valley_COOLABAHcs|>
-  group_by(ValleyName, Climate_Category, geometry)|>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = weighted.mean(Outcome_CS, year))
-
-Map_Tagg_ClimCats_Valley_COOLABAH <- ggplot(data = Tagg_ClimCats_Valley_COOLABAHcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "") +
-  facet_wrap(~Climate_Category)
-
-Map_Tagg_ClimCats_Valley_COOLABAH
-
-ggsave(plot = Map_Tagg_ClimCats_Valley_COOLABAH, filename = file.path(plot_path, paste0("Map_Tagg_ClimCats_Valley_COOLABAH","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Map Pre and Post basin plan
-Tagg_PrePostBP_Valley_COOLABAHcs <- Timeseries_Valley_COOLABAHcs |> 
-  ungroup()|>
-  mutate(timeperiod = case_when((year > lubridate::year(currenttimestart) & 
-                                   year < lubridate::year(currenttimeend)) ~ 'Current',
-                                (year > lubridate::year(preBPtimestart) & 
-                                    year < lubridate::year(preBPtimeend)) ~ 'Pre-BP',
-                                .default = 'other')) |> 
-  filter(timeperiod != 'other') |> 
-  mutate(timeperiod = factor(timeperiod, levels = c('Pre-BP', 'Current'))) |> 
-  group_by(ValleyName, geometry, timeperiod) |>
-  filter(!is.nan(Outcome_CS) & !is.na(Outcome_CS))|>
-  reframe(Outcome_CS = mean(Outcome_CS))
-
-Map_Tagg_PrePostBP_Valley_COOLABAH <- ggplot(data = Tagg_PrePostBP_Valley_COOLABAHcs,  
-       aes(geometry = geometry)) +
-  geom_sf(data = cewo_valleys, aes(geometry = geometry), fill = NA)+
-  geom_sf(aes(fill = Outcome_CS))+
-  #geom_sf_text(aes(label = ValleyName), colour = "red", size = 3)+
-  theme_werp_toolkit() +
-  paletteer::scale_fill_paletteer_c('grDevices::Viridis',
-                      limits = c(0,1)) +
-  labs(fill = "Black box CS", y = "", x = "", colour = "")+
-  facet_wrap(~timeperiod)
-
-Map_Tagg_PrePostBP_Valley_COOLABAH
-
-ggsave(plot = Map_Tagg_PrePostBP_Valley_COOLABAH, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Valley_COOLABAH","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
-#Trend
-# TREND PLOT HERE
-```
-
-## COOLABAH CS - Basin
- 
-```{r}
-#Timeseries
-Plot_Timeseries_Basin_COOLABAH <- ggplot(data = Timeseries_Basin_COOLABAHcs, aes(x = year, y = Outcome_CS))+
-  geom_line(colour = "grey80")+
-  geom_point(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  geom_smooth(colour = "grey20", linewidth = 0.5)+
-  theme_werp_toolkit()+
-  #facet_wrap(~ValleyName, scales = "free_y", ncol = 3)+
-  labs(x = "Year", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Plot_Timeseries_Basin_COOLABAH
-
-ggsave(plot = Plot_Timeseries_Basin_COOLABAH, filename = file.path(plot_path, paste0("Plot_Timeseries_Basin_COOLABAH", "_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 6, height = 4)
-
-#Boxplot
-Boxplot_Timeseries_Basin_COOLABAH <- ggplot(data = Timeseries_Basin_COOLABAHcs, 
-       aes(x = Climate_Category, y = Outcome_CS))+
-  geom_boxplot(aes(colour = Climate_Category))+#, colour = "black")+
-  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
-  #facet_wrap(~Climate_category.data, scales = "free_y", ncol = 3)+
-  theme_werp_toolkit()+
-  labs(x = "SWC", colour = "SWC", y = "Black box CS")+
-  theme(axis.text.x = element_text(angle = 90))+
-  ylim(0,1)
-
-Boxplot_Timeseries_Basin_COOLABAH
-
-ggsave(plot = Boxplot_Timeseries_Basin_COOLABAH, filename = file.path(plot_path, paste0("Boxplot_Timeseries_Basin_COOLABAH","_", Sys.Date(), ".tiff")), device = "tiff",
-       width = 8, height = 8)
-
 #Map Climate Categories
 Tagg_ClimCats_Basin_COOLABAHcs <- Timeseries_Basin_COOLABAHcs|>
   group_by(Climate_Category)|>
@@ -2638,34 +1579,10 @@ Map_Tagg_PrePostBP_Basin_COOLABAH
 ggsave(plot = Map_Tagg_PrePostBP_Basin_COOLABAH, filename = file.path(plot_path, paste0("Map_Tagg_PrePostBP_Basin_COOLABAH","_", Sys.Date(), ".tiff")), device = "tiff",
        width = 8, height = 8)
 
-#Trend
-# TREND PLOT HERE
 ```
 
+```{r}
+nrow(Valley_indicator_list)*3 + nrow(Valley_indicator_list_subset)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
