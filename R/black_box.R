@@ -23,7 +23,8 @@ black_box <- function(out_dir,
   # No more than 70 days inundation
   # and it needs to happen following germination
 
-  # How long is the seedling period? say 6mo
+  # How long is the seedling period? say 6mo; Seems to be some evidence 6mo
+  # seedlings can withstand at least a bit of drying and flooding (roberts)
   seedling_period_month <- 6
 
   # The germ window is a period within seed_period_days during which germ can occur. This has to

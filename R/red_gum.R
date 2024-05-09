@@ -21,10 +21,10 @@ red_gum <- function(out_dir,
   # Immersion of young seedlings <25cm for 'several months' is fatal. Assume that's in the 6mo period.
   # and it needs to happen following germination
 
-  # How long is the seedling period? say 6mo
-  seedling_period_month <- 6
+  # How long is the seedling period? say 4.5mo (18 weeks, roberts)
+  seedling_period_month <- 4.5
 
-  # No inundation 'several months'. Let's say 1 bimonth OK, 2 is a fail. This is
+  # No inundation 'several months', '70 days' (roberts). Let's say 1 bimonth OK, 2 is a fail. This is
   # in months, so I guess say 3, it gets ceilinged in the fun
   too_long_inun <- 3
 
@@ -33,7 +33,8 @@ red_gum <- function(out_dir,
   # assess soil moisture for a full seedling_period_days, but if germ occurs in the
   # first bit of length germ_window, it counts. So the length of seedling period = germ_window +
   # minimum seedling period.
-  germ_window <- 60
+  # According to Roberts, 6 weeks has some capacity to withstand floods, 14-18 basically good. So let's say 12 as a lower bound? that gives 42 days between 12 weeks and 18
+  germ_window <- 42
 
   # Stage 3: Adults
   # At least one flood in 4 years (max inter-flood dry period)

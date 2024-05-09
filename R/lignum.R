@@ -21,8 +21,8 @@ lignum <- function(out_dir,
   # Immersion of young seedlings <25cm for 1 month is fatal (cites in EWKR).
   # and it needs to happen following germination
 
-  # How long is the seedling period? say 6mo, despite it being a year in Holloway
-  seedling_period_month <- 6
+  # How long is the seedling period? Capon used 3monht old for an experiment, and they were super resilient.
+  seedling_period_month <- 3
 
   # No inundation longer than 1 month. Let's say any subsequent inundation is a fail. There are lots of references to not liking being waterlogged.
   too_long_inun <- 1
@@ -32,7 +32,7 @@ lignum <- function(out_dir,
   # assess soil moisture for a full seedling_period_days, but if germ occurs in the
   # first bit of length germ_window, it counts. So the length of seedling period = germ_window +
   # minimum seedling period. I suppose stick with two months here.
-  germ_window <- 60
+  germ_window <- 30
 
   # Stage 3: Adults
   # At least one flood in 10 years (max inter-flood dry period) Capon in Roberts and Marston 2011
