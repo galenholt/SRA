@@ -120,10 +120,66 @@ woody_general <- function(out_dir, catchment,
   # In both cases, we develop the stricture at the end, but we read in the ALA side here.
   anae_types <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_anae_type.rds')))
 
-
-  # Stricture 1: Germination
-
+  # the set of times.
   times <- stars::st_get_dimension_values(anae_inun$aggdata, 'time')
+
+
+# Strictures --------------------------------------------------------------
+
+  # Stage 1 (reference): Adults
+
+  # How do we calculate this? We want the maximum area flooded in floodinterval
+  # years, minus the area that flooded too much
+  # We get the area that flooded too much by getting the minimum area flooded
+  # for maxflood (+2) months, which is too long. Then we want to subtract that off the
+  # total area during floodinterval years. And that piece we subtract off should
+  # be the max over floodinterval of the too-flooded areas in maxflood periods
+
+  # unlike above, where rolling and producing NA was fine, here I need 0s.
+
+  if (length(adult_maxflood) == 0 | is.null(adult_maxflood)) {
+    inun_adult_inter <- anae_inun$aggdata * 0
+  } else {
+    # The min inundation over maxflood is the amount that fails that test
+    inun_adult_long <- timeRoll(anae_inun$aggdata,
+                                FUN = RcppRoll::roll_min,
+                                rolln = adult_maxflood,
+                                align = 'right',
+                                na.rm = TRUE)
+
+    # Then we need the MAX of that over floodinterval years, as this is the amount that doesn't count in the floodinterval-year check because it was too wet
+    inun_adult_inter <- timeRoll(inun_adult_long,
+                                 FUN = RcppRoll::roll_max,
+                                 rolln = adult_floodinterval,
+                                 align = 'right',
+                                 na.rm = TRUE)
+  }
+
+  # 'times' gives the season
+  noadulttimes <- which(!lubridate::month(times) %in% a_month)
+  # Only the area of inundation if in the right season
+  # We may not actually need this at all- if we do the soil moisture it'll pick this up, with the time shifts around month starts, which is better anyway
+  adult_inun_season <- anae_inun$aggdata
+  adult_inun_season[[1]][ , noadulttimes] <- 0
+
+  # The max inun over floodinterval years is the amount that passes the floodinterval-year requirement
+  # i.e we want the max inundation over the floodinterval, but only those events  that occurred in a_months
+  inun_adult_all <- timeRoll(adult_inun_season,
+                             FUN = RcppRoll::roll_max,
+                             rolln = adult_floodinterval,
+                             align = 'right',
+                             na.rm = TRUE)
+
+  # and the area that passes both is the difference. Note we don't put the seasonality on the adult_inter, since those durations aren't seasonal.
+  adult_area <- inun_adult_all-inun_adult_inter
+
+  # rm(inun_adult_inter, inun_adult_all, adult_inun_season)
+
+  rlang::inform(glue::glue("Adults done in {round(Sys.time() - starttime)} seconds."))
+
+
+  # Stricture 2: Germination
+
   # Easier to set 0 than 1
   nogermtimes <- which(!lubridate::month(times) %in% g_month)
 
@@ -175,12 +231,27 @@ woody_general <- function(out_dir, catchment,
   germ_area <- soilmoist_germdays
   germ_area[[1]] <- pmin(shift_inun, soilmoist_germdays[[1]])
 
-  rm(soilmoist_germdays)
+  # Now, a version contingent on adult presence at the start of the germination
+  # period. Again, unevenTimeMult is a bit to simple to just use alone, but we
+  # can abuse it to make a daily sequenece
+  daily_adult <- unevenTimeMult(fineStars = germ_area*0+1,
+                               coarseStars = adult_area,
+                               lag = 0)
+
+  shift_adult <- daily_adult[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
+  shift_adult <- cbind(shift_adult, daily_adult[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
+
+  # rm(daily_adult)
+
+  adult_germ_area <- germ_area
+  adult_germ_area[[1]] <- pmin(shift_adult, germ_area[[1]])
+
+  rm(soilmoist_germdays, shift_inun, shift_adult)
 
   rlang::inform(glue::glue("Germination done in {round(Sys.time() - starttime)} seconds."))
 
 
-  # Stage 2: Seedling survival
+  # Stage 3: Seedling survival
 
   # soil moisture- the data is the daily area between 10-30, so we want the minimum of that over the last seedling period.
   soilmoist_seedling <- timeRoll(soilmoist_polys$aggdata,
@@ -248,8 +319,9 @@ woody_general <- function(out_dir, catchment,
   # first bit, it counts. So the length of seedling period = germ_window +
   # minimum seedling period. To get that for each day, we can roll_max for x
   # days to get whether there was germ sometime in that 2mo window
+  # Make this life-cycle, so use the germ dependent on adult, not straight germ
 
-  germ_span <- timeRoll(germ_area,
+  germ_span <- timeRoll(adult_germ_area,
                         FUN = RcppRoll::roll_max,
                         rolln = germ_window,
                         align = 'right',
@@ -275,65 +347,12 @@ woody_general <- function(out_dir, catchment,
 
   # now the area that germinated AND then survived a seedling stage ranging from
   # min_seedling_period_days to seedling_period_days is the minimum
-  germ_and_seed <- seedling_area
-  germ_and_seed[[1]] <- pmin(seedling_area[[1]], germ_span_shift)
+  adult_germ_seed_area <- seedling_area
+  adult_germ_seed_area[[1]] <- pmin(seedling_area[[1]], germ_span_shift)
 
   rm(germ_span, germ_span_shift)
 
   rlang::inform(glue::glue("Seedlings done in {round(Sys.time() - starttime)} seconds."))
-
-
-  # Stage 3: Adults
-
-  # How do we calculate this? We want the maximum area flooded in floodinterval
-  # years, minus the area that flooded too much
-  # We get the area that flooded too much by getting the minimum area flooded
-  # for maxflood (+2) months, which is too long. Then we want to subtract that off the
-  # total area during floodinterval years. And that piece we subtract off should
-  # be the max over floodinterval of the too-flooded areas in maxflood periods
-
-  # unlike above, where rolling and producing NA was fine, here I need 0s.
-
-  if (length(adult_maxflood) == 0 | is.null(adult_maxflood)) {
-    inun_adult_inter <- anae_inun$aggdata * 0
-  } else {
-    # The min inundation over maxflood is the amount that fails that test
-    inun_adult_long <- timeRoll(anae_inun$aggdata,
-                                FUN = RcppRoll::roll_min,
-                                rolln = adult_maxflood,
-                                align = 'right',
-                                na.rm = TRUE)
-
-    # Then we need the MAX of that over floodinterval years, as this is the amount that doesn't count in the floodinterval-year check because it was too wet
-    inun_adult_inter <- timeRoll(inun_adult_long,
-                                 FUN = RcppRoll::roll_max,
-                                 rolln = adult_floodinterval,
-                                 align = 'right',
-                                 na.rm = TRUE)
-  }
-
-  # we don't have season for black box, but to make things consistent
-  # We already have 'times' from above
-  noadulttimes <- which(!lubridate::month(times) %in% a_month)
-  # Only the area of inundation if in the right season
-  # We may not actually need this at all- if we do the soil moisture it'll pick this up, with the time shifts around month starts, which is better anyway
-  adult_inun_season <- anae_inun$aggdata
-  adult_inun_season[[1]][ , noadulttimes] <- 0
-
-  # The max inun over floodinterval years is the amount that passes the floodinterval-year requirement
-  # i.e we want the max inundation over the floodinterval, but only those events  that occurred in a_months
-  inun_adult_all <- timeRoll(adult_inun_season,
-                             FUN = RcppRoll::roll_max,
-                             rolln = adult_floodinterval,
-                             align = 'right',
-                             na.rm = TRUE)
-
-  # and the area that passes both is the difference. Note we don't put the seasonality on the adult_inter, since those durations aren't seasonal.
-  adult_area <- inun_adult_all-inun_adult_inter
-
-  rm(inun_adult_inter, inun_adult_all, adult_inun_season)
-
-  rlang::inform(glue::glue("Adults done in {round(Sys.time() - starttime)} seconds."))
 
 
   # Common post-processing --------------------------------------------------
@@ -342,9 +361,10 @@ woody_general <- function(out_dir, catchment,
   # I think the best way to do this is to make them a list, and then use purrr. Otherwise it's a TON of copy-paste
 
   # the anae_inun stuff is done elsewhere, but good to not have to go hunting
-  bare_stricts <- tibble::lst(germ_area, seedling_area, germ_and_seed, adult_area, anae_inun = anae_inun$aggdata)
+  bare_stricts <- tibble::lst(adult_area, germ_area, seedling_area, adult_germ_area, adult_germ_seed_area, anae_inun = anae_inun$aggdata)
 
-  rm(germ_area, seedling_area, germ_and_seed, adult_area, anae_inun)
+  rm(adult_area, germ_area, seedling_area,
+     adult_germ_area, adult_germ_seed_area, anae_inun)
 
   # Aggregate to year -------------------------------------------------------
 
@@ -481,7 +501,7 @@ woody_general <- function(out_dir, catchment,
 #   geom_line(data = response_list$anae_inun_anae_ala, mapping = aes(x = date, y = area), color = 'black') +
 #   geom_line(data = response_list$germ_area_anae_ala, mapping = aes(x = date, y = area), color = 'green') +
 #   geom_line(data = response_list$seedling_area_anae_ala, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = response_list$germ_and_seed_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
+#   geom_line(data = response_list$adult_germ_seed_area_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
 #   geom_line(data = response_list$adult_area_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
 # #
 # #
@@ -489,5 +509,5 @@ woody_general <- function(out_dir, catchment,
 #   geom_line(data = response_list$anae_inun, mapping = aes(x = date, y = area), color = 'black') +
 #   geom_line(data = response_list$germ_area, mapping = aes(x = date, y = area), color = 'green') +
 #   geom_line(data = response_list$seedling_area, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = response_list$germ_and_seed, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
+#   geom_line(data = response_list$adult_germ_seed_area, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
 #   geom_line(data = response_list$adult_area, mapping = aes(x = date, y = area), color = 'blue')
