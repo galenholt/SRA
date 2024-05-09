@@ -37,6 +37,8 @@ Bring in data. I really wanted a read and concat function for this in diversity,
 
 ```{r}
 catch_cat_sf <- function(which_strict, outerdir, catchments = cleancatch) {
+  
+  outerdir <- paste0('habprocesspaper/', outerdir)
   foreach(i = catchments,
           .combine = dplyr::bind_rows,
           .multicombine = TRUE) %do% {
@@ -81,19 +83,6 @@ seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area', x) |>
   bind_rows()
 ```
 
-### Germination and seedlings
-
-The life cycle is sequential, and so what we are interested in ultimately is regeneration success; that is, germination and subsequent survival. Here, we as whether conditions supported seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper two, it actually takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
-
-```{r}
-germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed', x) |> 
-  # There's no data prior ot 1988
-  filter(date > lubridate::ymd(19880101)) |> 
-  mutate(stage = 'recruitment',
-         species = x)) |> 
-  bind_rows()
-```
-
 ### Adult condition
 
 Here, we assess area of favourable adult condition, primarily as a consequence of inundation duration and periods between events. This is not connected to the regeneration due to the length of available data and tree life spans.
@@ -107,10 +96,32 @@ adult <- purrr::map(species, \(x) catch_cat_sf('adult_area', x) |>
   bind_rows()
 ```
 
+### Adult and germ
+
+The life cycle is sequential, and so what we are interested in ultimately is regeneration success; that is, germination and subsequent survival. Here, we as whether conditions supported seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper two, it actually takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
+
+```{r}
+adult_germ <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area', x) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'adult_germ',
+         species = x)) |> 
+  bind_rows()
+```
+
+```{r}
+adult_germ_seed <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area', x) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'full_cycle',
+         species = x)) |> 
+  bind_rows()
+```
+
 ### All together
 
 ```{r}
-all_strictures <- bind_rows(germ, seed, germ_and_seed, adult)
+all_strictures <- bind_rows(adult, germ, seed, adult_germ, adult_germ_seed)
 ```
 
 ### Basin
@@ -157,6 +168,26 @@ basin_time_plots <- function(species, stage) {
 }
 ```
 
+### Adults
+
+```{r}
+adult_catch_time <- purrr::map(species, \(x) catch_time_plots(x, 'adult'))
+
+print(adult_catch_time)
+```
+
+```{r}
+adult_maps <- purrr::map(species, \(x) catch_maps(x, 'adult'))
+print(adult_maps)
+```
+
+```{r}
+adult_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'adult'))
+
+print(adult_basin_time)
+```
+
+
 ### Germ
 
 ```{r}
@@ -195,40 +226,40 @@ seed_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'seedling'))
 print(seed_basin_time)
 ```
 
-### Germ followed by seedling
+### Adult followed by germ
 
 ```{r}
-germ_and_seed_catch_time <- purrr::map(species, \(x) catch_time_plots(x, 'recruitment'))
+adult_germ_catch_time <- purrr::map(species, \(x) catch_time_plots(x, 'adult_germ'))
 
-print(germ_and_seed_catch_time)
+print(adult_germ_catch_time)
 ```
 
 ```{r}
-germ_and_seed_maps <- purrr::map(species, \(x) catch_maps(x, 'recruitment'))
-print(germ_and_seed_maps)
+adult_germ_maps <- purrr::map(species, \(x) catch_maps(x, 'adult_germ'))
+print(adult_germ_maps)
 ```
 
 ```{r}
-germ_and_seed_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'recruitment'))
+adult_germ_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'adult_germ'))
 
-print(germ_and_seed_basin_time)
+print(adult_germ_basin_time)
 ```
-
-### Adults
+### Full life cycle
 
 ```{r}
-adult_catch_time <- purrr::map(species, \(x) catch_time_plots(x, 'adult'))
+adult_germ_seed_catch_time <- purrr::map(species, \(x) catch_time_plots(x, 'full_cycle'))
 
-print(adult_catch_time)
-```
-
-```{r}
-adult_maps <- purrr::map(species, \(x) catch_maps(x, 'adult'))
-print(adult_maps)
+print(adult_germ_seed_catch_time)
 ```
 
 ```{r}
-adult_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'adult'))
-
-print(adult_basin_time)
+adult_germ_seed_maps <- purrr::map(species, \(x) catch_maps(x, 'full_cycle'))
+print(adult_germ_seed_maps)
 ```
+
+```{r}
+adult_germ_seed_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'full_cycle'))
+
+print(adult_germ_seed_basin_time)
+```
+
