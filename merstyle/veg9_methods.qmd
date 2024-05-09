@@ -35,21 +35,13 @@ Three primary life stages for each species were modeled; adults, regeneration (g
 Inundation and soil moisture requirements for four species of wetland-dependent woody vegetation in the Murray-Darling Basin, with references. Because inundation data is bimonthly, seasonality has been approximated as closely as possible given the limitations of those two-month units, and statements such as 'several months of inundation' have been translated to \> 2 months.
 :::
 
-Conditions favourable for each life stage were assessed both independently and as part of a life cycle. For example, conditions may be favourable for seedling survival, but if there were no preceding germination, then we would say that conditions were not favourable for overall recruitment. These species can be very long-lived as adults (hundreds of years) and do not have persistent soil seed banks [@roberts2011]. Thus, we consider the 'reference' stage of the population cycle to be adults. To incorporate the life cycle into the stricture calculations, regeneration (germination or sprouting) requires the presence of adults to provide seeds or stems and recruitment requires successful regeneration to provide the initial stock of growing seedlings. Conceptually, new adult recruitment would require these seedlings. However, due to the short data availability relative to adult persistence and the simplicity of the model, we do not create a fully-dynamic population model. Instead, we interpret the outcome of the adults-regeneration-recruitment sequence as favourable conditions for recruitment to the persistent adult stage.
+Conditions favourable for each life stage were assessed both independently and as part of a life cycle. For example, conditions may be favourable for seedling survival, but if there was no preceding germination, then we would say that conditions were not favourable for overall recruitment. These species can be very long-lived as adults (hundreds of years) and do not have persistent soil seed banks [@roberts2011]. Thus, we consider the 'reference' stage of the population cycle to be adults. To incorporate the life cycle into the stricture calculations, regeneration (germination or sprouting) requires the presence of adults to provide seeds or stems and recruitment requires successful regeneration to provide the initial stock of growing seedlings. Conceptually, new adult recruitment would require these seedlings. However, due to the short data availability relative to adult persistence and the simplicity of the model, we do not create a fully-dynamic population model. Instead, we interpret the outcome of the adults-regeneration-recruitment sequence as favourable conditions for recruitment to the persistent adult stage.
 
-*Feels like discussion, but might be needed here to justify*: The conditions defined here are certainly a subset of the requirements for maintaining viable populations. Other life stages exist, other requirements exist for these life stages, and reality is far more nuanced. However, those chosen here form the primary types of requirements listed in major works about woody vegetation in the basin, [e.g. @rogers2011; @roberts2011] and are those for which there is the best available information in the literature. Most importantly, the requirements here cause very large differences between life stages and species. Thus, while additional research would provide better models, the responses seen here are striking and the qualitative messages are unlikely to change as a more nuanced understanding of the biological processes develops.
+*Feels like discussion, but might be needed here to justify*: The conditions defined here are a subset of the requirements for maintaining viable populations. Other life stages exist, other requirements exist for these life stages, and reality is far more nuanced. However, those chosen here form the primary types of requirements listed in major works about woody vegetation in the basin, [e.g. @rogers2011; @roberts2011] and are those for which there is the best available information in the literature. Most importantly, the requirements here cause very large differences between life stages and species. Thus, while additional research would provide better models, the responses seen here are striking and the qualitative messages are unlikely to change as a more nuanced understanding of the biological processes develops.
 
 ### Processing strictures
 
 To assess the
-
-Some notes to add:
-
--   Because inundation data is bimonthly, several months could be 3 or 4 or really anything \> 2.
-
--   I have listed the specific months used to best approximate seasonal statement from sources, given the bimonthly data.
-
--   
 
 ## Habitat favourability
 
