@@ -877,6 +877,95 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 geom_point()
 ```
 
+### Maps over the period
+
+Get the relativisations for each catchment over the period. Do the mean over the period on the area, *then* relativise
+
+```{r}
+# Get the time-mean
+# fastest to drop geometry and re-add
+# first pull the unique geom off to re-join
+valleys <- ltimNoNorth |> 
+  select(-ValleyID, -ValleyCode) |> 
+  mutate(name_orig = ValleyName,
+         ValleyName = stringr::str_remove_all(ValleyName, ' '))
+
+germ_period <- germ_hab |> 
+  sf::st_drop_geometry() |>
+  summarise(area = mean(area, na.rm = T),
+            .by = c(ValleyName, stage, species)) |> 
+  left_join(valleys) |> 
+  st_as_sf()
+
+hab2germ_period <- germ_period |>  
+  filter(stage %in% c('regeneration', 'regeneration_ala', 'regeneration_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'regeneration',
+                                 group_cols = c('ValleyName', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+germ2name_period <- germ_period |> 
+  filter(stage %in% c('anae_name', 'regeneration_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
+                                 group_cols = c('ValleyName', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+
+germ2ala_period <- germ_period |> 
+  filter(stage %in% c('anae_ala', 'regeneration_ala')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
+                                 group_cols = c('ValleyName', 'species'),
+                                 values_col = 'area', comp_fun = 'relative')
+```
+
+```{r}
+# I want to facet, but the fill scales are too different and scales = free doesn't work.
+name_germ_map <- hab2germ_period |> 
+  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'black_box' & stage %in% c('regeneration_name')) |> 
+ggplot(aes(fill = relative_area)) +
+  geom_sf() +
+  # facet_grid(.~stage, scales = 'free') +
+  scale_fill_viridis_c(option = 'mako') +
+  labs(fill = "Area relative\nto process-based") +
+  ggtitle("Habitat name") +
+  werptoolkitr::theme_werp_toolkit()
+
+ala_germ_map <- hab2germ_period |> 
+  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'black_box' & stage %in% c('regeneration_ala')) |> 
+ggplot(aes(fill = relative_area)) +
+  geom_sf() +
+  # facet_grid(.~stage, scales = 'free') +
+  scale_fill_viridis_c(option = 'mako') +
+  labs(fill = "Area relative\nto process-based") +
+  ggtitle("Habitat records") +
+  werptoolkitr::theme_werp_toolkit()
+
+germ_name_map <- germ2name_period |> 
+  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'black_box' & stage %in% c('regeneration_name')) |> 
+ggplot(aes(fill = relative_area)) +
+  geom_sf() +
+  # facet_grid(.~stage, scales = 'free') +
+  scale_fill_viridis_c(option = 'mako') +
+  labs(fill = "Area relative\nto habitat name") +
+  ggtitle("Process-based") +
+  werptoolkitr::theme_werp_toolkit()
+
+germ_ala_map <- germ2ala_period |> 
+  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'black_box' & stage %in% c('regeneration_ala')) |> 
+ggplot(aes(fill = relative_area)) +
+  geom_sf() +
+  # facet_grid(.~stage, scales = 'free') +
+  scale_fill_viridis_c(option = 'mako') +
+  labs(fill = "Area relative\nto habitat records") +
+  ggtitle("Process-based") +
+  werptoolkitr::theme_werp_toolkit()
+
+(name_germ_map + ala_germ_map) / (germ_name_map + germ_ala_map) +
+  plot_annotation(tag_levels = 'a')
+```
+
 ## Recruitment and habitat
 
 Keeping this straight is tricky, but I'm stopping writing fig caps for now. It follows the same set of logical steps as regeneration alone

@@ -555,6 +555,38 @@ summary_df <- c(bom_summary, state_summary) |> bind_rows()
 readr::write_csv(summary_df, file = file.path(datOut, 'werpstyle', 'gauges', 'gauge_summary.csv'))
 ```
 
+### Export for Alex
+
+```{r}
+wanted_gauges <- readxl::read_xlsx(file.path(datOut, 'werpstyle', 'BoM gauges for Alluvium analyses.xlsx')) |> 
+  select(`gauge...4`) |> 
+  pull()
+```
+
+They're all from states
+
+```{r}
+alluvium_gauges <- state_ts2[which(names(state_ts2) %in% wanted_gauges)]
+
+# drop the duplicate gauge number; it's F and L
+is_level <- purrr::map_lgl(alluvium_gauges, \(x) all(grepl('level', x$variable_name, ignore.case = TRUE)))
+
+alluvium_gauges[is_level] <- NULL
+
+if (!dir.exists(file.path(hydro_dir, 'alluvium_gauges'))) {
+  dir.create(file.path(hydro_dir, 'alluvium_gauges'))
+}
+
+alluvium_gauges |> 
+  purrr::imap(\(x, idx) x |> 
+                dplyr::select(-source) |> 
+                readr::write_csv(file = file.path(hydro_dir,
+                                                  'alluvium',
+                                                  paste0(idx,'.csv'))))
+```
+
+### Make EWR
+
 ```{r}
 make_ewrformat <- function(x) {
   x <- x |> 
@@ -674,10 +706,6 @@ if (!dir.exists(file.path(hydro_dir2, 'historical'))) {
 ```{r}
  readr::write_csv(all_results,
                   file = file.path(hydro_dir2, 'historical', 'historical.csv'))
-```
-
-```{r}
-
 ```
 
 ## Make a summary table
