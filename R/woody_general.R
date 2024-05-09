@@ -170,10 +170,14 @@ woody_general <- function(out_dir, catchment,
                              align = 'right',
                              na.rm = TRUE)
 
-  # and the area that passes both is the difference. Note we don't put the seasonality on the adult_inter, since those durations aren't seasonal.
+  # and the area that passes both is the difference. Note we don't put the
+  # seasonality on the adult_inter, since those durations aren't seasonal. That
+  # means this can actually be negative, if there were more big floods in the
+  # off-season. Set those to 0
   adult_area <- inun_adult_all-inun_adult_inter
+  adult_area[[1]][adult_area[[1]] < 0] <- 0
 
-  # rm(inun_adult_inter, inun_adult_all, adult_inun_season)
+  rm(inun_adult_inter, inun_adult_all, adult_inun_season)
 
   rlang::inform(glue::glue("Adults done in {round(Sys.time() - starttime)} seconds."))
 
@@ -241,7 +245,7 @@ woody_general <- function(out_dir, catchment,
   shift_adult <- daily_adult[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
   shift_adult <- cbind(shift_adult, daily_adult[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
 
-  # rm(daily_adult)
+  rm(daily_adult)
 
   adult_germ_area <- germ_area
   adult_germ_area[[1]] <- pmin(shift_adult, germ_area[[1]])
@@ -378,7 +382,7 @@ woody_general <- function(out_dir, catchment,
 
   # Aggregate to year with meaneven though these are only pseudo-daily. That
   # captures a time-dependence that the max would miss (e.g. one possible string
-  # of 10 days, vs every day).
+  # of 10 days, vs every day). This uses as much time as the rest of the script put together. Should I furrr::future_map()?
   yrstricts <- purrr::map(bare_stricts, \(x)
                           tempaggregate(starObj = x, by = datebreaks,
                                         FUN = mean, na.rm = TRUE) |>
@@ -454,15 +458,6 @@ woody_general <- function(out_dir, catchment,
     purrr::map(\(x) super_aggforce(x, catchpoly, newname = 'area'))
   # response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
   #   purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
-
-
-
-
-
-
-
-
-
 
   # check that nothing is all na
   naareas <- purrr::map_lgl(response_list, \(x) all(is.na(x$area)))
