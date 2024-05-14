@@ -1,15 +1,111 @@
 ---
 title: "Woody Veg Methods"
-format: html
 editor: visual
+echo: false
+format:
+  html:
+    embed-resources: true
+    toc: true
+    comments:
+      hypothesis: true
+  docx:
+    toc: true
+    toc-depth: 2
+    prefer-html: true
+    # setting these to the html defaults so they don't get jumbled between format
+    fig-width: 7
+    fig-height: 5
+    reference-doc: ../default_word_template.docx
 bibliography: references.bib
 ---
 
+```{r setup}
+#| include: false
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r}
+#| include: false
+library(dplyr)
+library(ggplot2)
+library(CC2)
+library(foreach)
+library(kableExtra)
+source('directorySet.R')
+
+```
+
+```{r}
+#| label: background-data
+#| include: false
+
+ausoutline <- rnaturalearth::ne_countries(country = 'australia',
+                                          type = 'countries', scale = 'medium') |> 
+  st_transform(st_crs(ltimNoNorth))
+
+cities <- rnaturalearth::ne_download(type="populated_places_simple", scale = 'small') |> 
+  filter(name %in% c("Canberra", "Adelaide", "Brisbane", "Melbourne", "Sydney"))
+
+# just get the east
+eastbox <- sf::st_bbox(ausoutline)
+eastbox <- c(xmin = 550000, ymin = -4300000, xmax = 2122000, ymax = -1158000)
+
+aucut <- sf::st_crop(ausoutline, eastbox)
+```
+
 # Methods
 
-We model four iconic species of woody vegetation in the Murray-Darling Basin, Red Gum (*Eucalyptus camaldulensis*), Black Box (*Eucalyptus largiflorens*), Coolabah (*Eucalyptus coolabah*), and Lignum (*Muehlenbeckia florulenta*). We consider two approaches to assess favourability for woody vegetation in wetlands, as well as their combination. One approach is to consider the amount of inundation in wetlands of different habitat types, with inundation into the 'correct' habitat type for a species yielding favourable conditions. The other is to use models that capture biological processes to ask whether environmental conditions were favourable for those processes. Finally, we can combine the two, and ask whether environmental conditions were favourable for biological processes to occur in areas of 'correct' habitat.
+We model four iconic species of woody vegetation in the Murray-Darling Basin (@fig-mdb), Red Gum (*Eucalyptus camaldulensis*), Black Box (*Eucalyptus largiflorens*), Coolabah (*Eucalyptus coolabah*), and Lignum (*Muehlenbeckia florulenta*). We consider two approaches to assess favourability for woody vegetation in wetlands, as well as their combination. One approach is to consider the amount of inundation in wetlands of different habitat types, with inundation into the 'correct' habitat type for a species yielding favourable conditions. The other is to use models that capture biological processes to ask whether environmental conditions were favourable for those processes. Finally, we can combine the two, and ask whether environmental conditions were favourable for biological processes to occur in areas of 'correct' habitat.
 
 *We need something here about the logic of comparisons, but that might wait until we firm those comparisons up.*
+
+```{r}
+#| label: fig-mdb
+#| fig-cap: The Murray-Darling basin in Eastern Australia. In this paper, we divide the basin into 25 major catchments, indicated here by color. *Labeling them is terrible because of all the little ones in Victoria, even if we zoom in to just the basin. Do we need to?*
+
+ggplot() +
+  geom_sf(data = aucut) +
+  geom_sf(data = ltimNoNorth, mapping = aes(fill = ValleyName)) +
+  geom_sf(data = cities) +
+  geom_sf_text(data = cities, mapping = aes(label = name)) +
+  # geom_sf_text(data = ltimNoNorth, mapping = aes(label = ValleyName)) +
+  colorspace::scale_fill_discrete_qualitative(palette = 'Harmonic') +
+  theme_bw() +
+  theme(legend.position = 'none', axis.title = element_blank())
+  # coord_sf(crs = st_crs(ltimNoNorth))
+```
+
+## Habitat favourability
+
+For each species, two sets of wetland types were chosen to comprise 'favourable' habitat types. First, a set of ANAE types with the species' name in the type description was chosen, e.g. for red gum, the matching habitat types were 'River red gum forest riparian zone or floodplain', 'River red gum woodland riparian zone or floodplain', and 'Temporary river red gum swamp'. The second set of habitats recognizes that species may be found in other wetland types than those that bear their name. To identify the set of wetland habitat types where a species might be found, we pulled all records from each species from the Atlas of Living Australia using the 'galah' R package (@westgate2024). We then intersected those records with the ANAE polygons, extracting the wetland type (ANAE_DESC) for all polygons with records. This set of wetland types, not the specific polygons, were then used as the types where the species is observed to live. To avoid selecting spurious matches, we selected those habitat types with \> 0.5% of the records for that species. Thus, for each species, we have two sets of habitat types, *key* (defined by name), and *recorded* (defined by ALA records).
+
+*I could also put a map here with the area of both Key and Recorded habitats. Is that useful? Or should it go in results or appendix?*
+
+```{r}
+#| label: tbl-ala-records
+#| tbl-cap: Habitat types with red gum records in Atlas of Living Australia, with number of records. ANAE_DESC is the wetland type from the ANAE. Bold rows with green background are the *Key* records (with the species name in the type). Those in light grey are < 0.5% of the total, and were not included in the set of ALA habitat types used. Similar tables for other species in supplement.
+
+species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
+alatypes <- foreach(i = species,
+                    .combine = bind_rows, .multicombine = TRUE) %do% {
+  readRDS(file.path(datOut, 'vegmapping', paste0(i, '_anae_type.rds'))) |> 
+                        mutate(species = i)
+                    }
+
+rgtab <- alatypes |> 
+  filter(species == 'red_gum') |> 
+  select(ANAE_DESC, Records = n_records) |> 
+  arrange(desc(Records))
+
+cutoff <- which(rgtab$Records < sum(rgtab$Records)*0.005)
+named <- which(grepl('red gum', rgtab$ANAE_DESC, ignore.case = TRUE))
+
+rgtab |> 
+  knitr::kable() |> 
+  kable_styling() |> 
+  row_spec(named, bold = TRUE, background = 'lightgreen') |> 
+  row_spec(cutoff, color = 'grey')
+```
 
 ## Biological favourability
 
@@ -17,42 +113,110 @@ Biological, process-based models were developed with a strictures-and-promoters 
 
 Three primary life stages for each species were modeled; adults, regeneration (germination or sprouting), and seedling survival. For each species, we identified major environmental requirements for each life stage from the literature, each with several environmental requirements @tbl-env-reqs. Favourability for adult condition and survival depends on inundation, with strictures arising from excessive inundation (continuous inundation can waterlog or drown roots), the interval between inundation events (most species require inundation at some frequency), and the season in which those events occur. For regeneration, some species have a favourable season, likely due to temperatures, and all require preceding inundation followed by sustained moisture duration over several days. The seedling stage then extends this requirement for soil moisture over months to allow growth past the cotyledon stage and establishment of robust root systems. While these plants need recurrent flooding for establishment and persistence, the seedling stages tend to be sensitive to excessive flooding, and so we also include seedling failure with prolonged inundation.
 
-::: {#tbl-env-reqs}
-+-----------+---------------------------------------------------------------------------+---------------------------------------+---------------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+-------------------------------------------------+
-| Species   | Regeneration season                                                       | Regeneration moisture duration (days) | Seedling period length (months) | Seedling excessive inundation (months)                                     | Adult excessive inundation (months)       | Adult inundation interval (months)         | Adult inundation season                         |
-+===========+===========================================================================+=======================================+=================================+============================================================================+===========================================+============================================+=================================================+
-| Red gum   | Sept-Dec ('Spring to early summer') [@rogers2011; @johns2009]             | 14 @casanova2015                      | 4.5 @roberts2011                | \>2, 'several months' [@johns2009; @dexter1978]                            | 24 @rogers2011                            | 48 @rogers2011                             | July-Dec ('winter to early summer') @rogers2011 |
-+-----------+---------------------------------------------------------------------------+---------------------------------------+---------------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+-------------------------------------------------+
-| Black box | May-October (Northern basin), November-March (Southern basin) @rogers2011 | 10 @jensen2008                        | 6 @roberts2011                  | \>2, '70 days' @johns2009                                                  | 5 @rogers2011                             | 96 (8 years) @rogers2011                   | year-round @rogers2011                          |
-+-----------+---------------------------------------------------------------------------+---------------------------------------+---------------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+-------------------------------------------------+
-| Coolabah  | Jan-April 'late summer' 'high temperature' [@rogers2011; @roberts2011]    | 14 @casanova2015                      | 6                               | No information [@rogers2011; @durant2016]                                  | No information [@rogers2011; @durant2016] | 240 (20 years) [@rogers2011; @roberts2011] | No data, year-round                             |
-|           |                                                                           |                                       |                                 |                                                                            |                                           |                                            |                                                 |
-|           |                                                                           |                                       |                                 |                                                                            |                                           |                                            | @rogers2011                                     |
-+-----------+---------------------------------------------------------------------------+---------------------------------------+---------------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+-------------------------------------------------+
-| Lignum    | Sept-April 'spring to autumn' [@rogers2011; @casanova2015]                | 14 @casanova2015                      | 3 @capon2009                    | \>1 (any inundation during the seedling period) [@roberts2011; @capon2009] | 12 @rogers2011                            | 120 (10 years) @rogers2011                 | Sept-Dec 'spring- early summer' @rogers2011     |
-+-----------+---------------------------------------------------------------------------+---------------------------------------+---------------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+-------------------------------------------------+
++-----------+-----------------------------------------------------------------------------+---------------------------------------+--------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+---------------------------------------------------+
+| Species   | Regeneration season                                                         | Regeneration moisture duration (days) | Seedling period (months) | Seedling excessive inundation (months)                                     | Adult excessive inundation (months)       | Adult inundation interval (months)         | Adult inundation season                           |
++===========+=============================================================================+=======================================+==========================+============================================================================+===========================================+============================================+===================================================+
+| Red gum   | Sept-Dec ('Spring to early summer') [@rogers2011; @johns2009]               | 14 [@casanova2015]                    | 4.5 [@roberts2011]       | \>2, 'several months' [@johns2009; @dexter1978]                            | 24 [@rogers2011]                          | 48 [@rogers2011]                           | July-Dec ('winter to early summer') [@rogers2011] |
++-----------+-----------------------------------------------------------------------------+---------------------------------------+--------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+---------------------------------------------------+
+| Black box | May-October (Northern basin), November-March (Southern basin) [@rogers2011] | 10 [@jensen2008]                      | 6 [@roberts2011]         | \>2, '70 days' [@johns2009]                                                | 5 [@rogers2011]                           | 96 (8 years) [@rogers2011]                 | year-round [@rogers2011]                          |
++-----------+-----------------------------------------------------------------------------+---------------------------------------+--------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+---------------------------------------------------+
+| Coolabah  | Jan-April 'late summer' 'high temperature' [@rogers2011; @roberts2011]      | 14 [@casanova2015]                    | 6                        | No information [@rogers2011; @durant2016]                                  | No information [@rogers2011; @durant2016] | 240 (20 years) [@rogers2011; @roberts2011] | No data, year-round                               |
+|           |                                                                             |                                       |                          |                                                                            |                                           |                                            |                                                   |
+|           |                                                                             |                                       |                          |                                                                            |                                           |                                            | [@rogers2011]                                     |
++-----------+-----------------------------------------------------------------------------+---------------------------------------+--------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+---------------------------------------------------+
+| Lignum    | Sept-April 'spring to autumn' [@rogers2011; @casanova2015]                  | 14 [@casanova2015]                    | 3 [@capon2009]           | \>1 (any inundation during the seedling period) [@roberts2011; @capon2009] | 12 [@rogers2011]                          | 120 (10 years) [@rogers2011]               | Sept-Dec 'spring- early summer' [@rogers2011]     |
++-----------+-----------------------------------------------------------------------------+---------------------------------------+--------------------------+----------------------------------------------------------------------------+-------------------------------------------+--------------------------------------------+---------------------------------------------------+
 
-Inundation and soil moisture requirements for four species of wetland-dependent woody vegetation in the Murray-Darling Basin, with references. Because inundation data is bimonthly, seasonality has been approximated as closely as possible given the limitations of those two-month units, and statements such as 'several months of inundation' have been translated to \> 2 months.
-:::
+: Inundation and soil moisture requirements for four species of wetland-dependent woody vegetation in the Murray-Darling Basin, with references. Because inundation data is bimonthly, seasonality has been approximated as closely as possible given the limitations of those two-month units, and statements such as 'several months of inundation' have been translated to \> 2 months. {#tbl-env-reqs}
 
 Conditions favourable for each life stage were assessed both independently and as part of a life cycle. For example, conditions may be favourable for seedling survival, but if there was no preceding germination, then we would say that conditions were not favourable for overall recruitment. These species can be very long-lived as adults (hundreds of years) and do not have persistent soil seed banks [@roberts2011]. Thus, we consider the 'reference' stage of the population cycle to be adults. To incorporate the life cycle into the stricture calculations, regeneration (germination or sprouting) requires the presence of adults to provide seeds or stems and recruitment requires successful regeneration to provide the initial stock of growing seedlings. Conceptually, new adult recruitment would require these seedlings. However, due to the short data availability relative to adult persistence and the simplicity of the model, we do not create a fully-dynamic population model. Instead, we interpret the outcome of the adults-regeneration-recruitment sequence as favourable conditions for recruitment to the persistent adult stage.
 
 *Feels like discussion, but might be needed here to justify*: The conditions defined here are a subset of the requirements for maintaining viable populations. Other life stages exist, other requirements exist for these life stages, and reality is far more nuanced. However, those chosen here form the primary types of requirements listed in major works about woody vegetation in the basin, [e.g. @rogers2011; @roberts2011] and are those for which there is the best available information in the literature. Most importantly, the requirements here cause very large differences between life stages and species. Thus, while additional research would provide better models, the responses seen here are striking and the qualitative messages are unlikely to change as a more nuanced understanding of the biological processes develops.
 
-### Processing strictures
-
-To assess the
-
-## Habitat favourability
-
-For each species, two sets of wetland types were chosen to comprise 'favourable' habitat types. First, a set of ANAE types with the species' name in the type description was chosen, e.g. for red gum, the matching habitat types were 'River red gum forest riparian zone or floodplain', 'River red gum woodland riparian zone or floodplain', and 'Temporary river red gum swamp'. The second set of habitats recognizes that species may be found in other wetland types than those that bear their name. To identify the set of wetland habitat types where a species might be found, we pulled all records from each species from the Atlas of Living Australia using the 'galah' R package (@westgate2024). We then intersected those records with the ANAE polygons. To avoid selecting spurious matches, we selected those habitat types with \> 0.5% of the records for that species as the set of habitat types where that species consistently occurs. Thus, for each species, we have two sets of habitat types, one defined by *name*, and another defined by *ala*.
-
-Tables here (well, probably in an appendix).
-
 ## Environmental data
 
-We used two publicly-available datasets to establish environmental conditions- a two-monthly inundation depth layer @teng2023 and a daily soil moisture layer @frost2018, chosen to capture environmental requirements of the species, with inundation also being the typical hydrological proxy of favourability. Both of these datasets were are raster timeseries, and were processed into a set of 287,680 wetland polygons comprising the Australian National Aquatic Ecosystem Classification (ANAE, @brooks2021) spanning the entire Murray-Darling Basin. Processing rasters into polygons yields several advantages stemming from the habitat classifications. The different wetland polygons define different types, and so flexibly account for areas of different sizes and shapes. Moreover, areas outside wetlands can be ignored. This allows much faster processing while dynamically adjusting grain size to match ecologically-relevant habitat units (see Holt et. al. *in review*). We processed the rasters into the polygons using the eFlowEval R package (Holt et. al. *in review*), yielding inundaton and soil moisture timeseries in each polygon. For inundation, the area inundated \> 5mm depth was calculated for each polygon, while for soil moisture, the area of each polygon with soil moisture between 10% and 30% was calculated, reflecting soil moisture requirements for recruitment and seedling survival @jensen2008.
+We used two publicly-available datasets to establish environmental conditions for each model type- a two-monthly inundation depth layer @teng2023 and a daily soil moisture layer @frost2018, chosen to capture environmental requirements of the species, with inundation also being a common hydrological proxy of favourability. Both of these datasets are raster timeseries, and were processed into a set of 287,680 wetland polygons comprising the Australian National Aquatic Ecosystem Classification (ANAE, @brooks2021) spanning the entire Murray-Darling Basin. Processing rasters into polygons yields several advantages stemming from the habitat classifications. The different wetland polygons define different types, and so flexibly account for areas of different sizes and shapes. Moreover, areas outside wetlands can be ignored. This allows much faster processing while dynamically adjusting grain size to match ecologically-relevant habitat units (see Holt et. al. *in review*). We processed the rasters into the polygons using the eFlowEval R package (Holt et. al. *in review*), yielding inundaton and soil moisture timeseries in each polygon. For inundation, the area inundated \> 5mm depth was calculated for each polygon, while for soil moisture, the area of each polygon with soil moisture between 10% and 30% was calculated, reflecting soil moisture requirements for recruitment and seedling survival @jensen2008.
+
+## Assessing favourability
+
+To assess favourability, we calculated the area of favourable conditions in each ANAE polygon at each timestep, as determined by the relevant models using the eFlowEval R package (Holt et. al. *in review*). This package was further used to aggregate the results to yearly timescales and both catchment and basin-scales for presentation and analysis. All analyses were done for each species independently, capturing their different habitats and life-cycle requirements.
+
+To assess favourability based solely on habitat, we started with the raw areas of inundation in every ANAE polygon obtained from processing the environmental data and set those areas to zero unless the polygon had one of the favourable habitat types. Thus, we were left with two outcomes for each species: the area of inundation in *key* habitats (with the species' name) and area of inundation in *recorded* habitats (those with recorded observations in the ALA). These form the *habitat-only* set of results.
+
+To assess favourability from the biological requirements, we constructed a stricture-based model that assessed favourability for adults, germination, and seedling survival, with each species given values for the parameters shown in @tbl-env-reqs. These conditions were assessed at each timestep in each ANAE polygon for each species. The requirements necessarily include not just the current conditions on each day or bimonthly period, but also preceding conditions, e.g. soil moisture must be maintained for some number of days. Thus, in this example, the favourability of each day was determined by whether the preceding required number of days had all met the soil moisture requirement. In addition to assessing favourability to each life stage independently, conditional results were assessed as well. So, for conditional germination to be successful, the germination conditions must be favourable, but there also must have been favourable conditions for adults preceding that germination (typically 10-14 days, @tbl-env-reqs), as these species tend to regenerate from an aerial seedbank or sprouting (@roberts2011). Likewise, successful recruitment requires not only conditions favourable for seedling survival, but also favourable adult and germination conditions at the start of the seedling period so there are seedlings to survive. In these cases, the eFlowEval framework looks back to the start of the stage's period for the favourable area in the preceding stage. The favourable area for the stage conditional on preceding stages is the minimum of this preceding stage area and the area of favourability for the target stage. From these analyses, we return the area of favourability from each stage independently, as well as the area of favourability from regeneration following adults, and for recruitment as the full sequence from adults to regeneration to seedling survival. These form the *biological process-only* set of results.
+
+To assess the joint impacts of habitat and biological requirements, we take the biological process-only results and set the area of favourability to zero unless the polygon had one of the favourable habitat types. We do this twice for each species, using the *key* and *recorded* sets of habitat types. This approach simply says that for an area to be favourable, it has to meet both biological requirements and habitat requirements. If biological requirements aren't met, the area of favourability will be zero, and if habitat requirements aren't met, the same is true. Critically, we use the area of favourability of the biological requirements, not the area of inundation. Thus, the favourable areas here are not the areas of inundation in the relevant habitat, as they were above, but the area within the relevant habitat where biological requirements are met. These *interactive* results provide the basis for our primary analyses; the interactive results tend to reduce the process-based outcomes by restricting them to certain habitat types, while they tend to reduce the habitat-only outcomes by requiring favourable conditions for biological processes to occur within them. *This really is the key to the whole thing. Do we want a little conceptual diagram? Probably not here, but where we lay out the logic of how we're setting up the questions*.
+
+All outputs produced timeseries of the area of favourability in each of the 287,680 ANAE polygons. While this allows very granular modeling as close as possible to the scale of biological processes, for interpretation these were then averaged over the water year (July 1 - June 30) and summed over space (either catchment or the whole basin). *Do we want this caveat, or just wait until a reviewer gives us grief?* Given the nature of the inundation data, averaging over the water year bears caution. The inundation data is the maximum inundation in each two-monthly interval; we do not know how long the water was at that level within the two months, and the average of six maxima is an unusual statistic. However, this was chosen as it gives the best holistic picture available of the extent of inundation in that year. Ongoing inundation is better captured by this metric than by the maximum of the maxima, which would be another reasonable choice. Ultimately, these choices were only made for visualisation; all modeling was done at the scale of the input data and using another statistic like the yearly maximum does not qualitatively change the messages. *Caveat over*. The sums over the catchment or basin simply add up the favourable area in each wetland within the larger spatial unit, giving the total favourable area in the catchment or basin.
+
+## Analyses
+
+I think I'll mostly leave these until the results firm up a bit. Basically need to say a bit more specifically what we do to to the comparisons that end up in the results.
+
+Our analyses explore the favourability for each species as determined by each of the three models (habitat alone, biological process, and interactive), including the two types of habitat specification *key* and *recorded* and the different stages in the life cyle. Our primary interest is in comparing the outcomes of the different modelling choices. We perform these comparisons at different scales (for each of 25 catchments and the whole Murray-Darling Basin, yearly and over the full available period of data 1988-2022). To quantify these differences, we calculate comparisons using both the difference in area between different models, to give the raw change in favourable area from the different model types, and the relative change in area between different models, which provides the proportional impact of model choice, and is particularly useful for assessing the size of changes between different comparisons and across catchments that vary in size.
 
 # Appendix? Notes? Trash
 
 For example, the seedling period is poorly documented, with @jensen2008 stating both 2 years and 'through the summer' for Red Gum, Black, Box, and Coolabah though does not have data. @roberts2011 provides some indications of the ages at which Black Box and Red Gum seedlings have been seen to persist through flooding or drying, though no systematic studies. @capon2009 used three-month old Lignum for a series of experiments showing they were robust to both flooding and drying. However, none of these studies were intended to identify the necessary seedling period, and so are necessarily approximate. What is clear is that soil moisture must persist long enough for seedlings to grow from the cotyledon stage to established plants capable of withstanding both flooding and drought. This establishment requires growing stems, leaves, and a vigorous root system to support the plant. In many species seedlings are known to only be rarely succesful, e.g. only 6 major Coolabah regeneration events have occurred in the basin since 1890 @roberts2011. While the seedling durations chosen here are approximations, shifts in that value do not qualitatively change our results.
+
+## Other species
+
+The *Key* and *Recorded* habitats for black box @tbl-ala-records-bb, coolabah @tbl-ala-records-cool, and lignum @tbl-ala-records-l.
+
+```{r}
+#| label: tbl-ala-records-bb
+#| tbl-cap: Habitat types with black box records in Atlas of Living Australia, with number of records. ANAE_DESC is the wetland type from the ANAE. Bold rows with green background are the *Key* records (with the species name in the type). Those in light grey are < 0.5% of the total, and were not included in the set of ALA habitat types used.
+#| 
+bbtab <- alatypes |> 
+  filter(species == 'black_box') |> 
+  select(ANAE_DESC, Records = n_records) |> 
+  arrange(desc(Records))
+
+cutoff <- which(bbtab$Records < sum(bbtab$Records)*0.005)
+named <- which(grepl('black box', bbtab$ANAE_DESC, ignore.case = TRUE))
+
+bbtab |> 
+  knitr::kable() |> 
+  kable_styling() |> 
+  row_spec(named, bold = TRUE, background = 'lightgreen') |> 
+  row_spec(cutoff, color = 'grey')
+```
+
+```{r}
+#| label: tbl-ala-records-cool
+#| tbl-cap: Habitat types with coolabah records in Atlas of Living Australia, with number of records. ANAE_DESC is the wetland type from the ANAE. Bold rows with green background are the *Key* records (with the species name in the type). Those in light grey are < 0.5% of the total, and were not included in the set of ALA habitat types used.
+#| 
+ctab <- alatypes |> 
+  filter(species == 'coolabah') |> 
+  select(ANAE_DESC, Records = n_records) |> 
+  arrange(desc(Records))
+
+cutoff <- which(ctab$Records < sum(ctab$Records)*0.005)
+named <- which(grepl('cool', ctab$ANAE_DESC, ignore.case = TRUE))
+
+ctab |> 
+  knitr::kable() |> 
+  kable_styling() |> 
+  row_spec(named, bold = TRUE, background = 'lightgreen') |> 
+  row_spec(cutoff, color = 'grey')
+```
+
+```{r}
+#| label: tbl-ala-records-l
+#| tbl-cap: Habitat types with lignum records in Atlas of Living Australia, with number of records. ANAE_DESC is the wetland type from the ANAE. Bold rows with green background are the *Key* records (with the species name in the type). Those in light grey are < 0.5% of the total, and were not included in the set of ALA habitat types used.
+#| 
+ltab <- alatypes |> 
+  filter(species == 'lignum') |> 
+  select(ANAE_DESC, Records = n_records) |> 
+  arrange(desc(Records))
+
+cutoff <- which(ltab$Records < sum(ltab$Records)*0.005)
+named <- which(grepl('lignum', ltab$ANAE_DESC, ignore.case = TRUE))
+
+ltab |> 
+  knitr::kable() |> 
+  kable_styling() |> 
+  row_spec(named, bold = TRUE, background = 'lightgreen') |> 
+  row_spec(cutoff, color = 'grey')
+```
+
