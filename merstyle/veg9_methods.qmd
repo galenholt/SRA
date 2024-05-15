@@ -219,4 +219,3 @@ ltab |>
   row_spec(named, bold = TRUE, background = 'lightgreen') |> 
   row_spec(cutoff, color = 'grey')
 ```
-

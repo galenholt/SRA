@@ -1,5 +1,5 @@
 ---
-title: "Black box analyses"
+title: "Red gum analyses"
 format: html
 editor: visual
 echo: false
@@ -41,6 +41,11 @@ species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
 What are the anae types?
 
 ```{r}
+# this dataset generated in the diversity analysis is really useful to get overall info about what got inundated and the wetland areas, but it's massive. I need it here though to get assorted areas and the full set of anae types
+diversity_anae_summary <- catch_cat_sf('diversity_anae_summary', 'diversity')
+```
+
+```{r}
 # all_anaes <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
 # bbala <- readRDS(file.path(datOut, 'vegmapping', 'black_box_anae_type.rds'))
 
@@ -65,13 +70,26 @@ for (s in species) {
     filter(species == s) |> 
     pull(ANAE_DESC)
   
-  spnametypes <- alatypes |> 
+  # Use the full set of ANAEs, not just those that show up in the alas.
+  spnametypes <- diversity_anae_summary |> 
     filter(grepl(veg_grep, ANAE_DESC, ignore.case = TRUE)) |> 
-    pull(ANAE_DESC)
+    pull(ANAE_DESC) |> 
+    unique()
   
   type_list[[s]] <- list(alatype = spalatypes, nametype = spnametypes)
 }
 
+# Double check we pick up all the 'name's in the alas
+# for (i in species) {
+#   stype <- alatypes |> 
+#     filter(species == i) |> 
+#     select(ANAE_DESC) |> 
+#     pull() |> 
+#     unique()
+#   
+#   print(all(tl$nametype[[i]] %in% stype))
+# }
+# We do, so comment that out.
 ```
 
 Set up a standard color palette for the types. Could do the same for species if we every plot those, and should choose a standard ramp for things like maps. Could do it for catchments too, but there's a million. This is ugly, but changing it is easy.
@@ -92,11 +110,32 @@ Set up a standard color palette for the types. Could do the same for species if 
 #                adult_name = 'purple',
 #                adult_ala = 'turquoise')
 
-stages <- c('regeneration', 'seedling', 'recruitment', 'adult', 'anae_name', 'anae_ala', 'regeneration_name', 'regeneration_ala', 'recruitment_name', 'recruitment_ala', 'adult_name', 'adult_ala')
+stages <- c('adult', 'regeneration', 'seedling',
+            'adult_regen', 'recruitment',
+            'anae_name', 'anae_ala',
+            'adult_name', 'adult_ala',
+            'regeneration_name', 'regeneration_ala',
+            'seedling_name', 'seedling_ala', # We never really use these
+            'recruitment_name', 'recruitment_ala')
 
 #  "palettetown::surskit"
 # "RColorBrewer::Set3"
-stage_pal <- werptoolkitr::make_pal(stages, "rcartocolor::Safe")
+# This worked pretty well with 12, but is a mess with 15.
+# stage_pal <- werptoolkitr::make_pal(stages, "rcartocolor::Safe")
+
+# This is going to take some tweaking to get right.
+anae_cols <- werptoolkitr::make_pal(c('anae_name', 'anae_ala'), "beyonce::X41")
+
+process_cols <- werptoolkitr::make_pal(c('adult', 'regeneration', 'seedling',
+            'adult_regen', 'recruitment'), "calecopal::superbloom1")
+
+combo_cols <- werptoolkitr::make_pal(c('adult_name', 'adult_ala',
+            'regeneration_name', 'regeneration_ala',
+            'seedling_name', 'seedling_ala', # We never really use these
+            'recruitment_name', 'recruitment_ala'), "rcartocolor::Safe")
+
+stage_pal <- c(anae_cols, process_cols, combo_cols)
+class(stage_pal) <- 'colors'
 
 ```
 
@@ -105,40 +144,65 @@ stage_pal <- werptoolkitr::make_pal(stages, "rcartocolor::Safe")
 These are the strictures for just biological processes.
 
 ```{r}
-germ <- purrr::map(species, \(x) catch_cat_sf('germ_area', x) |> 
+adult <- purrr::map(species, \(x) 
+                    catch_cat_sf('adult_area', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'adult',
+         species = x)) |> 
+  bind_rows()
+
+germ <- purrr::map(species, \(x) 
+                   catch_cat_sf('germ_area', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'regeneration',
          species = x)) |> 
   bind_rows()
 
-seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area', x) |> 
+seed <- purrr::map(species, \(x) 
+                   catch_cat_sf('seedling_area',
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'seedling',
          species = x)) |> 
   bind_rows()
 
-germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed', x) |> 
+# Two step
+adult_germ <- purrr::map(species, \(x) 
+                            catch_cat_sf('adult_germ_area',
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'adult_regen',
+         species = x)) |> 
+  bind_rows()
+
+adult_germ_seed <- purrr::map(species, \(x) 
+                            catch_cat_sf('adult_germ_seed_area',
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'recruitment',
          species = x)) |> 
   bind_rows()
 
-adult <- purrr::map(species, \(x) catch_cat_sf('adult_area', x) |> 
-  # There's no adult data prior to 1995 because of the lookback period
-  filter(date > lubridate::ymd(19950101)) |> 
-  mutate(stage = 'adult',
-         species = x)) |> 
-  bind_rows()
+
 ```
 
 We can put those in one dataframe, which is useful sometimes, but depending on the comparison, we might also want to put them in dataframes with other things (e.g. the habitat-clips).
 
 ```{r}
-all_process <- bind_rows(germ, seed, germ_and_seed, adult) |> 
-  mutate(stage = factor(stage, levels = c('regeneration', 'seedling', 'recruitment', 'adult')))
+all_process <- bind_rows(adult, germ, seed, adult_germ, adult_germ_seed) |> 
+  mutate(stage = factor(stage, 
+                        levels = c('adult', 
+                                   'regeneration',
+                                   'seedling',
+                                   'adult_regen',
+                                   'recruitment')))
 
 # A basin-scaled version. We could obviously make this below, but the more we keep data manipulation up here, the less opportunity for doing things twice (differently)
 
@@ -155,8 +219,18 @@ all_process_basin <- all_process |>
 ```{r}
 # Keep using 'stage' as the name of the data, since it makes joining for comparison easier.
 
+inun_anae_all <- purrr::map(species,
+                             \(x) catch_cat_sf('anae_inun',
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+                                 # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+    mutate(stage = 'all_wetlands',
+         species = x)) |> 
+  bind_rows()
+
 inun_anae_name <- purrr::map(species,
-                             \(x) catch_cat_sf('anae_inun_anae_name', x) |> 
+                             \(x) catch_cat_sf('anae_inun_anae_name',
+                                outerdir = paste0('habprocesspaper/', x)) |> 
                                  # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
     mutate(stage = 'anae_name',
@@ -164,7 +238,8 @@ inun_anae_name <- purrr::map(species,
   bind_rows()
   
 inun_anae_ala <- purrr::map(species,
-                             \(x) catch_cat_sf('anae_inun_anae_ala', x) |> 
+                             \(x) catch_cat_sf('anae_inun_anae_ala', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
                                 # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
     mutate(stage = 'anae_ala',
@@ -187,8 +262,9 @@ inun_anae_types_basin <- inun_anae_types |>
 We can join up the independent methods in a dataframe for comparison
 
 ```{r}
-process_and_hab <- bind_rows(germ, germ_and_seed, adult, inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('regeneration', 'recruitment', 'adult', 'anae_name', 'anae_ala')))
+process_and_hab <- bind_rows(adult, adult_germ, adult_germ_seed, inun_anae_name, inun_anae_ala) |> 
+    mutate(stage = factor(stage, levels = c('adult', 'adult_regen', 'recruitment', 
+                                            'anae_name', 'anae_ala')))
 
 process_and_hab_basin <- process_and_hab |> 
   sf::st_drop_geometry() |> 
@@ -198,76 +274,179 @@ process_and_hab_basin <- process_and_hab |>
   st_as_sf()
 ```
 
+There are also two other sorts of baselines we might want for the habitat- the total amount of inundation in *any* wetland type, and the total amount of area in each set of habitats, ignoring inundation. I had been doing this in the appendix, but think I'll move the data extraction here, anyway.
+
+```{r}
+# One use- total area of wetland habitat regardless of inundation for each species in various ways
+# First, get rid of the yearly since total area doesn't change and simplify
+
+typearea <- diversity_anae_summary |> 
+  st_drop_geometry() |> 
+  summarise(total_area = unique(total_area), .by = c(ANAE_DESC, name_clean))
+
+# Now I want to get the total area attributable to each species' types. This seems like it should be a grouped operation, but they aren't mutually exclusive, so it's actually better to work with type_list and filter
+
+# using the same stage names lets us use the same colors
+total_wetland_area <- foreach(s = species, .combine = bind_rows, .multicombine = TRUE) %do% {
+  alaarea <- typearea |> 
+    filter(ANAE_DESC %in% type_list[[s]]$alatype) |> 
+    summarise(total_area = sum(total_area), .by = name_clean) |> 
+    mutate(species = s, stage = 'anae_ala')
+  
+  namearea <- typearea |> 
+    filter(ANAE_DESC %in% type_list[[s]]$nametype) |> 
+    summarise(total_area = sum(total_area), .by = name_clean) |> 
+    mutate(species = s, stage = 'anae_name')
+  
+  bind_rows(alaarea, namearea) |> 
+    rename(ValleyName = name_clean)
+}
+
+total_wetland_area_basin <- total_wetland_area |> 
+  summarise(total_area = sum(total_area), .by = c(species, stage))
+```
+
+```{r}
+#| eval: false
+# a check of that, probably delete if passes- does that actually have all the anae wetlands?
+all_anae <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
+
+all_anae <- all_anae |> 
+  mutate(area = st_area(geometry))
+
+all(unique(all_anae$ANAE_DESC) %in% typearea$ANAE_DESC)
+
+# Yes, so no need for both.
+```
+
+```{r}
+
+# First, simplify
+# There's no species differences here
+inun_area <- diversity_anae_summary |> 
+  st_drop_geometry() |> 
+  summarise(area_inundated = sum(area_inundated, na.rm = TRUE),
+            stage = 'wetland_inundation',
+            .by = c(time, name_clean))
+
+
+inun_area_basin <- inun_area |> 
+  summarise(area_inundated = sum(area_inundated), .by = c(time, stage))
+```
+
 ### Interactive
 
-Skip the seedling alone stage; it's too much and dominates recruitment anyway.
+Include independent and full for the stages. Skip the adult_germ, it's not very interesting
 
 ```{r}
 # ALA records
-germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala', x) |> 
+
+adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+  # There's no adult data prior to 1995 because of the lookback period
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'adult_ala',
+         species = x)) |> 
+  bind_rows()
+
+germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'regeneration_ala',
          species = x)) |> 
   bind_rows()
 
-germ_and_seed_ala <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed_anae_ala', x) |> 
+seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'seedling_ala',
+         species = x)) |> 
+  bind_rows()
+
+adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_ala', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'recruitment_ala',
          species = x)) |> 
   bind_rows()
 
-adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala', x) |> 
+
+
+# Name
+
+adult_name <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_name', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no adult data prior to 1995 because of the lookback period
-  filter(date > lubridate::ymd(19950101)) |> 
-  mutate(stage = 'adult_ala',
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'adult_name',
          species = x)) |> 
   bind_rows()
 
-# Name
-germ_name <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_name', x) |> 
+germ_name <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_name', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'regeneration_name',
          species = x)) |> 
   bind_rows()
 
-germ_and_seed_name <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed_anae_name', x) |> 
+seed_name <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_name', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'seedling_name',
+         species = x)) |> 
+  bind_rows()
+
+adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_name', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'recruitment_name',
          species = x)) |> 
   bind_rows()
 
-adult_name <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_name', x) |> 
-  # There's no adult data prior to 1995 because of the lookback period
-  filter(date > lubridate::ymd(19950101)) |> 
-  mutate(stage = 'adult_name',
-         species = x)) |> 
-  bind_rows()
-
 
 # Comparison dataframes
-germ_hab <- bind_rows(germ, germ_name, germ_ala, 
-                      inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('regeneration',
-                                            'regeneration_name', 'regeneration_ala',
-                                            'anae_name', 'anae_ala')))
-
-germ_and_seed_hab <- bind_rows(germ_and_seed, germ_and_seed_name, germ_and_seed_ala, 
-                      inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('recruitment',
-                                            'recruitment_name', 'recruitment_ala',
-                                            'anae_name', 'anae_ala')))
-
 adult_hab <- bind_rows(adult, adult_name, adult_ala, 
                       inun_anae_name, inun_anae_ala) |> 
     mutate(stage = factor(stage, levels = c('adult',
                                             'adult_name', 'adult_ala',
                                             'anae_name', 'anae_ala')))
 
+germ_hab <- bind_rows(germ, germ_name, germ_ala, 
+                      inun_anae_name, inun_anae_ala) |> 
+    mutate(stage = factor(stage, levels = c('regeneration',
+                                            'regeneration_name',
+                                            'regeneration_ala',
+                                            'anae_name', 'anae_ala')))
+
+seed_hab <- bind_rows(seed, seed_name, seed_ala, 
+                      inun_anae_name, inun_anae_ala) |> 
+    mutate(stage = factor(stage, levels = c('seedling',
+                                            'seedling_name', 'seedling_ala',
+                                            'anae_name', 'anae_ala')))
+
+adult_germ_seed_hab <- bind_rows(adult_germ_seed,
+                                 adult_germ_seed_name,
+                                 adult_germ_seed_ala,
+                                 inun_anae_name, inun_anae_ala) |> 
+    mutate(stage = factor(stage, levels = c('recruitment',
+                                            'recruitment_name', 'recruitment_ala',
+                                            'anae_name', 'anae_ala')))
+
 # Basin
+
+adult_hab_basin <- adult_hab |> 
+  sf::st_drop_geometry() |> 
+  summarise(area = sumna(area),
+            .by = c(date, stage, species)) |>
+  bind_cols(basin) |> 
+  st_as_sf()
+
 germ_hab_basin <- germ_hab |> 
   sf::st_drop_geometry() |> 
   summarise(area = sumna(area),
@@ -276,20 +455,21 @@ germ_hab_basin <- germ_hab |>
   st_as_sf()
 
 # Basin
-germ_and_seed_hab_basin <- germ_and_seed_hab |> 
+seed_hab_basin <- seed_hab |> 
   sf::st_drop_geometry() |> 
   summarise(area = sumna(area),
             .by = c(date, stage, species)) |>
   bind_cols(basin) |> 
   st_as_sf()
 
-# Basin
-adult_hab_basin <- adult_hab |> 
+adult_germ_seed_hab_basin <- adult_germ_seed_hab |> 
   sf::st_drop_geometry() |> 
   summarise(area = sumna(area),
             .by = c(date, stage, species)) |>
   bind_cols(basin) |> 
   st_as_sf()
+
+
 
 ```
 
@@ -357,15 +537,48 @@ Layout/structure of comparisons
 
 Will need to clean figures up, obviously. All species are in the dataframes, I'm just plotting one here for simplicity. veg4_data_check has a quick and dirty way to make parallel figs for all species, but it's too crude for a ms, so I'm just using one species here as an example to build on.
 
+## Adult condition
+
+Here, we assess area of favourable adult condition, primarily as a consequence of inundation duration and periods between events.
+
+```{r}
+all_process |> 
+  filter(stage == 'adult'& species == 'red_gum') |> 
+ggplot(aes(x = date, y = area, color = ValleyName)) +
+  geom_line() + 
+  facet_wrap('ValleyName') +
+  theme(legend.position = 'none')
+```
+
+```{r}
+all_process |> 
+  filter(stage == 'adult'& species == 'red_gum') |> 
+ggplot(aes(fill = log(area))) +
+  geom_sf(color = NA) +
+  facet_wrap('date') +
+  scale_fill_viridis_c()
+```
+
+Basin-scale
+
+```{r}
+all_process_basin |> 
+  filter(stage == 'adult'& species == 'red_gum') |> 
+  ggplot(aes(x = date, y = area)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = 'none')
+```
+
 ## Regeneration
 
 Just based on requirements for preceding inundation and subsequent soil moisture, we get the area of wetlands with favourable germination/regeneration conditions (@fig-regen-catch, @fig-regen-map).
 
 ```{r}
 #| label: fig-regen-catch
-#| fig-cap: Area favourable for black box regeneration in each catchment
+#| fig-cap: Area favourable for red gum regeneration in each catchment
 all_process |> 
-  filter(stage == 'regeneration'& species == 'black_box') |> 
+  filter(stage == 'regeneration'& species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
@@ -374,9 +587,9 @@ ggplot(aes(x = date, y = area, color = ValleyName)) +
 
 ```{r}
 #| label: fig-regen-map
-#| fig-cap: Area favourable for black box regeneration in each catchment as a map
+#| fig-cap: Area favourable for red gum regeneration in each catchment as a map
 all_process |> 
-  filter(stage == 'regeneration'& species == 'black_box') |> 
+  filter(stage == 'regeneration'& species == 'red_gum') |> 
 ggplot(aes(fill = log(area))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
@@ -387,9 +600,9 @@ At the basin scale, @fig-regen-basin, we see temporal variation. We should proba
 
 ```{r}
 #| label: fig-regen-basin
-#| fig-cap: Area favourable for black box regeneration summed across the basin
+#| fig-cap: Area favourable for red gum regeneration summed across the basin
 all_process_basin |> 
-  filter(stage == 'regeneration'& species == 'black_box') |> 
+  filter(stage == 'regeneration'& species == 'red_gum') |> 
   ggplot(aes(x = date, y = area)) +
   geom_line() +
   geom_point() +
@@ -398,13 +611,13 @@ all_process_basin |>
 
 ## Seedling survival
 
-The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), there is very little favourable area anywyere @fig-seed-catch, @fig-seed-map.
+The third step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), there is very little favourable area anywhere @fig-seed-catch, @fig-seed-map.
 
 ```{r}
 #| label: fig-seed-catch
-#| fig-cap: Area favourable for black box seedling survival in each catchment
+#| fig-cap: Area favourable for red gum seedling survival in each catchment
 all_process |> 
-  filter(stage == 'seedling'& species == 'black_box') |> 
+  filter(stage == 'seedling'& species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
@@ -413,9 +626,9 @@ ggplot(aes(x = date, y = area, color = ValleyName)) +
 
 ```{r}
 #| label: fig-seed-map
-#| fig-cap: Area favourable for black box seedling survival in each catchment
+#| fig-cap: Area favourable for red gum seedling survival in each catchment
 all_process |> 
-  filter(stage == 'seedling'& species == 'black_box') |> 
+  filter(stage == 'seedling'& species == 'red_gum') |> 
 ggplot(aes(fill = log(area))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
@@ -426,9 +639,9 @@ At the basin scale, that is @fig-seed-basin.
 
 ```{r}
 #| label: fig-seed-basin
-#| fig-cap: Area favourable for black box seedling survival summed to basin
+#| fig-cap: Area favourable for red gum seedling survival summed to basin
 all_process_basin |> 
-  filter(stage == 'seedling'& species == 'black_box') |> 
+  filter(stage == 'seedling'& species == 'red_gum') |> 
   ggplot(aes(x = date, y = area)) +
   geom_line() +
   geom_point() +
@@ -437,15 +650,17 @@ all_process_basin |>
 
 And these are actually much more permissive seedling strictures than typical. 6 mo instead of 2 years. Are they wrong? I think probably not; there are cites that say there have only been a couple successful events in 100 years in the basin (I think was for red gum? I'll dig it up- but still, for long-lived trees, seedling survival may in fact be very infrequent and still be fine).
 
-## Recruitment
+## Sequential life-cycle
 
-The life cycle is sequential, and so what we are interested in ultimately is recruitment success; that is, germination and subsequent survival until maturity or at least some sort of 'establishment'. Here, we ask whether conditions supported seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper two, it takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
+The life cycle is sequential, and so what we are interested in ultimately is recruitment success; that is, germination and subsequent survival until maturity or at least some sort of 'establishment'. Here, we ask whether conditions supported regeneration *from adults* and whether there was seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper figures, it takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
 
 *I'm going to stop cross-reffing and captioning figs unless there's somewhere where it's really needed, just need to get the story sorted first*
 
+### Adult then germ
+
 ```{r}
 all_process |> 
-  filter(stage == 'recruitment'& species == 'black_box') |> 
+  filter(stage == 'adult_regen'& species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
@@ -454,7 +669,7 @@ ggplot(aes(x = date, y = area, color = ValleyName)) +
 
 ```{r}
 all_process |> 
-  filter(stage == 'recruitment'& species == 'black_box') |> 
+  filter(stage == 'adult_regen'& species == 'red_gum') |> 
 ggplot(aes(fill = log(area))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
@@ -465,21 +680,19 @@ At the basin scale, that is
 
 ```{r}
 all_process_basin |> 
-  filter(stage == 'recruitment'& species == 'black_box') |> 
+  filter(stage == 'adult_regen'& species == 'red_gum') |> 
   ggplot(aes(x = date, y = area)) +
   geom_line() +
   geom_point() +
   theme(legend.position = 'none')
 ```
 
-## Adult condition
-
-Here, we assess area of favourable adult condition, primarily as a consequence of inundation duration and periods between events. This is not connected to the regeneration due to the length of available data and tree life spans.
+### Recruitment (full cycle)
 
 ```{r}
 all_process |> 
-  filter(stage == 'adult'& species == 'black_box') |> 
-ggplot(aes(x = date, y = area, color = ValleyName)) +
+  filter(stage == 'recruitment'& species == 'red_gum') |> 
+ggplot(aes(x = date, y = log(area), color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
   theme(legend.position = 'none')
@@ -487,18 +700,18 @@ ggplot(aes(x = date, y = area, color = ValleyName)) +
 
 ```{r}
 all_process |> 
-  filter(stage == 'adult'& species == 'black_box') |> 
+  filter(stage == 'recruitment'& species == 'red_gum') |> 
 ggplot(aes(fill = log(area))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
   scale_fill_viridis_c()
 ```
 
-There are already a million figs here, so I'll show the basin scale only in the comparison section
+At the basin scale, that is
 
 ```{r}
 all_process_basin |> 
-  filter(stage == 'adult'& species == 'black_box') |> 
+  filter(stage == 'recruitment'& species == 'red_gum') |> 
   ggplot(aes(x = date, y = area)) +
   geom_line() +
   geom_point() +
@@ -513,18 +726,18 @@ The adults swamp the others. Though not everywhere- it's spatio-temporally varia
 
 ```{r}
 all_process |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() + 
   scale_color_manual(values = stage_pal) +
   facet_wrap('ValleyName')
 ```
 
-Ignoring adults is still not very informative- germination just comes in as obviously swamping recruitment. Maybe it's just a bad idea to try to plot them together, no matter how obvious that is as a thing to do a priori.
+Ignoring adults is still not very informative- germination just comes in as obviously swamping recruitment. Maybe it's just a bad idea to try to plot them together, no matter how obvious that is as a thing to do a priori. Really, what we probably need is the sort of conditional plot I did for MER.
 
 ```{r}
 all_process |> 
-  filter(species == 'black_box' & stage != 'adult') |> 
+  filter(species == 'red_gum' & stage != 'adult') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
@@ -535,14 +748,34 @@ At the basin scale, we see the same pattern but cleaner @fig-process-basin . I u
 
 ```{r}
 #| label: fig-process-basin
-#| fig-cap: Area favourable for black box life stages in the basin
+#| fig-cap: Area favourable for red gum life stages in the basin
 all_process_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
 geom_point()
+```
+
+If we summarise over time, we can make a cool bar graph (or, should we use time as error?)
+
+```{r}
+
+  # Need to manually log if we do the error bars- log of mean != mean of log.
+all_process_basin |> 
+  filter(species == 'red_gum') |>
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log(area + 1), na.rm = TRUE),
+            sd_area = sd(log(area + 1), na.rm = TRUE),
+            .by = stage) |>
+ggplot(aes(x = stage, y = mean_area, fill = stage)) +
+  geom_col() +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+  # scale_y_continuous(trans = 'log10') +
+    scale_fill_manual(values = stage_pal)
+
+
 ```
 
 ## Summary
@@ -553,28 +786,30 @@ So, ignoring habitat information, we can see that seedling survival is the limit
 
 The above asks about whether conditions favour the biology of the plants. At the simplest, the habitat ignores the biology, and asks if there was inundation in the "correct" habitat type. We also have just straight up inundation area, but that seems like it would go in an appendix, if anywhere.
 
-We can also include habitat information, and do so in two ways: First, some of the ANAE types are explicitly 'Black box', `r type_list$black_box$nametype[1]`. There are also ALA records of of each species that we have intersected with the ANAE to get a list of ANAE types with records [@tbl-ala-records]. In the analysis, only those types with \> 0.5% of the total records were used (this is methods). *I've made the cut off ones lighter here, but might work better to have a different background. Or leave them off, but I think it's worth showing, probably.*
+We can also include habitat information, and do so in two ways: First, some of the ANAE types are explicitly 'red gum', `r type_list$red_gum$nametype[1]`. There are also ALA records of of each species that we have intersected with the ANAE to get a list of ANAE types with records [@tbl-ala-records]. In the analysis, only those types with \> 0.5% of the total records were used (this is methods). *I've made the cut off ones lighter here, but might work better to have a different background. Or leave them off, but I think it's worth showing, probably.*
 
-As with the figures elsewhere, we should/could make this table for all species, but I'm just checking with black box. I thought about having a column for each species, but the anae types differ and the sorting changes, so since the idea is to focus on species requirements it just gets confusing.
+As with the figures elsewhere, we should/could make this table for all species, but I'm just checking with red gum. I thought about having a column for each species, but the anae types differ and the sorting changes, so since the idea is to focus on species requirements it just gets confusing.
 
 ```{r}
 #| label: tbl-ala-records
-#| tbl-cap: Habitat types with black box records in Atlas of Living Australia, with number of records. Those in light grey are < 0.5% of the total, and were not included in the set of ALA habitat types used. 
+#| tbl-cap: Habitat types with red gum records in Atlas of Living Australia, with number of records. Those in light grey are < 0.5% of the total, and were not included in the set of ALA habitat types used. 
 #| 
-bbtab <- alatypes |> 
-  filter(species == 'black_box') |> 
-  select(ANAE_DESC, n_records) |> 
-  arrange(desc(n_records))
+rgtab <- alatypes |> 
+  filter(species == 'red_gum') |> 
+  select(ANAE_DESC, Records = n_records) |> 
+  arrange(desc(Records))
 
-cutoff <- which(bbtab$n_records < sum(bbtab$n_records)*0.005)
+cutoff <- which(rgtab$Records < sum(rgtab$Records)*0.005)
+named <- which(grepl('red gum', rgtab$ANAE_DESC, ignore.case = TRUE))
 
-bbtab |> 
+rgtab |> 
   knitr::kable() |> 
   kable_styling() |> 
+  row_spec(named, bold = TRUE, background = 'lightgreen') |> 
   row_spec(cutoff, color = 'grey')
 ```
 
-See veg1_anae_mapping.qmd for a map of the ALA records if we want to include that, maybe as an appendix.
+See veg1_anae_mapping.qmd for a map of the ALA records if we want to include that, maybe as an appendix. and veg9_methods for a better treatment of the tables.
 
 This just asks how much inundated area there is in each 'suitable' habitat type, as defined by name or ALA records @fig-habitat-catch . As above, it could be called 'favourable area' if favourability is just determined by wetland type.
 
@@ -584,9 +819,9 @@ I haven't logged area here to illustrate how striking the difference is, but hav
 
 ```{r}
 #| label: fig-habitat-catch
-#| fig-cap: Area of inundation in ANAE types that match the name ('anae_name') or where there are ALA records ('anae_ala') for black box.
+#| fig-cap: Area of inundation in ANAE types that match the name ('anae_name') or where there are ALA records ('anae_ala') for red gum.
 inun_anae_types |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
@@ -597,7 +832,7 @@ A map example, separate here because of scaling and readability. It's too much, 
 
 ```{r}
 inun_anae_types |> 
-  filter(species == 'black_box' & stage == 'anae_name') |> 
+  filter(species == 'red_gum' & stage == 'anae_name') |> 
 ggplot(aes(fill = log(area+1))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
@@ -606,7 +841,7 @@ ggplot(aes(fill = log(area+1))) +
 
 ```{r}
 inun_anae_types |> 
-  filter(species == 'black_box' & stage == 'anae_ala') |> 
+  filter(species == 'red_gum' & stage == 'anae_ala') |> 
 ggplot(aes(fill = log(area+1))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
@@ -617,7 +852,7 @@ At the basin scale
 
 ```{r}
 inun_anae_types_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -628,9 +863,9 @@ geom_point()
 
 We've now seen what we get for 'favourable area' for process-based models and for habitat types. Now, we compare how they differ in terms of what they tell us when considered separately @fig-hab-strict-catch, @fig-hab-strict-basin.
 
-There are a couple very interesting comparisons to do here- what area do we get from the germ, adult, and these habitat requirements @fig-hab-strict-catch ? Could put germ_and_seed in there, but we know it's basically 0 **and that's really important but makes a dumb plot**- if seeds are the dominant pinch point, that won't get picked up at all when you look at inundation of ANAES in the 'black box' type- just like germ and adult condition, the inundation of black box will look basically OK most of the time, but actual population condition depends on seedling survival which has a very different pattern. Is there a way to show that? Or is it just something to bring out in the discussion?
+There are a couple very interesting comparisons to do here- what area do we get from the germ, adult, and these habitat requirements @fig-hab-strict-catch ? Could put adult_germ_seed in there, but we know it's basically 0 **and that's really important but makes a dumb plot**- if seeds are the dominant pinch point, that won't get picked up at all when you look at inundation of ANAES in the 'red gum' type- just like germ and adult condition, the inundation of red gum will look basically OK most of the time, but actual population condition depends on seedling survival which has a very different pattern. Is there a way to show that? Or is it just something to bring out in the discussion?
 
-Need to work on scales and presentation of the different types, but putting on log helps. Basically, adult is highest, ala is MUCH larger than name, and germ tends to be on the same order as name, though there's quite a lot of (particularly spatial) variation around that statement- some catchments have a lot more germ than 'Black Box' ANAE types, and others have a lot less.
+Need to work on scales and presentation of the different types, but putting on log helps. Basically, adult is highest, ala is MUCH larger than name, and germ tends to be on the same order as name, though there's quite a lot of (particularly spatial) variation around that statement- some catchments have a lot more germ than 'red gum' ANAE types, and others have a lot less.
 
 What to say about it?
 
@@ -642,9 +877,9 @@ What to say about it?
 
 ```{r}
 #| label: fig-hab-strict-catch
-#| fig-cap: Area favourable for each black box life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
+#| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
 process_and_hab |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
@@ -656,9 +891,9 @@ Basin
 
 ```{r}
 #| label: fig-hab-strict-basin
-#| fig-cap: Area favourable for each black box life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
+#| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
 process_and_hab_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -699,15 +934,15 @@ anae_ala is almost always highest, so we're not losing much if any germ habitat 
 
 ```{r}
 #| label: fig-germ-interact-catch
-#| fig-cap: Area favourable for each black box germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
+#| fig-cap: Area favourable for each red gum germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
 process_and_hab_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
 germ_hab |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
@@ -719,9 +954,9 @@ Basin
 
 ```{r}
 #| label: fig-germ-interact-basin
-#| fig-cap: Area favourable for each black box germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
+#| fig-cap: Area favourable for each red gum germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
 germ_hab_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -754,9 +989,9 @@ If we relativise to the germination stricture alone, we get the proportional los
 
 ```{r}
 #| label: fig-germ-relative-catch
-#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
 germ_compare_r |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -766,7 +1001,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 
 ```{r}
 germ_compare_d |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = difference_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -778,7 +1013,7 @@ Basin
 
 ```{r}
 #| label: fig-germ-relative-basin
-#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
 germ_compare_r_basin <- germ_hab_basin |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('regeneration', 'regeneration_ala', 'regeneration_name')) |> 
@@ -787,7 +1022,7 @@ germ_compare_r_basin <- germ_hab_basin |>
                                  values_col = 'area', comp_fun = 'relative')
 
 germ_compare_r_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -817,9 +1052,9 @@ Whether 'habitat' is determined by name or ALA records, there are *massive* drop
 
 ```{r}
 #| label: fig-name-germ-relative-catch
-#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
 germ_inun_name_compare |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -829,9 +1064,9 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 
 ```{r}
 #| label: fig-ala-germ-relative-catch
-#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
 germ_anae_ala_compare |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -843,7 +1078,7 @@ Basin
 
 ```{r}
 #| label: fig-name-germ-relative-basin
-#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
 germ_inun_name_compare_basin <- germ_hab_basin |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_name', 'regeneration_name')) |> 
@@ -852,7 +1087,7 @@ germ_inun_name_compare_basin <- germ_hab_basin |>
                                  values_col = 'area', comp_fun = 'relative')
 
 germ_inun_name_compare_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -861,7 +1096,7 @@ geom_point()
 
 ```{r}
 #| label: fig-ala-germ-relative-basin
-#| fig-cap: Area favourable for black box germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
 germ_anae_ala_compare_basin <- germ_hab_basin |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_ala', 'regeneration_ala')) |> 
@@ -870,7 +1105,7 @@ germ_anae_ala_compare_basin <- germ_hab_basin |>
                                  values_col = 'area', comp_fun = 'relative')
 
 germ_anae_ala_compare_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -919,8 +1154,8 @@ germ2ala_period <- germ_period |>
 ```{r}
 # I want to facet, but the fill scales are too different and scales = free doesn't work.
 name_germ_map <- hab2germ_period |> 
-  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'black_box' & stage %in% c('regeneration_name')) |> 
+  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('regeneration_name')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -930,8 +1165,8 @@ ggplot(aes(fill = relative_area)) +
   werptoolkitr::theme_werp_toolkit()
 
 ala_germ_map <- hab2germ_period |> 
-  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'black_box' & stage %in% c('regeneration_ala')) |> 
+  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('regeneration_ala')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -941,8 +1176,8 @@ ggplot(aes(fill = relative_area)) +
   werptoolkitr::theme_werp_toolkit()
 
 germ_name_map <- germ2name_period |> 
-  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'black_box' & stage %in% c('regeneration_name')) |> 
+  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('regeneration_name')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -952,8 +1187,8 @@ ggplot(aes(fill = relative_area)) +
   werptoolkitr::theme_werp_toolkit()
 
 germ_ala_map <- germ2ala_period |> 
-  # filter(species == 'black_box' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'black_box' & stage %in% c('regeneration_ala')) |> 
+  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('regeneration_ala')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -975,8 +1210,8 @@ I could look at just seedling too, but this is already a TON
 Again, start with just plotting the outcomes
 
 ```{r}
-germ_and_seed_hab |> 
-  filter(species == 'black_box') |> 
+adult_germ_seed_hab |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
@@ -987,8 +1222,8 @@ ggplot(aes(x = date, y = area+1, color = stage)) +
 Basin, also logged so we can see the data.
 
 ```{r}
-germ_and_seed_hab_basin |> 
-  filter(species == 'black_box') |> 
+adult_germ_seed_hab_basin |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
@@ -1001,14 +1236,14 @@ Now the comparisons
 What do we lose from the process-based strictures if we require them to occur in the habitat types?
 
 ```{r}
-germ_and_seed_compare_r <- germ_and_seed_hab |> 
+adult_germ_seed_compare_r <- adult_germ_seed_hab |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('recruitment', 'recruitment_ala', 'recruitment_name')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'recruitment',
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
-germ_and_seed_compare_d <- germ_and_seed_hab |> 
+adult_germ_seed_compare_d <- adult_germ_seed_hab |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('recruitment', 'recruitment_ala', 'recruitment_name')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'recruitment',
@@ -1019,8 +1254,8 @@ germ_and_seed_compare_d <- germ_and_seed_hab |>
 This is almost all NaN because there's so little recruitment it's all divide-by-zero. Could add one, but the message is captured in the next one.
 
 ```{r}
-germ_and_seed_compare_r |> 
-  filter(species == 'black_box') |> 
+adult_germ_seed_compare_r |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -1031,8 +1266,8 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 Here we can see that not much gets lost to the habitat requirements, because there's not much to lose. But it does happen in Avoca, further limiting the already-rare recruitment events if they are restricted to habitat.
 
 ```{r}
-germ_and_seed_compare_d |> 
-  filter(species == 'black_box') |> 
+adult_germ_seed_compare_d |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = difference_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -1044,7 +1279,7 @@ Basin has enough we can use the relative. Sort of.
 
 ```{r}
 
-germ_and_seed_compare_r_basin <- germ_and_seed_hab_basin |> 
+adult_germ_seed_compare_r_basin <- adult_germ_seed_hab_basin |> 
   #mutate(area = area + 1) |> # make it not NA
   sf::st_drop_geometry() |> 
   filter(stage %in% c('recruitment', 'recruitment_ala', 'recruitment_name')) |> 
@@ -1052,8 +1287,8 @@ germ_and_seed_compare_r_basin <- germ_and_seed_hab_basin |>
                                  group_cols = c('date', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
-germ_and_seed_compare_r_basin |> 
-  filter(species == 'black_box') |> 
+adult_germ_seed_compare_r_basin |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -1065,14 +1300,14 @@ How much do we lose from just looking at habitat inundation when we also ask if 
 Thus, we flip that around to the inuns as baseline, what proportion of the inundated habitat is lost when we consider the biological processes *within those types*? We do it for both the named types and the ALA-selected.
 
 ```{r}
-germ_and_seed_inun_name_compare <- germ_and_seed_hab |> 
+adult_germ_seed_inun_name_compare <- adult_germ_seed_hab |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_name', 'recruitment_name')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
-germ_and_seed_anae_ala_compare <- germ_and_seed_hab |> 
+adult_germ_seed_anae_ala_compare <- adult_germ_seed_hab |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_ala', 'recruitment_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
@@ -1083,8 +1318,8 @@ germ_and_seed_anae_ala_compare <- germ_and_seed_hab |>
 This is kind of silly, since the strictures are almost all basically 0, but it makes the point that we lose a LOT (all of the area). So the habitat inundation tells us nothing about seedlings, and if we base how good we think we're doing on habitat, it's completely wrong.
 
 ```{r}
-germ_and_seed_inun_name_compare |> 
-  filter(species == 'black_box') |> 
+adult_germ_seed_inun_name_compare |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -1095,8 +1330,8 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 For the ALA, there *is* some data, but it's not possible to see on an unscaled 0-1 axis
 
 ```{r}
-germ_and_seed_anae_ala_compare |> 
-  filter(species == 'black_box') |> 
+adult_germ_seed_anae_ala_compare |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
@@ -1109,9 +1344,9 @@ We could log it (see commented out bit above), or we could just say that by defi
 In fact, we could drop the upper two plots, and just plot the name and ala together on here, if we're super clear they've been referenced to different things (their respective habitat inundation). The name is still be very boring (but important), since it's always 0.
 
 ```{r}
-germ_and_seed_anae_ala_compare |> 
-  bind_rows(germ_and_seed_inun_name_compare) |> 
-  filter(species == 'black_box' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
+adult_germ_seed_anae_ala_compare |> 
+  bind_rows(adult_germ_seed_inun_name_compare) |> 
+  filter(species == 'red_gum' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
@@ -1123,23 +1358,23 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 Basin
 
 ```{r}
-germ_and_seed_inun_name_compare_basin <- germ_and_seed_hab_basin |> 
+adult_germ_seed_inun_name_compare_basin <- adult_germ_seed_hab_basin |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_name', 'recruitment_name')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
                                  group_cols = c('date', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
-germ_and_seed_anae_ala_compare_basin <- germ_and_seed_hab_basin |> 
+adult_germ_seed_anae_ala_compare_basin <- adult_germ_seed_hab_basin |> 
   sf::st_drop_geometry() |> 
   filter(stage %in% c('anae_ala', 'recruitment_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
                                  group_cols = c('date', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
-germ_and_seed_anae_ala_compare_basin |> 
-  bind_rows(germ_and_seed_inun_name_compare_basin) |> 
-  filter(species == 'black_box' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
+adult_germ_seed_anae_ala_compare_basin |> 
+  bind_rows(adult_germ_seed_inun_name_compare_basin) |> 
+  filter(species == 'red_gum' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   geom_point() +
@@ -1153,7 +1388,7 @@ Again, start with the overall outputs
 
 ```{r}
 adult_hab |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
@@ -1165,7 +1400,7 @@ Basin, also logged so we can see the data.
 
 ```{r}
 adult_hab_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
@@ -1197,7 +1432,7 @@ What fraction of the area of the process-based strictures alone is lost when the
 
 ```{r}
 adult_compare_r |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -1207,7 +1442,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 
 ```{r}
 adult_compare_d |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = difference_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -1227,7 +1462,7 @@ adult_compare_r_basin <- adult_hab_basin |>
                                  values_col = 'area', comp_fun = 'relative')
 
 adult_compare_r_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -1260,7 +1495,7 @@ Here, we have an interesting and counterintuitive result that there's actually M
 
 ```{r}
 adult_inun_name_compare |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -1270,7 +1505,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 
 ```{r}
 adult_anae_ala_compare |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
@@ -1290,7 +1525,7 @@ adult_inun_name_compare_basin <- adult_hab_basin |>
                                  values_col = 'area', comp_fun = 'relative')
 
 adult_inun_name_compare_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -1306,7 +1541,7 @@ adult_anae_ala_compare_basin <- adult_hab_basin |>
                                  values_col = 'area', comp_fun = 'relative')
 
 adult_anae_ala_compare_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
@@ -1323,7 +1558,7 @@ But relying solely on habitat is particularly dangerous- it does not capture whe
 
 Moreover, with climate change, 'habitat type' as defined statically, will not stay the same, and we run the risk of missing and mis-modeling shifts.
 
-Here, we see areas of congruence and areas of major discrepancy between process-based strictures and habitat-based locations, though they can inform each other. This leads to hypothesis generation (where might 'black box' wetlands shift in the future, where should we look for black box), and identifies critical periods for condition, whether or not they occur in the proper wetland type (seedling survival) that can be targeted by management.
+Here, we see areas of congruence and areas of major discrepancy between process-based strictures and habitat-based locations, though they can inform each other. This leads to hypothesis generation (where might 'red gum' wetlands shift in the future, where should we look for red gum), and identifies critical periods for condition, whether or not they occur in the proper wetland type (seedling survival) that can be targeted by management.
 
 # Appendices
 
@@ -1331,55 +1566,19 @@ Here, we see areas of congruence and areas of major discrepancy between process-
 
 Why do the adults end up with more favourable area when clipped to the habitat types than the raw habitat types? Because adult favourability does not depend on yearly inundation, but only on some long return interval; i.e. there may not be any inundation in a given year, but that area is still favourable if it were inundated 8 years ago.
 
-To see this, we could plot the maxumum inundation each year, and we would see that the adult area tracks well with the maximum inundation within a species-specific x year lookback. *I haven't saved the max yearly inundation, but the mean. If we want that level of detail, I can tweak the outputs and re-run the strictures to also save the max to make this plot.* In the meantime, we can see that it is less than the total area of the anaes in each habitat type, and so we haven't just stuffed up the clipping.
+To see this, we could plot the maximum inundation each year, and we would see that the adult area tracks well with the maximum inundation within a species-specific x year lookback. *I haven't saved the max yearly inundation, but the mean. If we want that level of detail, I can tweak the outputs and re-run the strictures to also save the max to make this plot.* In the meantime, we can see that it is less than the total area of the anaes in each habitat type, and so we haven't just stuffed up the clipping.
 
-The anae types- rather than read in the base ANAEs, read the result of the 'diversity' analyses (`diversity_anae_summary`), and so could be used if we want additional descriptions about the types that get inundated. It's big, though, so don't actually read it in if you don't end up using it.
-
-```{r}
-# this dataset generated in the diversity analysis is really useful to get overall info about what got inundated, but it's massive. I need it here though to get an area. Could just save that out though.
-diversity_anae_summary <- catch_cat_sf('diversity_anae_summary', 'diversity')
-
-```
-
-```{r}
-# One use- total area of wetland habitat for each species in various ways
-# First, get rid of the yearly and simplify
-
-typearea <- diversity_anae_summary |> 
-  st_drop_geometry() |> 
-  summarise(total_area = unique(total_area), .by = c(ANAE_DESC, name_clean))
-
-# Now I want to get the total area attributable to each species' types. This seems like it should be a grouped operation, but they aren't mutually exclusive, so it's actually better to work with type_list and filter
-
-# using the same stage names lets us use the same colors
-total_wetland_area <- foreach(s = species, .combine = bind_rows, .multicombine = TRUE) %do% {
-  alaarea <- typearea |> 
-    filter(ANAE_DESC %in% type_list[[s]]$alatype) |> 
-    summarise(total_area = sum(total_area), .by = name_clean) |> 
-    mutate(species = s, stage = 'anae_ala')
-  
-  namearea <- typearea |> 
-    filter(ANAE_DESC %in% type_list[[s]]$nametype) |> 
-    summarise(total_area = sum(total_area), .by = name_clean) |> 
-    mutate(species = s, stage = 'anae_name')
-  
-  bind_rows(alaarea, namearea) |> 
-    rename(ValleyName = name_clean)
-}
-
-total_wetland_area_basin <- total_wetland_area |> 
-  summarise(total_area = sum(total_area), .by = c(species, stage))
-```
+We have extracted the total area of each wetland group, and we can use that to show that the adult area is always lower than the matching total habitat area, and so we're not generating area somehow.
 
 So, the adult_name and adult_ala are always below the total available habitat in those groups. It's easies to see at the basin scale.
 
 ```{r}
 adult_hab |> 
-  filter(species == 'black_box') |>
+  filter(species == 'red_gum') |>
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() + 
   geom_hline(data = total_wetland_area |> 
-              filter(species == 'black_box'),
+              filter(species == 'red_gum'),
             aes(yintercept = total_area, color = stage),
             linetype = 'dashed') +
   scale_y_continuous(trans = 'log10') +
@@ -1391,14 +1590,116 @@ Basin, also logged so we can see the data.
 
 ```{r}
 adult_hab_basin |> 
-  filter(species == 'black_box') |> 
+  filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
   geom_line() +
   geom_hline(data = total_wetland_area_basin |> 
-              filter(species == 'black_box'),
+              filter(species == 'red_gum'),
             aes(yintercept = total_area, color = stage),
             linetype = 'dashed') +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
 geom_point()
 ```
+
+
+# Targeted Figures
+
+## Each of the model types
+
+Habitat
+```{r}
+
+# Should I facet? Or should I make each panel separately and stitch together with patchwork?
+hab_maps <- inun_anae_types |> 
+  group_by(ValleyName, stage, species) |> 
+  summarise(area = mean(area, na.rm = TRUE))|>
+  ungroup() |> 
+  filter(species == 'red_gum') |> 
+  mutate(clean_name = case_when(stage == 'anae_name' ~ 'Key habitat',
+                                stage == 'anae_ala' ~ 'Recorded habitat')) |> 
+  ggplot(aes(fill = log(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako', limits = (c(0, 22))) +
+  facet_grid(.~clean_name)
+
+hab_maps
+```
+## Process
+```{r}
+bio_maps <- all_process |> 
+  group_by(ValleyName, stage, species) |> 
+  summarise(area = mean(area, na.rm = TRUE))|>
+  ungroup() |> 
+  filter(species == 'red_gum' & stage %in% c('adult', 'adult_regen', 'recruitment')) |> 
+  mutate(clean_name = case_when(stage == 'adult' ~ 'Adult',
+                                stage == 'regeneration' ~ 'Regeneration',
+                                stage == 'seedling' ~ 'Seedling',
+                                stage == 'adult_regen' ~ 'Adult and regeneration',
+                                stage == 'recruitment' ~ 'Recruitment')) |> 
+  ggplot(aes(fill = log(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako', limits = (c(0, 22))) +
+  facet_grid(.~clean_name)
+
+bio_maps
+```
+
+## Interactive
+
+```{r}
+inter_maps <- adult_germ_seed_hab |> 
+  group_by(ValleyName, stage, species) |> 
+  summarise(area = mean(area, na.rm = TRUE))|>
+  ungroup() |> 
+  filter(species == 'red_gum' & stage %in% c('recruitment_name', 'recruitment_ala')) |> 
+  mutate(clean_name = case_when(stage == 'recruitment_name' ~ 'Recruitment and Key',
+                                stage == 'recruitment_ala' ~ 'Recruitment and Recorded',
+                                stage == 'recruitment' ~ 'Recruitment')) |> 
+  ggplot(aes(fill = log(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako', limits = (c(0, 22))) +
+  facet_grid(.~clean_name)
+
+inter_maps
+```
+
+Paneling is super ugly.
+
+```{r}
+hab_maps +
+  bio_maps +
+  inter_maps +
+  plot_annotation(tag_levels = 'a') +
+  plot_layout(guides = 'collect')
+```
+
+Make in one go?
+```{r}
+full_compare <- all_process |>
+  filter(stage %in% c('adult','adult_regen')) |> 
+  bind_rows(adult_germ_seed_hab) |> 
+  mutate(clean_name = case_when(stage == 'anae_name' ~ 'Key habitat',
+                                stage == 'anae_ala' ~ 'Recorded habitat',
+                                stage == 'adult' ~ 'Adult',
+                                stage == 'regeneration' ~ 'Regeneration',
+                                stage == 'seedling' ~ 'Seedling',
+                                stage == 'adult_regen' ~ 'Adult and regeneration',
+                                stage == 'recruitment' ~ 'Recruitment',
+                                stage == 'recruitment_name' ~ 'Recruitment and Key',
+                                stage == 'recruitment_ala' ~ 'Recruitment and Recorded'))
+```
+
+```{r}
+full_compare |> 
+  group_by(ValleyName, clean_name, species) |> 
+  summarise(area = mean(area, na.rm = TRUE))|>
+  ungroup() |> 
+  filter(species == 'red_gum') |> 
+  ggplot(aes(fill = log(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') +
+  facet_grid(.~clean_name) +
+  werptoolkitr::theme_werp_toolkit(legend.position = 'bottom')
+```
+
