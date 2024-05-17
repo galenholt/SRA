@@ -38,6 +38,14 @@ First, a few useful background pieces- which species, what are the anae types an
 species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
 ```
 
+```{r}
+valleys <- ltimNoNorth |> 
+  select(-ValleyID, -ValleyCode) |> 
+  mutate(name_orig = ValleyName,
+         ValleyName = stringr::str_remove_all(ValleyName, ' '))
+```
+
+
 What are the anae types?
 
 ```{r}
@@ -90,53 +98,6 @@ for (s in species) {
 #   print(all(tl$nametype[[i]] %in% stype))
 # }
 # We do, so comment that out.
-```
-
-Set up a standard color palette for the types. Could do the same for species if we every plot those, and should choose a standard ramp for things like maps. Could do it for catchments too, but there's a million. This is ugly, but changing it is easy.
-
-```{r}
-# really, should be using werptoolkitr::make_pal, though manual would let us do things like make different comparisons shades or something.
-
-# stage_pal <- c(regeneration = 'palegreen',
-#                seedling = 'darkseagreen',
-#                recruitment = 'forestgreen',
-#                adult = 'olivedrab4',
-#                anae_name = 'purple4',
-#                anae_ala = 'darkmagenta',
-#                regeneration_name = 'blue',
-#                regeneration_ala = 'dodgerblue',
-#                recruitment_name = 'cyan',
-#                recruitment_ala = 'orange3',
-#                adult_name = 'purple',
-#                adult_ala = 'turquoise')
-
-stages <- c('adult', 'regeneration', 'seedling',
-            'adult_regen', 'recruitment',
-            'anae_name', 'anae_ala',
-            'adult_name', 'adult_ala',
-            'regeneration_name', 'regeneration_ala',
-            'seedling_name', 'seedling_ala', # We never really use these
-            'recruitment_name', 'recruitment_ala')
-
-#  "palettetown::surskit"
-# "RColorBrewer::Set3"
-# This worked pretty well with 12, but is a mess with 15.
-# stage_pal <- werptoolkitr::make_pal(stages, "rcartocolor::Safe")
-
-# This is going to take some tweaking to get right.
-anae_cols <- werptoolkitr::make_pal(c('anae_name', 'anae_ala'), "beyonce::X41")
-
-process_cols <- werptoolkitr::make_pal(c('adult', 'regeneration', 'seedling',
-            'adult_regen', 'recruitment'), "calecopal::superbloom1")
-
-combo_cols <- werptoolkitr::make_pal(c('adult_name', 'adult_ala',
-            'regeneration_name', 'regeneration_ala',
-            'seedling_name', 'seedling_ala', # We never really use these
-            'recruitment_name', 'recruitment_ala'), "rcartocolor::Safe")
-
-stage_pal <- c(anae_cols, process_cols, combo_cols)
-class(stage_pal) <- 'colors'
-
 ```
 
 ### Process-only
@@ -196,22 +157,22 @@ adult_germ_seed <- purrr::map(species, \(x)
 We can put those in one dataframe, which is useful sometimes, but depending on the comparison, we might also want to put them in dataframes with other things (e.g. the habitat-clips).
 
 ```{r}
-all_process <- bind_rows(adult, germ, seed, adult_germ, adult_germ_seed) |> 
-  mutate(stage = factor(stage, 
-                        levels = c('adult', 
-                                   'regeneration',
-                                   'seedling',
-                                   'adult_regen',
-                                   'recruitment')))
-
-# A basin-scaled version. We could obviously make this below, but the more we keep data manipulation up here, the less opportunity for doing things twice (differently)
-
-all_process_basin <- all_process |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
+# all_process <- bind_rows(adult, germ, seed, adult_germ, adult_germ_seed) |> 
+#   mutate(stage = factor(stage, 
+#                         levels = c('adult', 
+#                                    'regeneration',
+#                                    'seedling',
+#                                    'adult_regen',
+#                                    'recruitment')))
+# 
+# # A basin-scaled version. We could obviously make this below, but the more we keep data manipulation up here, the less opportunity for doing things twice (differently)
+# 
+# all_process_basin <- all_process |> 
+#   sf::st_drop_geometry() |> 
+#   summarise(area = sumna(area),
+#             .by = c(date, stage, species)) |>
+#   bind_cols(basin) |> 
+#   st_as_sf()
 ```
 
 ### Habitat only
@@ -246,32 +207,34 @@ inun_anae_ala <- purrr::map(species,
          species = x)) |> 
   bind_rows()
 
-# and a combined version useful for comparisons
-inun_anae_types <- bind_rows(inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('anae_name', 'anae_ala')))
-
-# Basin
-inun_anae_types_basin <- inun_anae_types |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
+# # and a combined version useful for comparisons
+# inun_anae_types <- bind_rows(inun_anae_name, inun_anae_ala) |> 
+#     mutate(stage = factor(stage, levels = c('anae_name', 'anae_ala')))
+# 
+# # Basin
+# inun_anae_types_basin <- inun_anae_types |> 
+#   sf::st_drop_geometry() |> 
+#   summarise(area = sumna(area),
+#             .by = c(date, stage, species)) |>
+#   bind_cols(basin) |> 
+#   st_as_sf()
 ```
 
 We can join up the independent methods in a dataframe for comparison
 
 ```{r}
-process_and_hab <- bind_rows(adult, adult_germ, adult_germ_seed, inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('adult', 'adult_regen', 'recruitment', 
-                                            'anae_name', 'anae_ala')))
 
-process_and_hab_basin <- process_and_hab |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
+
+# process_and_hab <- bind_rows(adult, adult_germ, adult_germ_seed, inun_anae_name, inun_anae_ala) |> 
+#     mutate(stage = factor(stage, levels = c('adult', 'adult_regen', 'recruitment', 
+#                                             'anae_name', 'anae_ala')))
+# 
+# process_and_hab_basin <- process_and_hab |> 
+#   sf::st_drop_geometry() |> 
+#   summarise(area = sumna(area),
+#             .by = c(date, stage, species)) |>
+#   bind_cols(basin) |> 
+#   st_as_sf()
 ```
 
 There are also two other sorts of baselines we might want for the habitat- the total amount of inundation in *any* wetland type, and the total amount of area in each set of habitats, ignoring inundation. I had been doing this in the appendix, but think I'll move the data extraction here, anyway.
@@ -325,13 +288,18 @@ all(unique(all_anae$ANAE_DESC) %in% typearea$ANAE_DESC)
 # There's no species differences here
 inun_area <- diversity_anae_summary |> 
   st_drop_geometry() |> 
-  summarise(area_inundated = sum(area_inundated, na.rm = TRUE),
+  rename(date = time) |> 
+  mutate(ValleyName = name_clean) |> 
+  summarise(area = sum(area_inundated, na.rm = TRUE),
             stage = 'wetland_inundation',
-            .by = c(time, name_clean))
+            .by = c(date, ValleyName)) |>
+    left_join(valleys) |> 
+    st_as_sf() |> 
+  select(-name_orig)
 
 
-inun_area_basin <- inun_area |> 
-  summarise(area_inundated = sum(area_inundated), .by = c(time, stage))
+# inun_area_basin <- inun_area |> 
+#   summarise(area_inundated = sum(area_inundated), .by = c(time, stage))
 ```
 
 ### Interactive
@@ -410,68 +378,678 @@ adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_a
   bind_rows()
 
 
-# Comparison dataframes
-adult_hab <- bind_rows(adult, adult_name, adult_ala, 
-                      inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('adult',
-                                            'adult_name', 'adult_ala',
-                                            'anae_name', 'anae_ala')))
 
-germ_hab <- bind_rows(germ, germ_name, germ_ala, 
-                      inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('regeneration',
-                                            'regeneration_name',
-                                            'regeneration_ala',
-                                            'anae_name', 'anae_ala')))
-
-seed_hab <- bind_rows(seed, seed_name, seed_ala, 
-                      inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('seedling',
-                                            'seedling_name', 'seedling_ala',
-                                            'anae_name', 'anae_ala')))
-
-adult_germ_seed_hab <- bind_rows(adult_germ_seed,
-                                 adult_germ_seed_name,
-                                 adult_germ_seed_ala,
-                                 inun_anae_name, inun_anae_ala) |> 
-    mutate(stage = factor(stage, levels = c('recruitment',
-                                            'recruitment_name', 'recruitment_ala',
-                                            'anae_name', 'anae_ala')))
-
-# Basin
-
-adult_hab_basin <- adult_hab |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-germ_hab_basin <- germ_hab |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-# Basin
-seed_hab_basin <- seed_hab |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
-
-adult_germ_seed_hab_basin <- adult_germ_seed_hab |> 
-  sf::st_drop_geometry() |> 
-  summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
-  bind_cols(basin) |> 
-  st_as_sf()
+# # Comparison dataframes
+# adult_hab <- bind_rows(adult, adult_name, adult_ala, 
+#                       inun_anae_name, inun_anae_ala) |> 
+#     mutate(stage = factor(stage, levels = c('adult',
+#                                             'adult_name', 'adult_ala',
+#                                             'anae_name', 'anae_ala')))
+# 
+# germ_hab <- bind_rows(germ, germ_name, germ_ala, 
+#                       inun_anae_name, inun_anae_ala) |> 
+#     mutate(stage = factor(stage, levels = c('regeneration',
+#                                             'regeneration_name',
+#                                             'regeneration_ala',
+#                                             'anae_name', 'anae_ala')))
+# 
+# seed_hab <- bind_rows(seed, seed_name, seed_ala, 
+#                       inun_anae_name, inun_anae_ala) |> 
+#     mutate(stage = factor(stage, levels = c('seedling',
+#                                             'seedling_name', 'seedling_ala',
+#                                             'anae_name', 'anae_ala')))
+# 
+# adult_germ_seed_hab <- bind_rows(adult_germ_seed,
+#                                  adult_germ_seed_name,
+#                                  adult_germ_seed_ala,
+#                                  inun_anae_name, inun_anae_ala) |> 
+#     mutate(stage = factor(stage, levels = c('recruitment',
+#                                             'recruitment_name', 'recruitment_ala',
+#                                             'anae_name', 'anae_ala')))
+# 
+# # Basin
+# 
+# adult_hab_basin <- adult_hab |> 
+#   sf::st_drop_geometry() |> 
+#   summarise(area = sumna(area),
+#             .by = c(date, stage, species)) |>
+#   bind_cols(basin) |> 
+#   st_as_sf()
+# 
+# germ_hab_basin <- germ_hab |> 
+#   sf::st_drop_geometry() |> 
+#   summarise(area = sumna(area),
+#             .by = c(date, stage, species)) |>
+#   bind_cols(basin) |> 
+#   st_as_sf()
+# 
+# # Basin
+# seed_hab_basin <- seed_hab |> 
+#   sf::st_drop_geometry() |> 
+#   summarise(area = sumna(area),
+#             .by = c(date, stage, species)) |>
+#   bind_cols(basin) |> 
+#   st_as_sf()
+# 
+# adult_germ_seed_hab_basin <- adult_germ_seed_hab |>
+#   sf::st_drop_geometry() |>
+#   summarise(area = sumna(area),
+#             .by = c(date, stage, species)) |>
+#   bind_cols(basin) |>
+#   st_as_sf()
 
 
 
 ```
+
+### Concatenate
+```{r}
+all_data <- bind_rows(adult, germ, seed, 
+                         adult_germ, adult_germ_seed, 
+                         adult_ala, germ_ala, seed_ala,
+                      adult_germ_seed_ala,
+                         adult_name, germ_name, seed_name,
+                      adult_germ_seed_name,
+                         inun_anae_name, inun_anae_ala,
+                      inun_area)
+
+
+# Sum to the basin
+all_data_basin <- all_data |>
+  sf::st_drop_geometry() |>
+  summarise(area = sumna(area),
+            .by = c(date, stage, species)) |>
+  bind_cols(basin) |>
+  st_as_sf()
+
+# average over time
+all_data_time <- all_data |>
+  group_by(ValleyName, stage, species) |> 
+  summarise(area = meanna(area)) |>
+  ungroup()
+
+# sum to basin and average over time
+all_data_basin_time <- all_data_basin |>
+  group_by(stage, species) |> 
+ summarise(area = meanna(area)) |> 
+  ungroup()
+
+# rm(adult, germ, seed, 
+#    adult_germ, adult_germ_seed, 
+#    adult_ala, germ_ala, seed_ala, 
+#    adult_germ_seed_ala,
+#    adult_name, germ_name, seed_name, 
+#    adult_germ_seed_name,
+#    inun_anae_name, inun_anae_ala, inun_area)
+
+```
+
+Set up a standard color palette for the types. Could do the same for species if we every plot those, and should choose a standard ramp for things like maps. Could do it for catchments too, but there's a million. This is ugly, but changing it is easy.
+
+Clean up the names
+```{r}
+clean_stages <- function(x) {
+  x <- x |> 
+    mutate(stage_name = case_when(stage == 'adult' ~ 'Adult',
+                                  stage == 'regeneration' ~ 'Regeneration',
+                                  stage == 'seedling' ~ 'Seedling',
+                                  stage == 'adult_regen' ~ 'Adult and regeneration',
+                                  stage == 'recruitment' ~ 'Recruitment',
+                                  stage == 'adult_ala' ~ 'Adult and Recorded',
+                                  stage == 'regeneration_ala' ~ 'Regeneration and Recorded',
+                                  stage == 'seedling_ala' ~ 'Seedling and Recorded',
+                                  stage == 'recruitment_ala' ~ 'Recruitment and Recorded',
+                                  stage == 'adult_name' ~ 'Adult and Key',
+                                  stage == 'regeneration_name' ~ 'Regeneration and Key',
+                                  stage == 'seedling_name' ~ 'Seedling and Key',
+                                  stage == 'recruitment_name' ~ 'Recruitment and Key',
+                                  stage == 'anae_name' ~ 'Key habitat',
+                                  stage == 'anae_ala' ~ 'Recorded habitat',
+                                  stage == 'wetland_inundation' ~ 'Wetland inundation',
+                                  .default = 'FAIL'),
+           stage_name = factor(stage_name, levels = c('Wetland inundation',
+                                                      'Key habitat', 'Recorded habitat', 
+                                                      'Adult', 'Regeneration', 'Seedling',
+                                                      'Adult and regeneration', 'Recruitment',
+                                                      'Adult and Key', 'Regeneration and Key',
+                                                      'Seedling and Key', 'Recruitment and Key',
+                                                      'Adult and Recorded', 'Regeneration and Recorded',
+                                                      'Seedling and Recorded',
+                                                      'Recruitment and Recorded')),
+           # create an independent stage flag. don't includ adults, since they're both
+           is_independent_proc = case_when(stage %in% c('regeneration', 'seedling',
+                                                        'regeneration_ala', 'seedling_ala',
+                                                        'regeneration_name', 'seedling_name') ~
+                                             'independent',
+                                           stage %in% c('adult', 'adult_regen', 'recruitment',
+                                                        'adult_ala', 'adult_regen_ala',
+                                                        'recruitment_ala',
+                                                        'adult_name', 'adult_regen_name',
+                                                        'recruitment_name') ~ 'sequential',
+                                           .default = NA),
+           is_independent_proc = factor(is_independent_proc, levels = c('sequential', 'independent')))
+}
+
+all_data <- clean_stages(all_data)
+all_data_basin <- clean_stages(all_data_basin)
+all_data_time <- clean_stages(all_data_time)
+all_data_basin_time <- clean_stages(all_data_basin_time)
+```
+
+```{r}
+# just to make it easy to access
+stages <- unique(all_data$stage)
+stagenames <- unique(all_data$stage_name)
+
+anae_stages <- c('Key habitat', 'Recorded habitat', 'Wetland inundation')
+process_stages <- c('Adult', 'Regeneration', 'Seedling',
+                    'Adult and regeneration', 'Recruitment')
+combo_stages <- c('Adult and Key', 'Regeneration and Key',
+                  'Seedling and Key', 'Recruitment and Key',
+                  'Adult and Recorded', 'Regeneration and Recorded',
+                  'Seedling and Recorded',
+                  'Recruitment and Recorded')
+
+sequential_stages <- c('Adult', 'Adult and regeneration', 'Recruitment',
+                       'Recruitment and Key', 'Recruitment and Recorded')
+
+sequential_hab <- c('Key habitat', 'Recorded habitat', 'Wetland inundation',
+                       'Recruitment and Key', 'Recruitment and Recorded')
+
+#  "palettetown::surskit"
+# "RColorBrewer::Set3"
+# This worked pretty well with 12, but is a mess with 15.
+# stage_pal <- werptoolkitr::make_pal(stages, "rcartocolor::Safe")
+
+# This is going to take some tweaking to get right.
+# having hte names in separate vectors can make some filtering easier
+anae_cols <- werptoolkitr::make_pal(anae_stages,
+                                    "beyonce::X41")
+
+process_stages <- c('Adult', 'Regeneration', 'Seedling',
+                    'Adult and regeneration', 'Recruitment')
+
+process_cols <- werptoolkitr::make_pal(process_stages,
+                                       "calecopal::superbloom1")
+# that last one is just barely too purple
+process_cols[names(process_cols) == 'Recruitment'] <- '#527E87FF' # '#477173FF'
+
+combo_cols <- werptoolkitr::make_pal(combo_stages, "rcartocolor::Safe")
+
+stage_pal <- c(anae_cols, process_cols, combo_cols)
+class(stage_pal) <- 'colors'
+```
+
+
+# Results
+
+## Basin-scale timeseries
+
+Let's do this a few different ways and choose
+
+Habitat
+
+```{r}
+#| label: fig-process-habitat
+#| fig-cap: Area favourable for red gum life stages in the basin
+hab_basin_ts <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & stage_name %in% anae_stages) |> 
+ggplot(aes(x = date, y = (area+1), color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+hab_basin_ts
+```
+
+Process
+
+```{r}
+#| label: fig-process-basin
+#| fig-cap: Area favourable for red gum life stages in the basin
+proc_basin_ts <- all_data_basin |> 
+  filter(species == 'red_gum' & stage_name %in% process_stages) |> 
+ggplot(aes(x = date, y = (area+1), color = stage_name, linetype = is_independent_proc)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+proc_basin_ts
+```
+
+Both. We could throw the whole smash together to see how habitat affects each stage, @fig-processxhab-basin, but it's more reasonable to either look at each stage separately (likely in an appendix) or as the sequential set of processes (and maybe habs)?
+
+```{r}
+#| label: fig-inter-basin
+#| fig-cap: Area favourable for red gum life stages in the basin
+inter_basin_ts <- all_data_basin |> 
+  filter(species == 'red_gum' & stage_name %in% c(sequential_hab, 'Recruitment')) |> 
+ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+inter_basin_ts
+```
+
+Obviously need to clean up the legend, but something like this might work.
+```{r}
+(hab_basin_ts + proc_basin_ts) / inter_basin_ts +
+  plot_layout(guides = 'collect')
+
+```
+
+We can summarise those over time, making bar graphs
+
+```{r}
+
+# Don't use basin_time or we can't get the time-variance
+hab_basin_bar <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & stage_name %in% anae_stages) |> 
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = stage_name) |>
+ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
+  geom_col() +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+    scale_fill_manual(values = stage_pal) +
+  werptoolkitr::theme_werp_toolkit()
+
+hab_basin_bar
+
+```
+Process, both sequential and independent
+```{r}
+proc_basin_bar <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & stage_name %in% process_stages) |> 
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            is_independent_proc = unique(is_independent_proc),
+            .by = stage_name) |>
+ggplot(aes(x = stage_name, y = mean_area, fill = stage_name, color = is_independent_proc)) +
+  geom_col() +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+    scale_fill_manual(values = stage_pal) +
+  scale_color_manual(values = c(sequential = 'black', independent = 'grey70')) +
+  werptoolkitr::theme_werp_toolkit()
+
+proc_basin_bar
+```
+We have always treated the habitat restriction as another step in the sequence, and I'm having a hard time reframing that in my head, so I'm going to keep making those figs
+
+```{r}
+seq_proc_basin_bar <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & stage_name %in% sequential_stages) |> 
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = stage_name) |>
+ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
+  geom_col() +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+    scale_fill_manual(values = stage_pal) +
+  werptoolkitr::theme_werp_toolkit()
+
+seq_proc_basin_bar
+```
+```{r}
+seq_hab_basin_bar <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & stage_name %in% sequential_hab) |> 
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = stage_name) |>
+ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
+  geom_col() +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+    scale_fill_manual(values = stage_pal) +
+  werptoolkitr::theme_werp_toolkit()
+
+seq_hab_basin_bar
+```
+and matching the all-together timeseries
+
+```{r}
+inter_basin_bar <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & stage_name %in% c(sequential_hab, 'Recruitment')) |>
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = stage_name) |>
+ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
+  geom_col() +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+    scale_fill_manual(values = stage_pal) +
+  werptoolkitr::theme_werp_toolkit()
+
+inter_basin_bar
+
+```
+Those stepthrough plots give me (an) idea(s). Let's see if I can pull it off
+
+```{r}
+# I think I'm going to need to build on this, but get started small
+
+# basically, I need some more groupings
+hab_all <- c('Wetland inundation', process_stages)
+hab_key <- c('Key habitat', combo_stages[grepl('Key', combo_stages)])
+hab_record <- c('Recorded habitat', combo_stages[grepl('Recorded', combo_stages)])
+
+proc_adult <- c('Adult', combo_stages[grepl('Adult', combo_stages)])
+proc_regen <- c('Regeneration', combo_stages[grepl('Regeneration', combo_stages)])
+proc_seed <- c('Seedling', combo_stages[grepl('Seed', combo_stages)])
+proc_ad_regen <- c('Adult and regeneration', combo_stages[grepl('Adult and regen', combo_stages)])
+proc_recruit <- c('Recruitment', combo_stages[grepl('Recruitment', combo_stages)])
+
+
+all_data_basin <- all_data_basin |> 
+  mutate(hab_type = case_when(stage_name %in% hab_all ~ "All wetlands",
+                              stage_name %in% hab_key ~ "Key habitat",
+                              stage_name %in% hab_record ~ "Recorded habitat",
+                              .default = NA),
+         proc_type = case_when(stage_name %in% proc_adult ~ "Adult",
+                               stage_name %in% proc_regen ~ "Regeneration",
+                               stage_name %in% proc_seed ~ "Seedling",
+                               stage_name %in% proc_ad_regen ~ "Adult and regeneration",
+                               stage_name %in% proc_recruit ~ "Recruitment",
+                               .default = NA),
+         model_type = case_when(stage_name %in% anae_stages ~ 'Habitat',
+                                stage_name %in% process_stages ~ "Process",
+                                stage_name %in% combo_stages ~ "Process within\nhabitat", 
+                                .default = NA),
+         proc_type = factor(proc_type, levels = c('Adult', 'Regeneration', 'Seedling', 'Adult and regeneration', 'Recruitment')))
+# prob need to change this
+type_pal <- werptoolkitr::make_pal(c('Habitat', 'Process', 'Process within\nhabitat'), "trekcolors::starfleet")
+```
+
+I think it's the same data as above, just reorganised
+```{r}
+new_basin_bar_hab <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           stage_name %in% c(sequential_hab, 'Recruitment') &
+           !is.na(hab_type)) |>
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = c(stage_name, hab_type, model_type)) |>
+  # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
+ggplot(aes(x = hab_type, y = mean_area, fill = stage_name, color = model_type)) +
+  geom_col(position = 'dodge') +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
+                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+    scale_fill_manual(values = stage_pal) +
+    scale_color_manual(values = type_pal) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+
+new_basin_bar_hab
+```
+Now, flip that around. *THIS IS THE ONE I NEED TO REFRAME WITH THE STAGE AND HAB AT EACH STAGE ON X*
+```{r}
+new_basin_bar_proc <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           stage_name %in% c('Recruitment', "Recruitment and Key", "Recruitment and Recorded") &
+           !is.na(hab_type)) |>
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = c(stage_name, hab_type, model_type)) |>
+ggplot(aes(x = hab_type, y = mean_area, fill = stage_name, color = model_type)) +
+  geom_col(position = 'dodge') +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
+                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+    scale_fill_manual(values = stage_pal) +
+    scale_color_manual(values = type_pal) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+
+new_basin_bar_proc
+```
+Yeah, this is the one I want. But maybe should just color by all vs key vs recorded rather than all combos and let the x labels do the talking for the stages?
+```{r}
+new_basin_bar_proc2 <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           !is.na(proc_type)) |>
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = c(stage_name, proc_type, model_type)) |>
+ggplot(aes(x = proc_type, y = mean_area, fill = stage_name, color = model_type)) +
+  geom_col(position = 'dodge') +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
+                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+    scale_fill_manual(values = stage_pal) +
+    scale_color_manual(values = type_pal) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+
+new_basin_bar_proc2
+```
+
+
+I think the thing to do here is actually step through the process steps, and with each one show the drop we get when we restrict it to the hab type. It's a little different than what we have here, but might be clearer. Or in addition
+
+Do I need to two-panel? Is just the hab-ref enough? If so, should I go back to describing the process as within all habitats?
+
+```{r}
+new_basin_bar_hab / new_basin_bar_proc +
+  plot_layout(guides = 'collect')
+```
+This one is better, once i sort otu the labels/colors and the adult + regen data
+
+```{r}
+new_basin_bar_hab / new_basin_bar_proc2 +
+  plot_layout(guides = 'collect')
+```
+
+the two panel is alomost more useful for the sequential loss figs
+```{r}
+seq_proc_basin_bar / seq_hab_basin_bar +
+  plot_layout(guides = 'collect')
+```
+
+Now, can we do something similar with maps? Do we need the difference/relative? Or is it enough to just plot the raw dta? Also a q for the bars- we could do a relativized version to look at the proportional sensitivity, but would that just confuse the issue?
+
+And for maps, should we relativise to area in each catchmentz/
+
+Really, the sort of sequential figs we have for process (and all over MER) are great. the catch is the bifurcation introduced by the two habitat types. It makes the vis hard.
+
+## Maps
+
+Just the hab
+
+```{r}
+all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% anae_stages) |> 
+  ggplot(aes(fill = area)) +
+  geom_sf() +
+  scale_fill_viridis_c(option = 'mako', trans = 'log10') +
+  facet_grid(.~stage_name) +
+  werptoolkitr::theme_werp_toolkit()
+```
+
+Habitat
+```{r}
+
+# Should I facet? Or should I make each panel separately and stitch together with patchwork?
+hab_maps <- all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% anae_stages) |> 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_grid(.~stage_name) +
+  werptoolkitr::theme_werp_toolkit()
+
+hab_maps
+```
+## Process
+```{r}
+bio_maps <- all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% process_stages) |> 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_grid(.~stage_name) +
+  werptoolkitr::theme_werp_toolkit()
+
+bio_maps
+```
+As above, does that one actually make more sense as the independents and then the sequentials?
+
+```{r}
+bio_indep_maps <- all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% c('Adult', 'Regeneration', 'Seedling')) |> 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_grid(.~stage_name) +
+  werptoolkitr::theme_werp_toolkit()
+
+bio_indep_maps
+```
+
+```{r}
+bio_seq_maps <- all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% c('Adult', 'Adult and regeneration', 'Recruitment')) |> 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_grid(.~stage_name) +
+  werptoolkitr::theme_werp_toolkit()
+
+bio_seq_maps
+```
+Those two might work well paneled up
+
+```{r}
+bio_indep_maps / 
+  bio_seq_maps +
+  plot_layout(guides = 'collect')
+```
+
+
+## Interactive
+
+JUST the interactive
+
+```{r}
+inter_maps <- all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% 
+           c('Recruitment and Key', 'Recruitment and Recorded')) |> 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_grid(.~stage_name) +
+  werptoolkitr::theme_werp_toolkit()
+
+inter_maps
+```
+
+We can also put them on the end of the sequential, as we did in the bar graphs. It's a little bit weird, because they aren't sequential with each other.
+
+```{r}
+inter_seq_maps <- all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% 
+           sequential_stages) |> 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_grid(.~stage_name) +
+  werptoolkitr::theme_werp_toolkit()
+
+inter_seq_maps
+```
+Similarly, we can 'sequence' them off the habitat
+
+```{r}
+inter_habseq_maps <- all_data_time |> 
+  filter(species == 'red_gum' & stage_name %in% sequential_hab) |> 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_wrap('stage_name', nrow = 2) +
+  werptoolkitr::theme_werp_toolkit()
+
+inter_habseq_maps
+```
+What I want is a comparison matrix. Can I get that to work without too much monkeying?
+
+We could drop that top panel, but it's actually informative. Moving top to bottom is the effect of requireing process, moving from left to either of the middle and right column is the effect of limiting to habitat types.
+
+```{r}
+# Don't like this
+# levels(all_data_time$stage_name) <- c('', levels(all_data_time$stage_name))
+
+inter_matrix_maps <- all_data_time |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           stage_name %in% c(sequential_hab, 'Recruitment')) |> 
+  mutate(stage_name = forcats::fct_drop(stage_name)) |> 
+  # filter(!is.na(species)) |> # 
+  ggplot(aes(fill = log10(area + 1))) +
+  geom_sf() + 
+  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  facet_wrap('stage_name', nrow = 2, drop = FALSE) +
+  # facet_wrap('stage_name', ncol = 3) +
+  werptoolkitr::theme_werp_toolkit()
+
+inter_matrix_maps
+```
+
+We could obviously fill those two middle panels with the difference or the relative change, but is it needed? or is the bar plot covering it?
+
+### Scratch
+We can do those separately (below), but I think that covers it pretty well.
+```{r}
+#| label: fig-process-sequential-basin
+#| fig-cap: Area favourable for red gum life stages in the basin
+seq_proc_basin_ts <- all_data_basin |> 
+  filter(species == 'red_gum' & stage_name %in% sequential_stages) |> 
+ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+seq_proc_basin_ts
+
+```
+
+```{r}
+#| label: fig-hab-sequential-basin
+#| fig-cap: Area favourable for red gum life stages in the basin
+seq_hab_basin_ts <- all_data_basin |> 
+  filter(species == 'red_gum' & stage_name %in% sequential_hab) |> 
+ggplot(aes(x = date, y = area, color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+seq_hab_basin_ts
+```
+
+
+```{r}
+#| label: fig-processxhab-basin
+#| fig-cap: Area favourable for red gum life stages in the basin
+all_data_basin |> 
+  filter(species == 'red_gum' & stage_name %in% combo_stages) |> 
+ggplot(aes(x = date, y = area, color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point()
+```
+
+
+# OLD- more complete data explore
 
 # Intro
 
@@ -1119,11 +1697,6 @@ Get the relativisations for each catchment over the period. Do the mean over the
 ```{r}
 # Get the time-mean
 # fastest to drop geometry and re-add
-# first pull the unique geom off to re-join
-valleys <- ltimNoNorth |> 
-  select(-ValleyID, -ValleyCode) |> 
-  mutate(name_orig = ValleyName,
-         ValleyName = stringr::str_remove_all(ValleyName, ' '))
 
 germ_period <- germ_hab |> 
   sf::st_drop_geometry() |>
