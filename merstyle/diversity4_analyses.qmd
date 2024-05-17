@@ -178,6 +178,8 @@ total_basin_anae <- diversity_anae_summary |>
 
 shannon_expectations <- diversity_anae_summary |>
   sf::st_drop_geometry() |> 
+  # Because we're just getting catchment dsecriptions of size and number of wetlands
+  filter(time == lubridate::ymd(19870701)) |> 
   summarise(n_anae_types = n_distinct(ANAE_DESC),
             max_shannon_catchment = log(n_anae_types),
             max_shannon_basin = log(total_basin_anae),
@@ -433,4 +435,3 @@ ggplot(basin_shannon_prepost, aes(fill = diversity_shannon_area)) +
   facet_wrap('timeperiod') +
   scale_fill_viridis_c(option = 'mako')
 ```
-
