@@ -18,10 +18,12 @@ library(patchwork)
 
 ```{r}
 # Making these up for now, we'll want to be consistent
-currenttimestart <- lubridate::ymd('20190101')
+currenttimestart <- lubridate::ymd('20170701') # last day is 2022-07-01, so 5 years back
 currenttimeend <- lubridate::ymd('20240301')
-preBPtimestart <- lubridate::ymd('20070101')
-preBPtimeend <- lubridate::ymd('20120101')
+
+# Centered on BP date?
+preBPtimestart <- lubridate::ymd('20060701')
+preBPtimeend <- lubridate::ymd('20110701')
 
 # Need a clean name to bring in data
 catchments <- ltimNoNorth |> 
@@ -372,7 +374,9 @@ shannon_area_prepost |>
 ggplot(shannon_area_prepost, aes(fill = diversity_shannon_area)) +
   geom_sf() +
   facet_wrap('timeperiod') +
-  scale_fill_viridis_c(option = 'magma')
+  scale_fill_viridis_c(option = 'magma') +
+  werptoolkitr::theme_werp_toolkit() + 
+  labs(fill = "Shannon diversity")
 ```
 
 ### Temporal turnover

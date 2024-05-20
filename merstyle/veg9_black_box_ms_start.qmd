@@ -119,7 +119,7 @@ germ <- purrr::map(species, \(x)
                                 outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
-  mutate(stage = 'regeneration',
+  mutate(stage = 'germination',
          species = x)) |> 
   bind_rows()
 
@@ -154,27 +154,6 @@ adult_germ_seed <- purrr::map(species, \(x)
 
 ```
 
-We can put those in one dataframe, which is useful sometimes, but depending on the comparison, we might also want to put them in dataframes with other things (e.g. the habitat-clips).
-
-```{r}
-# all_process <- bind_rows(adult, germ, seed, adult_germ, adult_germ_seed) |> 
-#   mutate(stage = factor(stage, 
-#                         levels = c('adult', 
-#                                    'regeneration',
-#                                    'seedling',
-#                                    'adult_regen',
-#                                    'recruitment')))
-# 
-# # A basin-scaled version. We could obviously make this below, but the more we keep data manipulation up here, the less opportunity for doing things twice (differently)
-# 
-# all_process_basin <- all_process |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sumna(area),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-```
-
 ### Habitat only
 
 ```{r}
@@ -207,35 +186,8 @@ inun_anae_ala <- purrr::map(species,
          species = x)) |> 
   bind_rows()
 
-# # and a combined version useful for comparisons
-# inun_anae_types <- bind_rows(inun_anae_name, inun_anae_ala) |> 
-#     mutate(stage = factor(stage, levels = c('anae_name', 'anae_ala')))
-# 
-# # Basin
-# inun_anae_types_basin <- inun_anae_types |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sumna(area),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
 ```
 
-We can join up the independent methods in a dataframe for comparison
-
-```{r}
-
-
-# process_and_hab <- bind_rows(adult, adult_germ, adult_germ_seed, inun_anae_name, inun_anae_ala) |> 
-#     mutate(stage = factor(stage, levels = c('adult', 'adult_regen', 'recruitment', 
-#                                             'anae_name', 'anae_ala')))
-# 
-# process_and_hab_basin <- process_and_hab |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sumna(area),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-```
 
 There are also two other sorts of baselines we might want for the habitat- the total amount of inundation in *any* wetland type, and the total amount of area in each set of habitats, ignoring inundation. I had been doing this in the appendix, but think I'll move the data extraction here, anyway.
 
@@ -297,9 +249,6 @@ inun_area <- diversity_anae_summary |>
     st_as_sf() |> 
   select(-name_orig)
 
-
-# inun_area_basin <- inun_area |> 
-#   summarise(area_inundated = sum(area_inundated), .by = c(time, stage))
 ```
 
 ### Interactive
@@ -321,7 +270,7 @@ germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala',
                                 outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
-  mutate(stage = 'regeneration_ala',
+  mutate(stage = 'germination_ala',
          species = x)) |> 
   bind_rows()
 
@@ -333,6 +282,14 @@ seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala',
          species = x)) |> 
   bind_rows()
 
+adult_germ_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_ala', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'regeneration_ala',
+         species = x)) |> 
+  bind_rows()
+
 adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_ala', 
                                 outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
@@ -340,8 +297,6 @@ adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_ar
   mutate(stage = 'recruitment_ala',
          species = x)) |> 
   bind_rows()
-
-
 
 # Name
 
@@ -357,7 +312,7 @@ germ_name <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_name',
                                 outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
-  mutate(stage = 'regeneration_name',
+  mutate(stage = 'germination_name',
          species = x)) |> 
   bind_rows()
 
@@ -369,6 +324,14 @@ seed_name <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_name',
          species = x)) |> 
   bind_rows()
 
+adult_germ_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_name', 
+                                outerdir = paste0('habprocesspaper/', x)) |> 
+  # There's no data prior ot 1988
+  filter(date > lubridate::ymd(19880101)) |> 
+  mutate(stage = 'regeneration_name',
+         species = x)) |> 
+  bind_rows()
+
 adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_name', 
                                 outerdir = paste0('habprocesspaper/', x)) |> 
   # There's no data prior ot 1988
@@ -376,70 +339,6 @@ adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_a
   mutate(stage = 'recruitment_name',
          species = x)) |> 
   bind_rows()
-
-
-
-# # Comparison dataframes
-# adult_hab <- bind_rows(adult, adult_name, adult_ala, 
-#                       inun_anae_name, inun_anae_ala) |> 
-#     mutate(stage = factor(stage, levels = c('adult',
-#                                             'adult_name', 'adult_ala',
-#                                             'anae_name', 'anae_ala')))
-# 
-# germ_hab <- bind_rows(germ, germ_name, germ_ala, 
-#                       inun_anae_name, inun_anae_ala) |> 
-#     mutate(stage = factor(stage, levels = c('regeneration',
-#                                             'regeneration_name',
-#                                             'regeneration_ala',
-#                                             'anae_name', 'anae_ala')))
-# 
-# seed_hab <- bind_rows(seed, seed_name, seed_ala, 
-#                       inun_anae_name, inun_anae_ala) |> 
-#     mutate(stage = factor(stage, levels = c('seedling',
-#                                             'seedling_name', 'seedling_ala',
-#                                             'anae_name', 'anae_ala')))
-# 
-# adult_germ_seed_hab <- bind_rows(adult_germ_seed,
-#                                  adult_germ_seed_name,
-#                                  adult_germ_seed_ala,
-#                                  inun_anae_name, inun_anae_ala) |> 
-#     mutate(stage = factor(stage, levels = c('recruitment',
-#                                             'recruitment_name', 'recruitment_ala',
-#                                             'anae_name', 'anae_ala')))
-# 
-# # Basin
-# 
-# adult_hab_basin <- adult_hab |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sumna(area),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-# 
-# germ_hab_basin <- germ_hab |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sumna(area),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-# 
-# # Basin
-# seed_hab_basin <- seed_hab |> 
-#   sf::st_drop_geometry() |> 
-#   summarise(area = sumna(area),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |> 
-#   st_as_sf()
-# 
-# adult_germ_seed_hab_basin <- adult_germ_seed_hab |>
-#   sf::st_drop_geometry() |>
-#   summarise(area = sumna(area),
-#             .by = c(date, stage, species)) |>
-#   bind_cols(basin) |>
-#   st_as_sf()
-
-
-
 ```
 
 ### Concatenate
@@ -447,8 +346,9 @@ adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_a
 all_data <- bind_rows(adult, germ, seed, 
                          adult_germ, adult_germ_seed, 
                          adult_ala, germ_ala, seed_ala,
-                      adult_germ_seed_ala,
+                      adult_germ_ala, adult_germ_seed_ala,
                          adult_name, germ_name, seed_name,
+                      adult_germ_name,
                       adult_germ_seed_name,
                          inun_anae_name, inun_anae_ala,
                       inun_area)
@@ -487,39 +387,79 @@ all_data_basin_time <- all_data_basin |>
 Set up a standard color palette for the types. Could do the same for species if we every plot those, and should choose a standard ramp for things like maps. Could do it for catchments too, but there's a million. This is ugly, but changing it is easy.
 
 Clean up the names
+
+```{r}
+# Set up various groupings
+# the different types
+anae_stages <- c('Named wetland types', 'Recorded wetland types', 'All wetlands')
+process_stages <- c('Adult', 'Germination', 'Seedling',
+                    'Regeneration', 'Recruitment')
+combo_stages <- c('Adult and Named', 'Germination and Named',
+                  'Seedling and Named', 'Regeneration and Named', 'Recruitment and Named',
+                  'Adult and Recorded', 'Germination and Recorded',
+                  'Seedling and Recorded', 'Regeneration and Recorded',
+                  'Recruitment and Recorded')
+
+sequential_stages <- c('Adult', 'Regeneration', 'Recruitment',
+                       'Recruitment and Named', 'Recruitment and Recorded')
+
+sequential_hab <- c('Named wetland types', 'Recorded wetland types', 'All wetlands',
+                       'Recruitment and Named', 'Recruitment and Recorded')
+
+# The different comparisons across type
+hab_all <- c('All wetlands', process_stages)
+hab_named <- c('Named wetland types', combo_stages[grepl('Named', combo_stages)])
+hab_record <- c('Recorded wetland types', combo_stages[grepl('Recorded', combo_stages)])
+
+proc_adult <- c('Adult', combo_stages[grepl('Adult', combo_stages)])
+proc_germ <- c('Germination', combo_stages[grepl('Germination', combo_stages)])
+proc_seed <- c('Seedling', combo_stages[grepl('Seed', combo_stages)])
+proc_regen <- c('Regeneration', combo_stages[grepl('Regeneration', combo_stages)])
+proc_recruit <- c('Recruitment', combo_stages[grepl('Recruitment', combo_stages)])
+
+```
+
 ```{r}
 clean_stages <- function(x) {
   x <- x |> 
     mutate(stage_name = case_when(stage == 'adult' ~ 'Adult',
-                                  stage == 'regeneration' ~ 'Regeneration',
+                                  stage == 'germination' ~ 'Germination',
                                   stage == 'seedling' ~ 'Seedling',
-                                  stage == 'adult_regen' ~ 'Adult and regeneration',
+                                  stage == 'adult_regen' ~ 'Regeneration',
                                   stage == 'recruitment' ~ 'Recruitment',
                                   stage == 'adult_ala' ~ 'Adult and Recorded',
-                                  stage == 'regeneration_ala' ~ 'Regeneration and Recorded',
+                                  stage == 'germination_ala' ~ 'Germination and Recorded',
                                   stage == 'seedling_ala' ~ 'Seedling and Recorded',
+                                  stage == 'regeneration_ala' ~ 'Regeneration and Recorded',
                                   stage == 'recruitment_ala' ~ 'Recruitment and Recorded',
-                                  stage == 'adult_name' ~ 'Adult and Key',
-                                  stage == 'regeneration_name' ~ 'Regeneration and Key',
-                                  stage == 'seedling_name' ~ 'Seedling and Key',
-                                  stage == 'recruitment_name' ~ 'Recruitment and Key',
-                                  stage == 'anae_name' ~ 'Key habitat',
-                                  stage == 'anae_ala' ~ 'Recorded habitat',
-                                  stage == 'wetland_inundation' ~ 'Wetland inundation',
+                                  stage == 'adult_name' ~ 'Adult and Named',
+                                  stage == 'germination_name' ~ 'Germination and Named',
+                                  stage == 'seedling_name' ~ 'Seedling and Named',
+                                  stage == 'regeneration_name' ~ 'Regeneration and Named',
+                                  stage == 'recruitment_name' ~ 'Recruitment and Named',
+                                  stage == 'anae_name' ~ 'Named wetland types',
+                                  stage == 'anae_ala' ~ 'Recorded wetland types',
+                                  stage == 'wetland_inundation' ~ 'All wetlands',
                                   .default = 'FAIL'),
-           stage_name = factor(stage_name, levels = c('Wetland inundation',
-                                                      'Key habitat', 'Recorded habitat', 
-                                                      'Adult', 'Regeneration', 'Seedling',
-                                                      'Adult and regeneration', 'Recruitment',
-                                                      'Adult and Key', 'Regeneration and Key',
-                                                      'Seedling and Key', 'Recruitment and Key',
-                                                      'Adult and Recorded', 'Regeneration and Recorded',
-                                                      'Seedling and Recorded',
-                                                      'Recruitment and Recorded')),
+           stage_name = factor(stage_name,
+                               levels = c('All wetlands',
+                                          'Named wetland types',
+                                          'Recorded wetland types', 
+                                          'Adult', 'Germination', 'Seedling',
+                                          'Regeneration', 'Recruitment',
+                                          'Adult and Named', 'Germination and Named',
+                                          'Seedling and Named',
+                                          'Regeneration and Named',
+                                          'Recruitment and Named',
+                                          'Adult and Recorded',
+                                          'Germination and Recorded',
+                                          'Seedling and Recorded',
+                                          'Regeneration and Recorded',
+                                          'Recruitment and Recorded')),
            # create an independent stage flag. don't includ adults, since they're both
-           is_independent_proc = case_when(stage %in% c('regeneration', 'seedling',
-                                                        'regeneration_ala', 'seedling_ala',
-                                                        'regeneration_name', 'seedling_name') ~
+           is_independent_proc = case_when(stage %in% c('germination', 'seedling',
+                                                        'germination_ala', 'seedling_ala',
+                                                        'germination_name', 'seedling_name') ~
                                              'independent',
                                            stage %in% c('adult', 'adult_regen', 'recruitment',
                                                         'adult_ala', 'adult_regen_ala',
@@ -527,34 +467,42 @@ clean_stages <- function(x) {
                                                         'adult_name', 'adult_regen_name',
                                                         'recruitment_name') ~ 'sequential',
                                            .default = NA),
-           is_independent_proc = factor(is_independent_proc, levels = c('sequential', 'independent')))
+           is_independent_proc = factor(is_independent_proc, levels = c('sequential', 'independent'))) |> 
+    mutate(hab_type = case_when(stage_name %in% hab_all ~ "All wetlands",
+                                stage_name %in% hab_named ~ "Key habitat",
+                                stage_name %in% hab_record ~ "Recorded habitat",
+                                .default = NA),
+           proc_type = case_when(stage_name %in% proc_adult ~ "Adult",
+                                 stage_name %in% proc_germ ~ "Germination",
+                                 stage_name %in% proc_seed ~ "Seedling",
+                                 stage_name %in% proc_regen ~ "Regeneration",
+                                 stage_name %in% proc_recruit ~ "Recruitment",
+                                 .default = NA),
+           model_type = case_when(stage_name %in% anae_stages ~ 'Habitat',
+                                  stage_name %in% process_stages ~ "Process",
+                                  stage_name %in% combo_stages ~ "Process within\nhabitat", 
+                                  .default = NA),
+           proc_type = factor(proc_type, levels = c('Adult', 'Germination', 'Seedling', 'Regeneration', 'Recruitment')))
+  
 }
+```
 
+
+Use that to clean data
+```{r}
 all_data <- clean_stages(all_data)
 all_data_basin <- clean_stages(all_data_basin)
 all_data_time <- clean_stages(all_data_time)
 all_data_basin_time <- clean_stages(all_data_basin_time)
 ```
 
+
 ```{r}
 # just to make it easy to access
 stages <- unique(all_data$stage)
 stagenames <- unique(all_data$stage_name)
 
-anae_stages <- c('Key habitat', 'Recorded habitat', 'Wetland inundation')
-process_stages <- c('Adult', 'Regeneration', 'Seedling',
-                    'Adult and regeneration', 'Recruitment')
-combo_stages <- c('Adult and Key', 'Regeneration and Key',
-                  'Seedling and Key', 'Recruitment and Key',
-                  'Adult and Recorded', 'Regeneration and Recorded',
-                  'Seedling and Recorded',
-                  'Recruitment and Recorded')
 
-sequential_stages <- c('Adult', 'Adult and regeneration', 'Recruitment',
-                       'Recruitment and Key', 'Recruitment and Recorded')
-
-sequential_hab <- c('Key habitat', 'Recorded habitat', 'Wetland inundation',
-                       'Recruitment and Key', 'Recruitment and Recorded')
 
 #  "palettetown::surskit"
 # "RColorBrewer::Set3"
@@ -566,8 +514,8 @@ sequential_hab <- c('Key habitat', 'Recorded habitat', 'Wetland inundation',
 anae_cols <- werptoolkitr::make_pal(anae_stages,
                                     "beyonce::X41")
 
-process_stages <- c('Adult', 'Regeneration', 'Seedling',
-                    'Adult and regeneration', 'Recruitment')
+process_stages <- c('Adult', 'Germination', 'Seedling',
+                    'Regeneration', 'Recruitment')
 
 process_cols <- werptoolkitr::make_pal(process_stages,
                                        "calecopal::superbloom1")
@@ -578,6 +526,9 @@ combo_cols <- werptoolkitr::make_pal(combo_stages, "rcartocolor::Safe")
 
 stage_pal <- c(anae_cols, process_cols, combo_cols)
 class(stage_pal) <- 'colors'
+
+# probably need to change this
+type_pal <- werptoolkitr::make_pal(c('Habitat', 'Process', 'Process within\nhabitat'), "trekcolors::starfleet")
 ```
 
 
@@ -621,6 +572,24 @@ geom_point() +
 proc_basin_ts
 ```
 
+```{r}
+#| label: fig-process-basin
+#| fig-cap: Area favourable for red gum life stages in the basin
+proc_basin_seq_ts <- all_data_basin |> 
+  filter(species == 'red_gum' & 
+           # both process and sequential
+           stage_name %in% process_stages &
+           stage_name %in% sequential_stages) |> 
+ggplot(aes(x = date, y = (area+1), color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+proc_basin_seq_ts
+```
+
 Both. We could throw the whole smash together to see how habitat affects each stage, @fig-processxhab-basin, but it's more reasonable to either look at each stage separately (likely in an appendix) or as the sequential set of processes (and maybe habs)?
 
 ```{r}
@@ -638,9 +607,43 @@ geom_point() +
 inter_basin_ts
 ```
 
+I want to facet that, but there's no easy way because recruitment should be in both. So just panel it
+
+```{r}
+inter_basin_key_ts <- all_data_basin |> 
+  filter(species == 'red_gum' & 
+           stage_name %in% c('Named wetland types', 'Recruitment and Named', 'Recruitment')) |> 
+ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+
+
+inter_basin_recorded_ts <- all_data_basin |> 
+  filter(species == 'red_gum' & 
+           stage_name %in% c('Recorded wetland types', 'Recruitment and Recorded', 'Recruitment')) |> 
+ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
+  geom_line() +
+  scale_y_continuous(trans = 'log10') +
+    scale_color_manual(values = stage_pal) +
+geom_point() +
+  werptoolkitr::theme_werp_toolkit()
+
+inter_basin_key_ts + inter_basin_recorded_ts + 
+  plot_layout(guides = 'collect')
+```
+
 Obviously need to clean up the legend, but something like this might work.
 ```{r}
-(hab_basin_ts + proc_basin_ts) / inter_basin_ts +
+(hab_basin_ts + proc_basin_seq_ts) / (inter_basin_key_ts + inter_basin_recorded_ts) +
+  plot_layout(guides = 'collect')
+
+```
+```{r}
+(hab_basin_ts + proc_basin_seq_ts) / inter_basin_key_ts / inter_basin_recorded_ts +
   plot_layout(guides = 'collect')
 
 ```
@@ -700,6 +703,7 @@ ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
 
 seq_proc_basin_bar
 ```
+
 ```{r}
 seq_hab_basin_bar <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & stage_name %in% sequential_hab) |> 
@@ -735,40 +739,6 @@ inter_basin_bar
 ```
 Those stepthrough plots give me (an) idea(s). Let's see if I can pull it off
 
-```{r}
-# I think I'm going to need to build on this, but get started small
-
-# basically, I need some more groupings
-hab_all <- c('Wetland inundation', process_stages)
-hab_key <- c('Key habitat', combo_stages[grepl('Key', combo_stages)])
-hab_record <- c('Recorded habitat', combo_stages[grepl('Recorded', combo_stages)])
-
-proc_adult <- c('Adult', combo_stages[grepl('Adult', combo_stages)])
-proc_regen <- c('Regeneration', combo_stages[grepl('Regeneration', combo_stages)])
-proc_seed <- c('Seedling', combo_stages[grepl('Seed', combo_stages)])
-proc_ad_regen <- c('Adult and regeneration', combo_stages[grepl('Adult and regen', combo_stages)])
-proc_recruit <- c('Recruitment', combo_stages[grepl('Recruitment', combo_stages)])
-
-
-all_data_basin <- all_data_basin |> 
-  mutate(hab_type = case_when(stage_name %in% hab_all ~ "All wetlands",
-                              stage_name %in% hab_key ~ "Key habitat",
-                              stage_name %in% hab_record ~ "Recorded habitat",
-                              .default = NA),
-         proc_type = case_when(stage_name %in% proc_adult ~ "Adult",
-                               stage_name %in% proc_regen ~ "Regeneration",
-                               stage_name %in% proc_seed ~ "Seedling",
-                               stage_name %in% proc_ad_regen ~ "Adult and regeneration",
-                               stage_name %in% proc_recruit ~ "Recruitment",
-                               .default = NA),
-         model_type = case_when(stage_name %in% anae_stages ~ 'Habitat',
-                                stage_name %in% process_stages ~ "Process",
-                                stage_name %in% combo_stages ~ "Process within\nhabitat", 
-                                .default = NA),
-         proc_type = factor(proc_type, levels = c('Adult', 'Regeneration', 'Seedling', 'Adult and regeneration', 'Recruitment')))
-# prob need to change this
-type_pal <- werptoolkitr::make_pal(c('Habitat', 'Process', 'Process within\nhabitat'), "trekcolors::starfleet")
-```
 
 I think it's the same data as above, just reorganised
 ```{r}
@@ -795,7 +765,7 @@ Now, flip that around. *THIS IS THE ONE I NEED TO REFRAME WITH THE STAGE AND HAB
 ```{r}
 new_basin_bar_proc <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & 
-           stage_name %in% c('Recruitment', "Recruitment and Key", "Recruitment and Recorded") &
+           stage_name %in% c('Recruitment', "Recruitment and Named", "Recruitment and Recorded") &
            !is.na(hab_type)) |>
   sf::st_drop_geometry() |> 
   summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
@@ -830,7 +800,26 @@ ggplot(aes(x = proc_type, y = mean_area, fill = stage_name, color = model_type))
 
 new_basin_bar_proc2
 ```
+Same, but only the sequential
+```{r}
+new_seq_hab_bar <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           !is.na(proc_type) &
+           !grepl('Germ|Seed', stage_name)) |>
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = c(stage_name, proc_type, model_type)) |>
+ggplot(aes(x = proc_type, y = mean_area, fill = stage_name, color = model_type)) +
+  geom_col(position = 'dodge') +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
+                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+    scale_fill_manual(values = stage_pal) +
+    scale_color_manual(values = type_pal) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
 
+new_seq_hab_bar
+```
 
 I think the thing to do here is actually step through the process steps, and with each one show the drop we get when we restrict it to the hab type. It's a little different than what we have here, but might be clearer. Or in addition
 
@@ -843,7 +832,7 @@ new_basin_bar_hab / new_basin_bar_proc +
 This one is better, once i sort otu the labels/colors and the adult + regen data
 
 ```{r}
-new_basin_bar_hab / new_basin_bar_proc2 +
+new_basin_bar_hab / new_seq_hab_bar +
   plot_layout(guides = 'collect')
 ```
 
@@ -903,7 +892,7 @@ As above, does that one actually make more sense as the independents and then th
 
 ```{r}
 bio_indep_maps <- all_data_time |> 
-  filter(species == 'red_gum' & stage_name %in% c('Adult', 'Regeneration', 'Seedling')) |> 
+  filter(species == 'red_gum' & stage_name %in% c('Adult', 'Germination', 'Seedling')) |> 
   ggplot(aes(fill = log10(area + 1))) +
   geom_sf() + 
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
@@ -915,7 +904,7 @@ bio_indep_maps
 
 ```{r}
 bio_seq_maps <- all_data_time |> 
-  filter(species == 'red_gum' & stage_name %in% c('Adult', 'Adult and regeneration', 'Recruitment')) |> 
+  filter(species == 'red_gum' & stage_name %in% c('Adult', 'Regeneration', 'Recruitment')) |> 
   ggplot(aes(fill = log10(area + 1))) +
   geom_sf() + 
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
@@ -940,7 +929,7 @@ JUST the interactive
 ```{r}
 inter_maps <- all_data_time |> 
   filter(species == 'red_gum' & stage_name %in% 
-           c('Recruitment and Key', 'Recruitment and Recorded')) |> 
+           c('Recruitment and Named', 'Recruitment and Recorded')) |> 
   ggplot(aes(fill = log10(area + 1))) +
   geom_sf() + 
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
@@ -1001,6 +990,8 @@ inter_matrix_maps
 ```
 
 We could obviously fill those two middle panels with the difference or the relative change, but is it needed? or is the bar plot covering it?
+
+Make the relative anyway for the appendix, I think,
 
 ### Scratch
 We can do those separately (below), but I think that covers it pretty well.
@@ -1085,9 +1076,9 @@ Skipping the big-picture stuff, what set of comparisons do we want to make and w
 
 I'll work on writing them up for SRA anyway, and stuff them in here for the processing. Most of the strictures come from [@roberts2011; @casanova2015; @jensen2008; @rogers2011]. We'll need to cite the MER paper in review, probably, along with the github (for both this project and MER).
 
-Adults are not connected to the rest of the life stages because the persistence time is too long- regeneration during the period considered is not likely to be the dominant driver of adult numbers.
+Adults are not connected to the rest of the life stages because the persistence time is too long- germination during the period considered is not likely to be the dominant driver of adult numbers.
 
-*Notes* Ana Backstrom made the points that a) some species (e.g. lignum) don't really regenerate from germination, but from vegetative sprouting, and b) the non-woody veg is likely highly correlated with the germination stricture. For a, we've changed the name to regeneration. We haven't explicitly addressed b, but it is a good point- this is just asking if there's inundation followed by a short wet period, so likely is a good estimate of a flush of annuals. If we can find cites for that, that would be good. *and* if we can find cites for the length of time those annuals need to survive to seed set (I think that might actually be the only thing that's really reffed in the original MER veg- will look), then we can use the machinery for 'seedling survival' here to have a 'survival until seed set' for herbacious veg. Which would also be great- that'd be a whole life cycle. But that wasn't in SRA, so hasn't been done (except to the extent we already did it in MER).
+*Notes* Ana Backstrom made the points that a) some species (e.g. lignum) don't really regenerate from germination, but from vegetative sprouting, and b) the non-woody veg is likely highly correlated with the germination stricture. For a, we've changed the name to germination. We haven't explicitly addressed b, but it is a good point- this is just asking if there's inundation followed by a short wet period, so likely is a good estimate of a flush of annuals. If we can find cites for that, that would be good. *and* if we can find cites for the length of time those annuals need to survive to seed set (I think that might actually be the only thing that's really reffed in the original MER veg- will look), then we can use the machinery for 'seedling survival' here to have a 'survival until seed set' for herbacious veg. Which would also be great- that'd be a whole life cycle. But that wasn't in SRA, so hasn't been done (except to the extent we already did it in MER).
 
 I have called 'germ and then seed' 'recruitment'.
 
@@ -1148,15 +1139,15 @@ all_process_basin |>
   theme(legend.position = 'none')
 ```
 
-## Regeneration
+## Germination
 
-Just based on requirements for preceding inundation and subsequent soil moisture, we get the area of wetlands with favourable germination/regeneration conditions (@fig-regen-catch, @fig-regen-map).
+Just based on requirements for preceding inundation and subsequent soil moisture, we get the area of wetlands with favourable germination/germination conditions (@fig-regen-catch, @fig-regen-map).
 
 ```{r}
 #| label: fig-regen-catch
-#| fig-cap: Area favourable for red gum regeneration in each catchment
+#| fig-cap: Area favourable for red gum germination in each catchment
 all_process |> 
-  filter(stage == 'regeneration'& species == 'red_gum') |> 
+  filter(stage == 'germination'& species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
@@ -1165,9 +1156,9 @@ ggplot(aes(x = date, y = area, color = ValleyName)) +
 
 ```{r}
 #| label: fig-regen-map
-#| fig-cap: Area favourable for red gum regeneration in each catchment as a map
+#| fig-cap: Area favourable for red gum germination in each catchment as a map
 all_process |> 
-  filter(stage == 'regeneration'& species == 'red_gum') |> 
+  filter(stage == 'germination'& species == 'red_gum') |> 
 ggplot(aes(fill = log(area))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
@@ -1178,9 +1169,9 @@ At the basin scale, @fig-regen-basin, we see temporal variation. We should proba
 
 ```{r}
 #| label: fig-regen-basin
-#| fig-cap: Area favourable for red gum regeneration summed across the basin
+#| fig-cap: Area favourable for red gum germination summed across the basin
 all_process_basin |> 
-  filter(stage == 'regeneration'& species == 'red_gum') |> 
+  filter(stage == 'germination'& species == 'red_gum') |> 
   ggplot(aes(x = date, y = area)) +
   geom_line() +
   geom_point() +
@@ -1230,7 +1221,7 @@ And these are actually much more permissive seedling strictures than typical. 6 
 
 ## Sequential life-cycle
 
-The life cycle is sequential, and so what we are interested in ultimately is recruitment success; that is, germination and subsequent survival until maturity or at least some sort of 'establishment'. Here, we ask whether conditions supported regeneration *from adults* and whether there was seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper figures, it takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
+The life cycle is sequential, and so what we are interested in ultimately is recruitment success; that is, germination and subsequent survival until maturity or at least some sort of 'establishment'. Here, we ask whether conditions supported germination *from adults* and whether there was seedling survival *after successful germination conditions*. Thus, this is not simply the minimum of the upper figures, it takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
 
 *I'm going to stop cross-reffing and captioning figs unless there's somewhere where it's really needed, just need to get the story sorted first*
 
@@ -1449,13 +1440,13 @@ What to say about it?
 
 -   We get more favourable area from adults than from habitat, so some anae types look good for adults but don't have records of that species. Could be places to move into.
 
--   regeneration is typically smaller and more variable than habitat (though this is spatio-temporally variable), so not all the inundated area is suitable for germination. Due to e.g. timing.
+-   germination is typically smaller and more variable than habitat (though this is spatio-temporally variable), so not all the inundated area is suitable for germination. Due to e.g. timing.
 
 -   Full recruitment is MUCH smaller and infrequent, and likely the limiting factor for the population. Its pattern does not get picked up at all by habitat inundation
 
 ```{r}
 #| label: fig-hab-strict-catch
-#| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
+#| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'germination' here is in all ANAE wetlands, not only those that are 'habitat'.
 process_and_hab |> 
   filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area+1, color = stage)) +
@@ -1469,7 +1460,7 @@ Basin
 
 ```{r}
 #| label: fig-hab-strict-basin
-#| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'regeneration' here is in all ANAE wetlands, not only those that are 'habitat'.
+#| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'germination' here is in all ANAE wetlands, not only those that are 'habitat'.
 process_and_hab_basin |> 
   filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = area, color = stage)) +
@@ -1502,13 +1493,13 @@ This lets us ask questions from two directions with the same set of data by comp
 
 Can make maps for all of this too, but not sure how useful they'll be.
 
-## Regeneration and habitat
+## Germination and habitat
 
 The area of germination favourability declines when it has to occur in the proper habitat type, and is typically, but not always lower than the total inundation within the habitat @fig-germ-interact-catch, @fig-germ-interact-basin.
 
 First I plot just the raw results, and then I plot specific comparisons.
 
-anae_ala is almost always highest, so we're not losing much if any germ habitat to the ala restriction. But see avoca, it does happen, indicating favourable regeneration conditions outside typical habitat types. We always lose a LOT to the habitat name (note log scale).
+anae_ala is almost always highest, so we're not losing much if any germ habitat to the ala restriction. But see avoca, it does happen, indicating favourable germination conditions outside typical habitat types. We always lose a LOT to the habitat name (note log scale).
 
 ```{r}
 #| label: fig-germ-interact-catch
@@ -1550,15 +1541,15 @@ Do I want relative or the actual area?
 ```{r}
 germ_compare_r <- germ_hab |> 
   sf::st_drop_geometry() |> 
-  filter(stage %in% c('regeneration', 'regeneration_ala', 'regeneration_name')) |> 
-  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'regeneration',
+  filter(stage %in% c('germination', 'germination_ala', 'germination_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'germination',
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
 germ_compare_d <- germ_hab |> 
   sf::st_drop_geometry() |> 
-  filter(stage %in% c('regeneration', 'regeneration_ala', 'regeneration_name')) |> 
-  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'regeneration',
+  filter(stage %in% c('germination', 'germination_ala', 'germination_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'germination',
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'difference')
 ```
@@ -1567,7 +1558,7 @@ If we relativise to the germination stricture alone, we get the proportional los
 
 ```{r}
 #| label: fig-germ-relative-catch
-#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in germination due to habitat requirements.
 germ_compare_r |> 
   filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
@@ -1591,11 +1582,11 @@ Basin
 
 ```{r}
 #| label: fig-germ-relative-basin
-#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in regeneration due to habitat requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in germination due to habitat requirements.
 germ_compare_r_basin <- germ_hab_basin |> 
   sf::st_drop_geometry() |> 
-  filter(stage %in% c('regeneration', 'regeneration_ala', 'regeneration_name')) |> 
-  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'regeneration',
+  filter(stage %in% c('germination', 'germination_ala', 'germination_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'germination',
                                  group_cols = c('date', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
@@ -1607,20 +1598,20 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 geom_point()
 ```
 
-How much do we lose from just looking at habitat inundation when we also ask if that inundation met germination conditions? Specifically, this compares the inundation in anae types to the regeneration stricture within that habitat type.
+How much do we lose from just looking at habitat inundation when we also ask if that inundation met germination conditions? Specifically, this compares the inundation in anae types to the germination stricture within that habitat type.
 
 Thus, we flip that around to the inuns as baseline, what proportion of the inundated habitat is lost when we consider the biological processes *within those types*? We do it for both the named types and the ALA-selected.
 
 ```{r}
 germ_inun_name_compare <- germ_hab |> 
   sf::st_drop_geometry() |> 
-  filter(stage %in% c('anae_name', 'regeneration_name')) |> 
+  filter(stage %in% c('anae_name', 'germination_name')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 germ_anae_ala_compare <- germ_hab |> 
   sf::st_drop_geometry() |> 
-  filter(stage %in% c('anae_ala', 'regeneration_ala')) |> 
+  filter(stage %in% c('anae_ala', 'germination_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
                                  group_cols = c('date', 'ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
@@ -1630,7 +1621,7 @@ Whether 'habitat' is determined by name or ALA records, there are *massive* drop
 
 ```{r}
 #| label: fig-name-germ-relative-catch
-#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in germination due to the biological germination requirements.
 germ_inun_name_compare |> 
   filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
@@ -1642,7 +1633,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 
 ```{r}
 #| label: fig-ala-germ-relative-catch
-#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in germination due to the biological germination requirements.
 germ_anae_ala_compare |> 
   filter(species == 'red_gum') |> 
 ggplot(aes(x = date, y = relative_area, color = stage)) +
@@ -1656,10 +1647,10 @@ Basin
 
 ```{r}
 #| label: fig-name-germ-relative-basin
-#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in germination due to the biological germination requirements.
 germ_inun_name_compare_basin <- germ_hab_basin |> 
   sf::st_drop_geometry() |> 
-  filter(stage %in% c('anae_name', 'regeneration_name')) |> 
+  filter(stage %in% c('anae_name', 'germination_name')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
                                  group_cols = c('date', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
@@ -1674,10 +1665,10 @@ geom_point()
 
 ```{r}
 #| label: fig-ala-germ-relative-basin
-#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in regeneration due to the biological regeneration requirements.
+#| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in germination due to the biological germination requirements.
 germ_anae_ala_compare_basin <- germ_hab_basin |> 
   sf::st_drop_geometry() |> 
-  filter(stage %in% c('anae_ala', 'regeneration_ala')) |> 
+  filter(stage %in% c('anae_ala', 'germination_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
                                  group_cols = c('date', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
@@ -1706,19 +1697,19 @@ germ_period <- germ_hab |>
   st_as_sf()
 
 hab2germ_period <- germ_period |>  
-  filter(stage %in% c('regeneration', 'regeneration_ala', 'regeneration_name')) |> 
-  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'regeneration',
+  filter(stage %in% c('germination', 'germination_ala', 'germination_name')) |> 
+  werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'germination',
                                  group_cols = c('ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
 germ2name_period <- germ_period |> 
-  filter(stage %in% c('anae_name', 'regeneration_name')) |> 
+  filter(stage %in% c('anae_name', 'germination_name')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_name',
                                  group_cols = c('ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
 
 germ2ala_period <- germ_period |> 
-  filter(stage %in% c('anae_ala', 'regeneration_ala')) |> 
+  filter(stage %in% c('anae_ala', 'germination_ala')) |> 
   werptoolkitr::baseline_compare(compare_col = 'stage', base_lev = 'anae_ala',
                                  group_cols = c('ValleyName', 'species'),
                                  values_col = 'area', comp_fun = 'relative')
@@ -1727,8 +1718,8 @@ germ2ala_period <- germ_period |>
 ```{r}
 # I want to facet, but the fill scales are too different and scales = free doesn't work.
 name_germ_map <- hab2germ_period |> 
-  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'red_gum' & stage %in% c('regeneration_name')) |> 
+  # filter(species == 'red_gum' & stage %in% c('germination_name', 'germination_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('germination_name')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -1738,8 +1729,8 @@ ggplot(aes(fill = relative_area)) +
   werptoolkitr::theme_werp_toolkit()
 
 ala_germ_map <- hab2germ_period |> 
-  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'red_gum' & stage %in% c('regeneration_ala')) |> 
+  # filter(species == 'red_gum' & stage %in% c('germination_name', 'germination_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('germination_ala')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -1749,8 +1740,8 @@ ggplot(aes(fill = relative_area)) +
   werptoolkitr::theme_werp_toolkit()
 
 germ_name_map <- germ2name_period |> 
-  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'red_gum' & stage %in% c('regeneration_name')) |> 
+  # filter(species == 'red_gum' & stage %in% c('germination_name', 'germination_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('germination_name')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -1760,8 +1751,8 @@ ggplot(aes(fill = relative_area)) +
   werptoolkitr::theme_werp_toolkit()
 
 germ_ala_map <- germ2ala_period |> 
-  # filter(species == 'red_gum' & stage %in% c('regeneration_name', 'regeneration_ala')) |> 
-  filter(species == 'red_gum' & stage %in% c('regeneration_ala')) |> 
+  # filter(species == 'red_gum' & stage %in% c('germination_name', 'germination_ala')) |> 
+  filter(species == 'red_gum' & stage %in% c('germination_ala')) |> 
 ggplot(aes(fill = relative_area)) +
   geom_sf() +
   # facet_grid(.~stage, scales = 'free') +
@@ -1776,7 +1767,7 @@ ggplot(aes(fill = relative_area)) +
 
 ## Recruitment and habitat
 
-Keeping this straight is tricky, but I'm stopping writing fig caps for now. It follows the same set of logical steps as regeneration alone
+Keeping this straight is tricky, but I'm stopping writing fig caps for now. It follows the same set of logical steps as germination alone
 
 I could look at just seedling too, but this is already a TON
 
@@ -2189,8 +2180,8 @@ hab_maps <- inun_anae_types |>
   summarise(area = mean(area, na.rm = TRUE))|>
   ungroup() |> 
   filter(species == 'red_gum') |> 
-  mutate(clean_name = case_when(stage == 'anae_name' ~ 'Key habitat',
-                                stage == 'anae_ala' ~ 'Recorded habitat')) |> 
+  mutate(clean_name = case_when(stage == 'anae_name' ~ 'Named wetland types',
+                                stage == 'anae_ala' ~ 'Recorded wetland types')) |> 
   ggplot(aes(fill = log(area + 1))) +
   geom_sf() + 
   scale_fill_viridis_c(option = 'mako', limits = (c(0, 22))) +
@@ -2206,9 +2197,9 @@ bio_maps <- all_process |>
   ungroup() |> 
   filter(species == 'red_gum' & stage %in% c('adult', 'adult_regen', 'recruitment')) |> 
   mutate(clean_name = case_when(stage == 'adult' ~ 'Adult',
-                                stage == 'regeneration' ~ 'Regeneration',
+                                stage == 'germination' ~ 'Germination',
                                 stage == 'seedling' ~ 'Seedling',
-                                stage == 'adult_regen' ~ 'Adult and regeneration',
+                                stage == 'adult_regen' ~ 'Regeneration',
                                 stage == 'recruitment' ~ 'Recruitment')) |> 
   ggplot(aes(fill = log(area + 1))) +
   geom_sf() + 
@@ -2226,7 +2217,7 @@ inter_maps <- adult_germ_seed_hab |>
   summarise(area = mean(area, na.rm = TRUE))|>
   ungroup() |> 
   filter(species == 'red_gum' & stage %in% c('recruitment_name', 'recruitment_ala')) |> 
-  mutate(clean_name = case_when(stage == 'recruitment_name' ~ 'Recruitment and Key',
+  mutate(clean_name = case_when(stage == 'recruitment_name' ~ 'Recruitment and Named',
                                 stage == 'recruitment_ala' ~ 'Recruitment and Recorded',
                                 stage == 'recruitment' ~ 'Recruitment')) |> 
   ggplot(aes(fill = log(area + 1))) +
@@ -2252,14 +2243,14 @@ Make in one go?
 full_compare <- all_process |>
   filter(stage %in% c('adult','adult_regen')) |> 
   bind_rows(adult_germ_seed_hab) |> 
-  mutate(clean_name = case_when(stage == 'anae_name' ~ 'Key habitat',
-                                stage == 'anae_ala' ~ 'Recorded habitat',
+  mutate(clean_name = case_when(stage == 'anae_name' ~ 'Named wetland types',
+                                stage == 'anae_ala' ~ 'Recorded wetland types',
                                 stage == 'adult' ~ 'Adult',
-                                stage == 'regeneration' ~ 'Regeneration',
+                                stage == 'germination' ~ 'Germination',
                                 stage == 'seedling' ~ 'Seedling',
-                                stage == 'adult_regen' ~ 'Adult and regeneration',
+                                stage == 'adult_regen' ~ 'Regeneration',
                                 stage == 'recruitment' ~ 'Recruitment',
-                                stage == 'recruitment_name' ~ 'Recruitment and Key',
+                                stage == 'recruitment_name' ~ 'Recruitment and Named',
                                 stage == 'recruitment_ala' ~ 'Recruitment and Recorded'))
 ```
 
