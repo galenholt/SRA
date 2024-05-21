@@ -45,7 +45,6 @@ valleys <- ltimNoNorth |>
          ValleyName = stringr::str_remove_all(ValleyName, ' '))
 ```
 
-
 What are the anae types?
 
 ```{r}
@@ -187,7 +186,6 @@ inun_anae_ala <- purrr::map(species,
   bind_rows()
 
 ```
-
 
 There are also two other sorts of baselines we might want for the habitat- the total amount of inundation in *any* wetland type, and the total amount of area in each set of habitats, ignoring inundation. I had been doing this in the appendix, but think I'll move the data extraction here, anyway.
 
@@ -342,6 +340,7 @@ adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_a
 ```
 
 ### Concatenate
+
 ```{r}
 all_data <- bind_rows(adult, germ, seed, 
                          adult_germ, adult_germ_seed, 
@@ -353,12 +352,15 @@ all_data <- bind_rows(adult, germ, seed,
                          inun_anae_name, inun_anae_ala,
                       inun_area)
 
+# To make data line up, we need a numeric year sometimes
+all_data <- all_data |> 
+  mutate(year = lubridate::year(date))
 
 # Sum to the basin
 all_data_basin <- all_data |>
   sf::st_drop_geometry() |>
   summarise(area = sumna(area),
-            .by = c(date, stage, species)) |>
+            .by = c(date, year, stage, species)) |>
   bind_cols(basin) |>
   st_as_sf()
 
@@ -381,6 +383,8 @@ all_data_basin_time <- all_data_basin |>
 #    adult_name, germ_name, seed_name, 
 #    adult_germ_seed_name,
 #    inun_anae_name, inun_anae_ala, inun_area)
+
+
 
 ```
 
@@ -443,19 +447,20 @@ clean_stages <- function(x) {
                                   .default = 'FAIL'),
            stage_name = factor(stage_name,
                                levels = c('All wetlands',
+                                          'Recorded wetland types',
                                           'Named wetland types',
-                                          'Recorded wetland types', 
                                           'Adult', 'Germination', 'Seedling',
                                           'Regeneration', 'Recruitment',
-                                          'Adult and Named', 'Germination and Named',
-                                          'Seedling and Named',
-                                          'Regeneration and Named',
-                                          'Recruitment and Named',
                                           'Adult and Recorded',
                                           'Germination and Recorded',
                                           'Seedling and Recorded',
                                           'Regeneration and Recorded',
-                                          'Recruitment and Recorded')),
+                                          'Recruitment and Recorded',
+                                          'Adult and Named',
+                                          'Germination and Named',
+                                          'Seedling and Named',
+                                          'Regeneration and Named',
+                                          'Recruitment and Named')),
            # create an independent stage flag. don't includ adults, since they're both
            is_independent_proc = case_when(stage %in% c('germination', 'seedling',
                                                         'germination_ala', 'seedling_ala',
@@ -469,8 +474,8 @@ clean_stages <- function(x) {
                                            .default = NA),
            is_independent_proc = factor(is_independent_proc, levels = c('sequential', 'independent'))) |> 
     mutate(hab_type = case_when(stage_name %in% hab_all ~ "All wetlands",
-                                stage_name %in% hab_named ~ "Key habitat",
-                                stage_name %in% hab_record ~ "Recorded habitat",
+                                stage_name %in% hab_named ~ "Named wetland types",
+                                stage_name %in% hab_record ~ "Recorded wetland types",
                                 .default = NA),
            proc_type = case_when(stage_name %in% proc_adult ~ "Adult",
                                  stage_name %in% proc_germ ~ "Germination",
@@ -487,15 +492,14 @@ clean_stages <- function(x) {
 }
 ```
 
-
 Use that to clean data
+
 ```{r}
 all_data <- clean_stages(all_data)
 all_data_basin <- clean_stages(all_data_basin)
 all_data_time <- clean_stages(all_data_time)
 all_data_basin_time <- clean_stages(all_data_basin_time)
 ```
-
 
 ```{r}
 # just to make it easy to access
@@ -511,8 +515,8 @@ stagenames <- unique(all_data$stage_name)
 
 # This is going to take some tweaking to get right.
 # having hte names in separate vectors can make some filtering easier
-anae_cols <- werptoolkitr::make_pal(anae_stages,
-                                    "beyonce::X41")
+# "beyonce::X41" "ggprism::plasma" "rcartocolor::ag_Sunset" "RColorBrewer::RdPu", direction = -1 "PNWColors::Sunset2"
+anae_cols <- werptoolkitr::make_pal(anae_stages, "rcartocolor::ag_Sunset")
 
 process_stages <- c('Adult', 'Germination', 'Seedling',
                     'Regeneration', 'Recruitment')
@@ -529,8 +533,12 @@ class(stage_pal) <- 'colors'
 
 # probably need to change this
 type_pal <- werptoolkitr::make_pal(c('Habitat', 'Process', 'Process within\nhabitat'), "trekcolors::starfleet")
-```
 
+
+# make a consistent set of shapes that allows patchworking
+shape_type <- scales::shape_pal()(3) |> 
+  setNames(names(type_pal))
+```
 
 # Results
 
@@ -545,12 +553,14 @@ Habitat
 #| fig-cap: Area favourable for red gum life stages in the basin
 hab_basin_ts <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & stage_name %in% anae_stages) |> 
-ggplot(aes(x = date, y = (area+1), color = stage_name)) +
-  geom_line() +
+ggplot(aes(x = date, y = (area+1), color = stage_name, shape = model_type)) +
+    geom_line(show.legend = TRUE) +
+  geom_point(show.legend = TRUE)  +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
-geom_point() +
-  werptoolkitr::theme_werp_toolkit()
+  scale_shape_manual(values = shape_type) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
 
 hab_basin_ts
 ```
@@ -562,12 +572,16 @@ Process
 #| fig-cap: Area favourable for red gum life stages in the basin
 proc_basin_ts <- all_data_basin |> 
   filter(species == 'red_gum' & stage_name %in% process_stages) |> 
-ggplot(aes(x = date, y = (area+1), color = stage_name, linetype = is_independent_proc)) +
-  geom_line() +
+ggplot(aes(x = date, y = (area+1), color = stage_name,
+           linetype = is_independent_proc, shape = model_type)) +
+    geom_line(show.legend = TRUE) +
+  geom_point(show.legend = TRUE) +
+  scale_shape_manual(values = shape_type) +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
-geom_point() +
-  werptoolkitr::theme_werp_toolkit()
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model",
+       linetype = "Stage type", shape = "Model type")
 
 proc_basin_ts
 ```
@@ -580,12 +594,14 @@ proc_basin_seq_ts <- all_data_basin |>
            # both process and sequential
            stage_name %in% process_stages &
            stage_name %in% sequential_stages) |> 
-ggplot(aes(x = date, y = (area+1), color = stage_name)) +
-  geom_line() +
+ggplot(aes(x = date, y = (area+1), color = stage_name, shape = model_type)) +
+    geom_line(show.legend = TRUE) +
+  geom_point(show.legend = TRUE)  +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
-geom_point() +
-  werptoolkitr::theme_werp_toolkit()
+  scale_shape_manual(values = shape_type) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
 
 proc_basin_seq_ts
 ```
@@ -597,12 +613,15 @@ Both. We could throw the whole smash together to see how habitat affects each st
 #| fig-cap: Area favourable for red gum life stages in the basin
 inter_basin_ts <- all_data_basin |> 
   filter(species == 'red_gum' & stage_name %in% c(sequential_hab, 'Recruitment')) |> 
-ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
-  geom_line() +
+ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
+    geom_line(show.legend = TRUE) +
+  geom_point(show.legend = TRUE)  +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
-geom_point() +
-  werptoolkitr::theme_werp_toolkit()
+  scale_shape_manual(values = shape_type) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model",
+       shape = "Model type")
 
 inter_basin_ts
 ```
@@ -613,39 +632,279 @@ I want to facet that, but there's no easy way because recruitment should be in b
 inter_basin_key_ts <- all_data_basin |> 
   filter(species == 'red_gum' & 
            stage_name %in% c('Named wetland types', 'Recruitment and Named', 'Recruitment')) |> 
-ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
-  geom_line() +
+ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
+    geom_line(show.legend = TRUE) +
+  geom_point(show.legend = TRUE)  +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
-geom_point() +
-  werptoolkitr::theme_werp_toolkit()
+  scale_shape_manual(values = shape_type) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
 
 
 
 inter_basin_recorded_ts <- all_data_basin |> 
   filter(species == 'red_gum' & 
            stage_name %in% c('Recorded wetland types', 'Recruitment and Recorded', 'Recruitment')) |> 
-ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
+ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
+  geom_line(show.legend = TRUE) +
+  geom_point(show.legend = TRUE)  +
+      scale_color_manual(values = stage_pal) +
+  scale_shape_manual(values = shape_type) +
+  scale_y_continuous(trans = 'log10') +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
+
+inter_basin_key_ts
+inter_basin_recorded_ts
+```
+
+Can I get the venns to work?
+
+```{r}
+venncheck <- all_data_basin |> 
+  sf::st_drop_geometry() |> 
+  filter(species == 'red_gum' & 
+           stage_name %in% c('Recorded wetland types',
+                             'Recruitment and Recorded',
+                             'Recruitment')) |> 
+  mutate(area = log10(area + 1)) |>
+  mutate(area = area/max(area, na.rm = TRUE)) |> 
+  # need to do a funny flip-flop here to get overlap in its own column
+  tidyr::pivot_wider(id_cols = date,
+                     names_from = stage_name,
+                     values_from = area) |> 
+  tidyr::pivot_longer(cols = c(Recruitment, `Recorded wetland types`),
+                      names_to = 'stage_name',
+                      values_to = 'area') |> 
+  rename(overlap = `Recruitment and Recorded`)
+
+```
+
+```{r}
+venncheck <- venncheck |> 
+  # filter(!is.na(overlap)) |> 
+  mutate(radius = sqrt(area/pi)) |> 
+  mutate(d = galenR::find_d(unique(overlap),
+                            radii = radius),
+         .by = date) |> 
+  mutate(centers = d*c(-0.5, 0.5)) |> 
+  mutate(year = lubridate::year(date))
+```
+
+```{r}
+ggplot(venncheck) + 
+  ggforce::geom_circle(mapping = aes(x0 = lubridate::year(date), y0 = centers, 
+                            r = radius, 
+                            fill = factor(stage_name)),
+              alpha = 0.7) + 
+   scale_fill_manual(values = stage_pal) +
+  coord_fixed() + 
+  theme(legend.position = 'bottom')
+```
+
+Now, can I get those overlain on the above? Along the bottom? As another panel? select a few and put them by the relevant points?
+
+```{r}
+vennplot <- ggplot(venncheck) + 
+  ggforce::geom_circle(mapping = aes(x0 = year, y0 = centers, 
+                            r = radius, 
+                            fill = factor(stage_name)),
+              alpha = 0.7) + 
+   scale_fill_manual(values = stage_pal) +
+  coord_fixed() + 
+  theme(legend.position = 'none')
+```
+
+Lining up x is a pain
+
+```{r}
+inter_basin_recorded_yr <- all_data_basin |> 
+  filter(species == 'red_gum' & 
+           stage_name %in% c('Recorded wetland types',
+                             'Recruitment and Recorded',
+                             'Recruitment')) |> 
+  mutate(year = lubridate::year(date)) |> 
+ggplot(aes(x = year, y = (area + 1), color = stage_name, shape = model_type)) +
+  geom_line(show.legend = TRUE) +
+  geom_point(show.legend = TRUE)  +
+      scale_color_manual(values = stage_pal) +
+  scale_shape_manual(values = shape_type) +
+  scale_y_continuous(trans = 'log10') +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
+```
+
+ + lims(x = c(1990, 2022))
+
+```{r}
+(inter_basin_recorded_yr) /
+  (vennplot + lims(x = c(1988, NA)) +
+     werptoolkitr::theme_werp_toolkit(axis.ticks.y = element_blank(),
+                                      axis.text.y = element_blank(),
+                                      legend.position = 'none'))
+```
+
+We could plot that straight onto the values, but the axes are uneven. Could we sort out a geom_ellipse that modified a and b according to the different scales? Probably, but that's further into the guts of ggplot than I really want to get.
+
+So, can we pick three, modify their y so it's about right relativelyh, and then use inset_element? The inset keeps re-adjusting so it doesn't fit. recalculate. Scale by multiplying area
+
+```{r}
+vensub <- venncheck |> 
+                   filter(year %in% c(1988, 1995, 2001, 2006, 2022)) |> 
+  mutate(radius = sqrt(4*area/pi)) |> 
+  mutate(d = galenR::find_d(unique(4*overlap),
+                            radii = radius),
+         .by = date) |> 
+  mutate(centers = d*c(-0.5, 0.5)) |> 
+  mutate(year = lubridate::year(date)) |> 
+  mutate(offset = rep(c(0, 3, 6, 7, 0), each = 2),
+         offcenters = centers + offset) |> 
+  # 0-radius so we keep the full size of the plot
+  mutate(radius = ifelse(year %in% c(1990, 2022), 0, radius),
+         centers = ifelse(year == 1990, 0, 
+                          ifelse(year == 2022, 10, centers)))
+
+venn3 <- ggplot(vensub) + 
+  ggforce::geom_circle(mapping = aes(x0 = year, y0 = offcenters, 
+                            r = radius, 
+                            fill = factor(stage_name)),
+              alpha = 0.7) + 
+   scale_fill_manual(values = stage_pal) + 
+  lims(x = c(1988, 2023)) +
+  coord_fixed() + 
+  theme_void() +
+    theme(legend.position = 'none')
+
+venn3
+```
+
+```{r}
+inter_basin_recorded_yr +
+  inset_element(venn3, left = 0, bottom = 0, right = 1, top = 1)
+```
+
+Combine those
+
+```{r}
+# I thought including limits = c(all stages here) would work to include them all with guides = collect, but it's not. I think I might have to make a dummy plot
+
+(inter_basin_key_ts +
+    scale_color_manual(values = stage_pal, 
+                       limits = c('Named wetland types',
+                                  'Recruitment and Named',
+                                  'Recruitment',
+                                  'Recorded wetland types',
+                                  'Recruitment and Recorded'),
+                       breaks = c('Named wetland types',
+                                  'Recruitment and Named',
+                                  'Recruitment',
+                                  'Recorded wetland types',
+                                  'Recruitment and Recorded'))) + 
+  (inter_basin_recorded_ts +
+     
+    scale_color_manual(values = stage_pal, 
+                       limits = c('Named wetland types',
+                                  'Recruitment and Named',
+                                  'Recruitment',
+                                  'Recorded wetland types',
+                                  'Recruitment and Recorded'),
+                       breaks = c('Named wetland types',
+                                  'Recruitment and Named',
+                                  'Recruitment',
+                                  'Recorded wetland types',
+                                  'Recruitment and Recorded'))) + 
+  plot_layout(guides = 'collect')
+```
+
+We could do the scale\_ with limits and breaks, but it's terrible. Going to be easier to make a dummy plot and steal its legend
+
+```{r}
+dummyplot <- all_data_basin |>
+  filter(is.na(is_independent_proc) | is_independent_proc == 'sequential') |>
+  filter(!stage_name %in% c('Adult and Recorded', 'Regeneration and Recorded',
+                            'Adult and Named', 'Regeneration and Named')) |>
+ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
 geom_point() +
-  werptoolkitr::theme_werp_toolkit()
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
 
-inter_basin_key_ts + inter_basin_recorded_ts + 
-  plot_layout(guides = 'collect')
+
+dummylegend <- ggpubr::get_legend(dummyplot)
+
+dummybottom <- dummyplot + 
+  theme(legend.position = 'bottom', legend.title.position = 'top') +
+  guides(shape = guide_legend(nrow = 2))
+bottomlegend <- ggpubr::get_legend(dummybottom)
+
+
+
 ```
 
-Obviously need to clean up the legend, but something like this might work.
+\
+
 ```{r}
-(hab_basin_ts + proc_basin_seq_ts) / (inter_basin_key_ts + inter_basin_recorded_ts) +
-  plot_layout(guides = 'collect')
+layout_square <- "
+AAABBB#E
+CCCDDD#E
+"
+
+
+(hab_basin_ts + theme(legend.position = 'none')) + 
+    (proc_basin_seq_ts + theme(legend.position = 'none')) + 
+  (inter_basin_key_ts + theme(legend.position = 'none')) +
+     (inter_basin_recorded_ts  + theme(legend.position = 'none'))  +
+  ggpubr::as_ggplot(dummylegend) +
+  plot_layout(design = layout_square)
+```
+
+```{r}
+# (hab_basin_ts + proc_basin_seq_ts) / inter_basin_key_ts / inter_basin_recorded_ts +
+#   plot_layout(guides = 'collect')
 
 ```
-```{r}
-(hab_basin_ts + proc_basin_seq_ts) / inter_basin_key_ts / inter_basin_recorded_ts +
-  plot_layout(guides = 'collect')
 
+```{r}
+layout_stack <- "
+AABB#E
+CCCC#E
+DDDD#E
+"
+
+
+(hab_basin_ts + theme(legend.position = 'none')) + 
+    (proc_basin_seq_ts + theme(legend.position = 'none')) + 
+  (inter_basin_key_ts + theme(legend.position = 'none')) +
+     (inter_basin_recorded_ts  + theme(legend.position = 'none')) +
+  ggpubr::as_ggplot(dummylegend) +
+  plot_layout(design = layout_stack)
+```
+
+```{r}
+layout_stack_venn <- "
+AABB
+CCCC
+DDDD
+EEEE
+FFFF
+"
+
+venlims <- vennplot + lims(x = c(1988, NA)) +
+     werptoolkitr::theme_werp_toolkit(axis.ticks.y = element_blank(),
+                                      axis.text.y = element_blank(),
+                                      legend.position = 'none')
+
+
+(hab_basin_ts + theme(legend.position = 'none')) + 
+    (proc_basin_seq_ts + theme(legend.position = 'none')) + 
+  (inter_basin_key_ts + theme(legend.position = 'none')) +
+     (inter_basin_recorded_ts  + theme(legend.position = 'none')) +
+  (venlims) +
+  ggpubr::as_ggplot(bottomlegend) +
+  plot_layout(design = layout_stack_venn)
 ```
 
 We can summarise those over time, making bar graphs
@@ -668,7 +927,9 @@ ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
 hab_basin_bar
 
 ```
+
 Process, both sequential and independent
+
 ```{r}
 proc_basin_bar <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & stage_name %in% process_stages) |> 
@@ -686,6 +947,7 @@ ggplot(aes(x = stage_name, y = mean_area, fill = stage_name, color = is_independ
 
 proc_basin_bar
 ```
+
 We have always treated the habitat restriction as another step in the sequence, and I'm having a hard time reframing that in my head, so I'm going to keep making those figs
 
 ```{r}
@@ -719,6 +981,7 @@ ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
 
 seq_hab_basin_bar
 ```
+
 and matching the all-together timeseries
 
 ```{r}
@@ -737,10 +1000,11 @@ ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
 inter_basin_bar
 
 ```
+
 Those stepthrough plots give me (an) idea(s). Let's see if I can pull it off
 
-
 I think it's the same data as above, just reorganised
+
 ```{r}
 new_basin_bar_hab <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & 
@@ -761,27 +1025,9 @@ ggplot(aes(x = hab_type, y = mean_area, fill = stage_name, color = model_type)) 
 
 new_basin_bar_hab
 ```
-Now, flip that around. *THIS IS THE ONE I NEED TO REFRAME WITH THE STAGE AND HAB AT EACH STAGE ON X*
-```{r}
-new_basin_bar_proc <- all_data_basin |> 
-  filter((species == 'red_gum' | is.na(species)) & 
-           stage_name %in% c('Recruitment', "Recruitment and Named", "Recruitment and Recorded") &
-           !is.na(hab_type)) |>
-  sf::st_drop_geometry() |> 
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = c(stage_name, hab_type, model_type)) |>
-ggplot(aes(x = hab_type, y = mean_area, fill = stage_name, color = model_type)) +
-  geom_col(position = 'dodge') +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
-                 position = position_dodge2(width = 0.9)) + # Why 0.9?
-    scale_fill_manual(values = stage_pal) +
-    scale_color_manual(values = type_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
 
-new_basin_bar_proc
-```
-Yeah, this is the one I want. But maybe should just color by all vs key vs recorded rather than all combos and let the x labels do the talking for the stages?
+THis one goes to the appendix
+
 ```{r}
 new_basin_bar_proc2 <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & 
@@ -800,7 +1046,9 @@ ggplot(aes(x = proc_type, y = mean_area, fill = stage_name, color = model_type))
 
 new_basin_bar_proc2
 ```
+
 Same, but only the sequential
+
 ```{r}
 new_seq_hab_bar <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & 
@@ -821,14 +1069,57 @@ ggplot(aes(x = proc_type, y = mean_area, fill = stage_name, color = model_type))
 new_seq_hab_bar
 ```
 
-I think the thing to do here is actually step through the process steps, and with each one show the drop we get when we restrict it to the hab type. It's a little different than what we have here, but might be clearer. Or in addition
-
-Do I need to two-panel? Is just the hab-ref enough? If so, should I go back to describing the process as within all habitats?
+Those are filled with the particular stage, and colored by process v hab. But what if I do that differently? Is it clearer, or less clear? The colors won't match the timeseries, but is that OK if it's clearer?
 
 ```{r}
-new_basin_bar_hab / new_basin_bar_proc +
-  plot_layout(guides = 'collect')
+new_seq_hab_bar_c <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           !is.na(proc_type) &
+           !grepl('Germ|Seed', stage_name)) |>
+  mutate(hab_comp = ifelse(hab_type == 'All wetlands',
+                           as.character(proc_type), hab_type),
+         hab_comp = factor(hab_comp, levels = c(levels(proc_type), "Recorded wetland types","Named wetland types"))) |> 
+  sf::st_drop_geometry() |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = c(stage_name, proc_type, hab_comp)) |>
+ggplot(aes(x = proc_type, y = mean_area, fill = hab_comp)) +
+  geom_col(position = 'dodge') +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
+                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+    scale_fill_manual(values = stage_pal) +
+    # scale_color_manual(values = type_pal) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+
+new_seq_hab_bar_c
 ```
+
+And similar for the habitat-referenced
+
+```{r}
+new_basin_bar_hab_c <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           stage_name %in% c(sequential_hab, 'Recruitment') &
+           !is.na(hab_type)) |>
+  sf::st_drop_geometry() |> 
+  mutate(hab_comp = ifelse(grepl('Recruit', stage_name),
+                           'Recruitment', hab_type),
+         hab_comp = factor(hab_comp, levels = levels(stage_name))) |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = c(stage_name, hab_type, model_type, hab_comp)) |>
+  # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
+ggplot(aes(x = hab_type, y = mean_area, fill = hab_comp)) +
+  geom_col(position = 'dodge') +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
+                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+    scale_fill_manual(values = stage_pal) +
+    # scale_color_manual(values = type_pal) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+
+new_basin_bar_hab_c
+```
+
 This one is better, once i sort otu the labels/colors and the adult + regen data
 
 ```{r}
@@ -836,9 +1127,8 @@ new_basin_bar_hab / new_seq_hab_bar +
   plot_layout(guides = 'collect')
 ```
 
-the two panel is alomost more useful for the sequential loss figs
 ```{r}
-seq_proc_basin_bar / seq_hab_basin_bar +
+new_basin_bar_hab_c / new_seq_hab_bar_c +
   plot_layout(guides = 'collect')
 ```
 
@@ -863,6 +1153,7 @@ all_data_time |>
 ```
 
 Habitat
+
 ```{r}
 
 # Should I facet? Or should I make each panel separately and stitch together with patchwork?
@@ -876,7 +1167,9 @@ hab_maps <- all_data_time |>
 
 hab_maps
 ```
+
 ## Process
+
 ```{r}
 bio_maps <- all_data_time |> 
   filter(species == 'red_gum' & stage_name %in% process_stages) |> 
@@ -888,6 +1181,7 @@ bio_maps <- all_data_time |>
 
 bio_maps
 ```
+
 As above, does that one actually make more sense as the independents and then the sequentials?
 
 ```{r}
@@ -913,6 +1207,7 @@ bio_seq_maps <- all_data_time |>
 
 bio_seq_maps
 ```
+
 Those two might work well paneled up
 
 ```{r}
@@ -920,7 +1215,6 @@ bio_indep_maps /
   bio_seq_maps +
   plot_layout(guides = 'collect')
 ```
-
 
 ## Interactive
 
@@ -953,6 +1247,7 @@ inter_seq_maps <- all_data_time |>
 
 inter_seq_maps
 ```
+
 Similarly, we can 'sequence' them off the habitat
 
 ```{r}
@@ -966,6 +1261,7 @@ inter_habseq_maps <- all_data_time |>
 
 inter_habseq_maps
 ```
+
 What I want is a comparison matrix. Can I get that to work without too much monkeying?
 
 We could drop that top panel, but it's actually informative. Moving top to bottom is the effect of requireing process, moving from left to either of the middle and right column is the effect of limiting to habitat types.
@@ -994,7 +1290,9 @@ We could obviously fill those two middle panels with the difference or the relat
 Make the relative anyway for the appendix, I think,
 
 ### Scratch
+
 We can do those separately (below), but I think that covers it pretty well.
+
 ```{r}
 #| label: fig-process-sequential-basin
 #| fig-cap: Area favourable for red gum life stages in the basin
@@ -1026,7 +1324,6 @@ geom_point() +
 seq_hab_basin_ts
 ```
 
-
 ```{r}
 #| label: fig-processxhab-basin
 #| fig-cap: Area favourable for red gum life stages in the basin
@@ -1038,7 +1335,6 @@ ggplot(aes(x = date, y = area, color = stage_name)) +
     scale_color_manual(values = stage_pal) +
 geom_point()
 ```
-
 
 # OLD- more complete data explore
 
@@ -2166,12 +2462,12 @@ ggplot(aes(x = date, y = area+1, color = stage)) +
 geom_point()
 ```
 
-
 # Targeted Figures
 
 ## Each of the model types
 
 Habitat
+
 ```{r}
 
 # Should I facet? Or should I make each panel separately and stitch together with patchwork?
@@ -2189,7 +2485,9 @@ hab_maps <- inun_anae_types |>
 
 hab_maps
 ```
+
 ## Process
+
 ```{r}
 bio_maps <- all_process |> 
   group_by(ValleyName, stage, species) |> 
@@ -2239,6 +2537,7 @@ hab_maps +
 ```
 
 Make in one go?
+
 ```{r}
 full_compare <- all_process |>
   filter(stage %in% c('adult','adult_regen')) |> 
@@ -2266,4 +2565,3 @@ full_compare |>
   facet_grid(.~clean_name) +
   werptoolkitr::theme_werp_toolkit(legend.position = 'bottom')
 ```
-

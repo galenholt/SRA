@@ -260,4 +260,3 @@ tc <- concat_time_chunks(out_dir = datOut,
                          catchment = 'all',
                          extraname = NULL)
 ```
-
