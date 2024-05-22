@@ -23,6 +23,15 @@ library(patchwork)
 library(kableExtra)
 ```
 
+```{r}
+
+figpath <- file.path(datOut, 'habprocesspaper', 'Figures')
+
+if (!dir.exists(figpath)) {
+  dir.create(figpath)
+}
+```
+
 ## Data read-in
 
 I'm leading with this because we're tweaking the data, but it could all be offloaded to a script to focus on the ms. Or just collapse the section.
@@ -477,6 +486,9 @@ clean_stages <- function(x) {
                                 stage_name %in% hab_named ~ "Named wetland types",
                                 stage_name %in% hab_record ~ "Recorded wetland types",
                                 .default = NA),
+           hab_type = factor(hab_type, levels = c('All wetlands',
+                                                  'Recorded wetland types',
+                                                  'Named wetland types')),
            proc_type = case_when(stage_name %in% proc_adult ~ "Adult",
                                  stage_name %in% proc_germ ~ "Germination",
                                  stage_name %in% proc_seed ~ "Seedling",
@@ -538,6 +550,12 @@ type_pal <- werptoolkitr::make_pal(c('Habitat', 'Process', 'Process within\nhabi
 # make a consistent set of shapes that allows patchworking
 shape_type <- scales::shape_pal()(3) |> 
   setNames(names(type_pal))
+
+# make an alpha scale for that too
+alpha_type <- c('Habitat' = 1, 'Process' = 1, 'Process within\nhabitat' = 0.75)
+
+# make an alpha scale for that too
+line_type <- c('Habitat' = 'solid', 'Process' = 'solid', 'Process within\nhabitat' = 'dashed')
 ```
 
 # Results
@@ -553,10 +571,11 @@ Habitat
 #| fig-cap: Area favourable for red gum life stages in the basin
 hab_basin_ts <- all_data_basin |> 
   filter((species == 'red_gum' | is.na(species)) & stage_name %in% anae_stages) |> 
-ggplot(aes(x = date, y = (area+1), color = stage_name, shape = model_type)) +
+ggplot(aes(x = year, y = log10(area + 1), 
+           color = stage_name, shape = model_type)) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE)  +
-  scale_y_continuous(trans = 'log10') +
+  scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
@@ -572,12 +591,12 @@ Process
 #| fig-cap: Area favourable for red gum life stages in the basin
 proc_basin_ts <- all_data_basin |> 
   filter(species == 'red_gum' & stage_name %in% process_stages) |> 
-ggplot(aes(x = date, y = (area+1), color = stage_name,
+ggplot(aes(x = year, y = log10(area + 1), color = stage_name,
            linetype = is_independent_proc, shape = model_type)) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE) +
   scale_shape_manual(values = shape_type) +
-  scale_y_continuous(trans = 'log10') +
+  scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model",
@@ -594,10 +613,10 @@ proc_basin_seq_ts <- all_data_basin |>
            # both process and sequential
            stage_name %in% process_stages &
            stage_name %in% sequential_stages) |> 
-ggplot(aes(x = date, y = (area+1), color = stage_name, shape = model_type)) +
+ggplot(aes(x = year, y = log10(area + 1), color = stage_name, shape = model_type)) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE)  +
-  scale_y_continuous(trans = 'log10') +
+  scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
@@ -613,10 +632,10 @@ Both. We could throw the whole smash together to see how habitat affects each st
 #| fig-cap: Area favourable for red gum life stages in the basin
 inter_basin_ts <- all_data_basin |> 
   filter(species == 'red_gum' & stage_name %in% c(sequential_hab, 'Recruitment')) |> 
-ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
+ggplot(aes(x = year, y = log10(area + 1), color = stage_name, shape = model_type)) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE)  +
-  scale_y_continuous(trans = 'log10') +
+  scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
@@ -632,10 +651,11 @@ I want to facet that, but there's no easy way because recruitment should be in b
 inter_basin_key_ts <- all_data_basin |> 
   filter(species == 'red_gum' & 
            stage_name %in% c('Named wetland types', 'Recruitment and Named', 'Recruitment')) |> 
-ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
+ggplot(aes(x = year, y = log10(area + 1), 
+           color = stage_name, shape = model_type)) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE)  +
-  scale_y_continuous(trans = 'log10') +
+  scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
@@ -646,12 +666,13 @@ ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
 inter_basin_recorded_ts <- all_data_basin |> 
   filter(species == 'red_gum' & 
            stage_name %in% c('Recorded wetland types', 'Recruitment and Recorded', 'Recruitment')) |> 
-ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
+ggplot(aes(x = year, y = log10(area + 1),
+           color = stage_name, shape = model_type)) +
   geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE)  +
       scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
-  scale_y_continuous(trans = 'log10') +
+  scale_y_continuous() +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
 
@@ -725,17 +746,18 @@ inter_basin_recorded_yr <- all_data_basin |>
                              'Recruitment and Recorded',
                              'Recruitment')) |> 
   mutate(year = lubridate::year(date)) |> 
-ggplot(aes(x = year, y = (area + 1), color = stage_name, shape = model_type)) +
+ggplot(aes(x = year, y = log10(area + 1), 
+           color = stage_name, shape = model_type)) +
   geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE)  +
       scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
-  scale_y_continuous(trans = 'log10') +
+  scale_y_continuous() +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
 ```
 
- + lims(x = c(1990, 2022))
+-   lims(x = c(1990, 2022))
 
 ```{r}
 (inter_basin_recorded_yr) /
@@ -788,33 +810,33 @@ Combine those
 
 ```{r}
 # I thought including limits = c(all stages here) would work to include them all with guides = collect, but it's not. I think I might have to make a dummy plot
-
-(inter_basin_key_ts +
-    scale_color_manual(values = stage_pal, 
-                       limits = c('Named wetland types',
-                                  'Recruitment and Named',
-                                  'Recruitment',
-                                  'Recorded wetland types',
-                                  'Recruitment and Recorded'),
-                       breaks = c('Named wetland types',
-                                  'Recruitment and Named',
-                                  'Recruitment',
-                                  'Recorded wetland types',
-                                  'Recruitment and Recorded'))) + 
-  (inter_basin_recorded_ts +
-     
-    scale_color_manual(values = stage_pal, 
-                       limits = c('Named wetland types',
-                                  'Recruitment and Named',
-                                  'Recruitment',
-                                  'Recorded wetland types',
-                                  'Recruitment and Recorded'),
-                       breaks = c('Named wetland types',
-                                  'Recruitment and Named',
-                                  'Recruitment',
-                                  'Recorded wetland types',
-                                  'Recruitment and Recorded'))) + 
-  plot_layout(guides = 'collect')
+# 
+# (inter_basin_key_ts +
+#     scale_color_manual(values = stage_pal, 
+#                        limits = c('Named wetland types',
+#                                   'Recruitment and Named',
+#                                   'Recruitment',
+#                                   'Recorded wetland types',
+#                                   'Recruitment and Recorded'),
+#                        breaks = c('Named wetland types',
+#                                   'Recruitment and Named',
+#                                   'Recruitment',
+#                                   'Recorded wetland types',
+#                                   'Recruitment and Recorded'))) + 
+#   (inter_basin_recorded_ts +
+#      
+#     scale_color_manual(values = stage_pal, 
+#                        limits = c('Named wetland types',
+#                                   'Recruitment and Named',
+#                                   'Recruitment',
+#                                   'Recorded wetland types',
+#                                   'Recruitment and Recorded'),
+#                        breaks = c('Named wetland types',
+#                                   'Recruitment and Named',
+#                                   'Recruitment',
+#                                   'Recorded wetland types',
+#                                   'Recruitment and Recorded'))) + 
+#   plot_layout(guides = 'collect')
 ```
 
 We could do the scale\_ with limits and breaks, but it's terrible. Going to be easier to make a dummy plot and steal its legend
@@ -824,9 +846,9 @@ dummyplot <- all_data_basin |>
   filter(is.na(is_independent_proc) | is_independent_proc == 'sequential') |>
   filter(!stage_name %in% c('Adult and Recorded', 'Regeneration and Recorded',
                             'Adult and Named', 'Regeneration and Named')) |>
-ggplot(aes(x = date, y = (area + 1), color = stage_name, shape = model_type)) +
+ggplot(aes(x = year, y = log10(area + 1), 
+           color = stage_name, shape = model_type)) +
   geom_line() +
-  scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
 geom_point() +
   werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
@@ -837,9 +859,17 @@ dummylegend <- ggpubr::get_legend(dummyplot)
 
 dummybottom <- dummyplot + 
   theme(legend.position = 'bottom', legend.title.position = 'top') +
-  guides(shape = guide_legend(nrow = 2))
-bottomlegend <- ggpubr::get_legend(dummybottom)
+  guides(shape = guide_legend(nrow = 3), color = guide_legend(nrow = 3))
 
+dummybottom_notype <- dummyplot + 
+  theme(legend.position = 'bottom', legend.title.position = 'top') +
+  guides(shape = 'none', color = guide_legend(nrow = 3))
+
+
+
+
+bottomlegend <- ggpubr::get_legend(dummybottom)
+bottomnotype <- ggpubr::get_legend(dummybottom_notype)
 
 
 ```
@@ -883,28 +913,137 @@ DDDD#E
   plot_layout(design = layout_stack)
 ```
 
-```{r}
-layout_stack_venn <- "
-AABB
-CCCC
-DDDD
-EEEE
-FFFF
-"
+I really want to scooch the venn up to lay right on the x-axis of the timeseries, but can't get patchwork to do it.
 
+```{r}
 venlims <- vennplot + lims(x = c(1988, NA)) +
      werptoolkitr::theme_werp_toolkit(axis.ticks.y = element_blank(),
                                       axis.text.y = element_blank(),
                                       legend.position = 'none')
+```
 
+```{r}
+# # This is an absolutely bonkers way of squashing down the height of the venn panel
+# layout_stack_venn <- "
+# AABB
+# AABB
+# AABB
+# AABB
+# AABB
+# CCCC
+# CCCC
+# CCCC
+# CCCC
+# CCCC
+# DDDD
+# DDDD
+# DDDD
+# DDDD
+# DDDD
+# EEEE
+# FFFF
+# FFFF
+# FFFF
+# "
+# 
+# # Call this good for now, but I think if I 
+# 
 
-(hab_basin_ts + theme(legend.position = 'none')) + 
-    (proc_basin_seq_ts + theme(legend.position = 'none')) + 
-  (inter_basin_key_ts + theme(legend.position = 'none')) +
-     (inter_basin_recorded_ts  + theme(legend.position = 'none')) +
-  (venlims) +
-  ggpubr::as_ggplot(bottomlegend) +
-  plot_layout(design = layout_stack_venn)
+# 
+# 
+# ts_plot <- (hab_basin_ts + theme(legend.position = 'none')) + 
+#     (proc_basin_seq_ts + theme(legend.position = 'none')) + 
+#   (inter_basin_key_ts + theme(legend.position = 'none',
+#                               axis.text.x = element_blank())) +
+#      (inter_basin_recorded_ts  + theme(legend.position = 'none',
+#                                        axis.text.x = element_blank())) +
+#   wrap_plots(venlims) +
+#   wrap_plots(ggpubr::as_ggplot(bottomlegend)) + #bottomnotype
+#   plot_layout(design = layout_stack_venn) +
+#   plot_annotation(tag_levels = list(c('a', 'b', 'c', 'd', 'e', '')))
+# 
+# ts_plot
+# 
+# ggsave(file.path(figpath, 'red_gum_timeseries.png'),
+#        ts_plot, width = 16, height = 22, units = "cm")
+# ggsave(file.path(figpath, 'red_gum_timeseries.svg'),
+#        ts_plot, width = 16, height = 22, units = "cm")
+```
+
+```{r}
+
+topplot <- (hab_basin_ts + theme(legend.position = 'none')) + 
+    (proc_basin_seq_ts + theme(legend.position = 'none'))
+ts_plot <-  topplot /
+  (inter_basin_key_ts + theme(legend.position = 'none',
+                              axis.text.x = element_blank())) /
+     (inter_basin_recorded_ts  + theme(legend.position = 'none',
+                                       axis.text.x = element_blank(),
+                                       plot.margin = unit(c(5,5,0,5), 'points'))) /
+  wrap_plots(venlims + theme(plot.margin = unit(c(0,5,5,5), 'points'))) /
+  wrap_plots(ggpubr::as_ggplot(bottomlegend)) + #bottomnotype
+  plot_layout(heights = c(5,5,5,1,3)) +
+  plot_annotation(tag_levels = list(c('a', 'b', 'c', 'd', 'e', '')))
+
+ts_plot
+
+ggsave(file.path(figpath, 'red_gum_timeseries.png'),
+       ts_plot, width = 16, height = 22, units = "cm")
+ggsave(file.path(figpath, 'red_gum_timeseries.svg'),
+       ts_plot, width = 16, height = 22, units = "cm")
+```
+
+ggpubr has different but also annoying issues
+
+```{r}
+# ggpubstack <- ggpubr::ggarrange(
+#   ggpubr::ggarrange((hab_basin_ts + theme(legend.position = 'none')), 
+#     (proc_basin_seq_ts + theme(legend.position = 'none')), nrow = 1), 
+#   (inter_basin_key_ts + theme(legend.position = 'none',
+#                               axis.text.x = element_blank())),
+#      (inter_basin_recorded_ts  + theme(legend.position = 'none',
+#                                        axis.text.x = element_blank())),
+#   venlims,
+#   nrow = 4, heights = c(4,4,4,1), legend.grob = bottomlegend
+# )
+# 
+# ggpubstack
+```
+
+This should work best, but it stuffs up the alignment
+
+```{r}
+# lstack <- "
+# AABB
+# CCCC
+# DDDD
+# EEEE
+# "
+# 
+# venlims <- vennplot + lims(x = c(1988, NA)) +
+#      werptoolkitr::theme_werp_toolkit(axis.ticks.y = element_blank(),
+#                                       axis.text.y = element_blank(),
+#                                       legend.position = 'none')
+# 
+# 
+# ts_ploti <- (hab_basin_ts + theme(legend.position = 'none')) + 
+#     (proc_basin_seq_ts + theme(legend.position = 'none')) + 
+#   (inter_basin_key_ts + theme(legend.position = 'none',
+#                               axis.text.x = element_blank())) +
+#      (inter_basin_recorded_ts  + theme(legend.position = 'none',
+#                                        axis.text.x = element_blank()) +
+#         inset_element(venlims,
+#                       left = 0, bottom = -0.7, right = 1, top = 0.3,
+#       align_to = 'panel')) +
+#   wrap_plots(ggpubr::as_ggplot(bottomnotype)) +
+#   plot_layout(design = lstack)
+# 
+# ts_ploti
+# 
+# ggsave(file.path(figpath, 'timeseries.png'),
+#        ts_ploti, width = 16, height = 24, units = "cm")
+# ggsave(file.path(figpath, 'timeseries.svg'),
+#        ts_ploti, width = 16, height = 24, units = "cm")
 ```
 
 We can summarise those over time, making bar graphs
@@ -1058,13 +1197,17 @@ new_seq_hab_bar <- all_data_basin |>
   summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
             sd_area = sd(log10(area + 1), na.rm = TRUE),
             .by = c(stage_name, proc_type, model_type)) |>
-ggplot(aes(x = proc_type, y = mean_area, fill = stage_name, color = model_type)) +
+ggplot(aes(x = proc_type, y = mean_area, fill = stage_name,
+           color = model_type, linetype = model_type)) +
   geom_col(position = 'dodge') +
   geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
                  position = position_dodge2(width = 0.9)) + # Why 0.9?
     scale_fill_manual(values = stage_pal) +
     scale_color_manual(values = type_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+  scale_linetype_manual(values = line_type) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "Mean\nlog(area + 1)", fill = "Model", 
+       color = "Model type", linetype = "Model type")
 
 new_seq_hab_bar
 ```
@@ -1076,20 +1219,29 @@ new_seq_hab_bar_c <- all_data_basin |>
   filter((species == 'red_gum' | is.na(species)) & 
            !is.na(proc_type) &
            !grepl('Germ|Seed', stage_name)) |>
-  mutate(hab_comp = ifelse(hab_type == 'All wetlands',
-                           as.character(proc_type), hab_type),
+  mutate(hab_comp = ifelse(as.character(hab_type) == 'All wetlands',
+                           as.character(proc_type), as.character(hab_type)),
          hab_comp = factor(hab_comp, levels = c(levels(proc_type), "Recorded wetland types","Named wetland types"))) |> 
   sf::st_drop_geometry() |> 
   summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
             sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = c(stage_name, proc_type, hab_comp)) |>
-ggplot(aes(x = proc_type, y = mean_area, fill = hab_comp)) +
+            .by = c(stage_name, proc_type, hab_comp, model_type)) |>
+ggplot(aes(x = proc_type, y = mean_area, 
+           fill = hab_comp, 
+           color = model_type, 
+           alpha = model_type,
+           linetype = model_type)) +
   geom_col(position = 'dodge') +
   geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
                  position = position_dodge2(width = 0.9)) + # Why 0.9?
     scale_fill_manual(values = stage_pal) +
-    # scale_color_manual(values = type_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+    scale_color_manual(values = type_pal) +
+  scale_alpha_manual(values = alpha_type) +
+  scale_linetype_manual(values = line_type) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "Mean\nlog(area + 1)", fill = "Model", 
+       color = "Model type", linetype = "Model type", 
+       alpha = 'Model type')
 
 new_seq_hab_bar_c
 ```
@@ -1103,33 +1255,161 @@ new_basin_bar_hab_c <- all_data_basin |>
            !is.na(hab_type)) |>
   sf::st_drop_geometry() |> 
   mutate(hab_comp = ifelse(grepl('Recruit', stage_name),
-                           'Recruitment', hab_type),
+                           'Recruitment', as.character(hab_type)),
          hab_comp = factor(hab_comp, levels = levels(stage_name))) |> 
   summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
             sd_area = sd(log10(area + 1), na.rm = TRUE),
             .by = c(stage_name, hab_type, model_type, hab_comp)) |>
   # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
-ggplot(aes(x = hab_type, y = mean_area, fill = hab_comp)) +
+ggplot(aes(x = hab_type, y = mean_area, fill = hab_comp, 
+           color = model_type, 
+           alpha = model_type,
+           linetype = model_type)) +
+  geom_col(position = 'dodge') +
+  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
+                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+  scale_fill_manual(values = stage_pal) +
+    scale_color_manual(values = type_pal) +
+  scale_alpha_manual(values = alpha_type) +
+  scale_linetype_manual(values = line_type) +  
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "Mean\nlog(area + 1)", fill = "Model", 
+       color = "Model type", linetype = "Model type", 
+       alpha = 'Model type')
+
+new_basin_bar_hab_c
+```
+
+Dummy the bar legend
+
+```{r}
+dummybar <- all_data_basin |> 
+  filter((species == 'red_gum' | is.na(species)) & 
+           stage_name %in% c(sequential_stages, anae_stages) &
+           !grepl('Germ|Seed', stage_name)) |>
+  sf::st_drop_geometry() |> 
+  mutate(stage_fake = ifelse(grepl(' and ', as.character(stage_name)), 
+                             as.character(hab_type),
+                             as.character(stage_name)),
+         stage_fake = factor(stage_fake, levels = levels(stage_name))) |> 
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
+            .by = c(stage_fake, proc_type, model_type)) |>
+ggplot(aes(x = proc_type, y = mean_area, 
+           fill = stage_fake, 
+           color = model_type, 
+           alpha = model_type,
+           linetype = model_type)) +
   geom_col(position = 'dodge') +
   geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
                  position = position_dodge2(width = 0.9)) + # Why 0.9?
     scale_fill_manual(values = stage_pal) +
-    # scale_color_manual(values = type_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank())
+    scale_color_manual(values = type_pal) +
+  scale_alpha_manual(values = alpha_type) +
+  scale_linetype_manual(values = line_type) +
+  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "Mean\nlog(area + 1)", fill = "Model", 
+       color = "Model type", linetype = "Model type", 
+       alpha = 'Model type')
 
-new_basin_bar_hab_c
+dummybar
+
+
+barbottom <- dummybar + 
+  theme(legend.position = 'bottom', legend.title.position = 'top') +
+  guides(fill = guide_legend(nrow = 3), color = guide_legend(nrow = 3))
+
+
+bar_legend <- ggpubr::get_legend(dummybar)
+bar_bottom_legend <- ggpubr::get_legend(barbottom)
 ```
 
 This one is better, once i sort otu the labels/colors and the adult + regen data
 
 ```{r}
-new_basin_bar_hab / new_seq_hab_bar +
-  plot_layout(guides = 'collect')
+
+
+((new_basin_bar_hab + theme(legend.position = 'none')) + 
+    (new_seq_hab_bar + theme(legend.position = 'none'))) +
+  ggpubr::as_ggplot(bar_legend) +
+plot_layout(guides = 'collect')
+
 ```
 
 ```{r}
-new_basin_bar_hab_c / new_seq_hab_bar_c +
-  plot_layout(guides = 'collect')
+
+bar_layout_stack <- "
+AAA#C
+BBB#C
+"
+
+bar_layout_side <- "
+AABB#C
+"
+
+compare_bar <- (new_basin_bar_hab_c + 
+                  scale_x_discrete(labels = \(x) 
+                                   stringr::str_wrap(x, width = 100)) +
+                  theme(legend.position = 'none')) + 
+  (new_seq_hab_bar_c + scale_x_discrete(labels = \(x) 
+                                        stringr::str_wrap(x, width = 100)) +
+     theme(legend.position = 'none'))  +
+    wrap_plots(ggpubr::as_ggplot(bar_legend), plot_spacer()) +
+plot_layout(design = bar_layout_stack)
+
+compare_bar
+
+ggsave(file.path(figpath, 'red_gum_bars.png'),
+       compare_bar, width = 16, height = 9, units = "cm")
+ggsave(file.path(figpath, 'red_gum_maps.svg'),
+       compare_bar, width = 16, height = 9, units = "cm")
+```
+
+```{r}
+bar_layout_side <- "
+AABB
+CCCC
+"
+
+compare_bar_S <- (new_basin_bar_hab_c + 
+                  scale_x_discrete(labels = \(x) 
+                                   stringr::str_wrap(x, width = 12)) +
+                  theme(legend.position = 'none')) + 
+  (new_seq_hab_bar_c + scale_x_discrete(labels = \(x) 
+                                        stringr::str_wrap(x, width = 12)) +
+     theme(legend.position = 'none'))  +
+    wrap_plots(ggpubr::as_ggplot(bar_bottom_legend)) +
+plot_layout(design = bar_layout_side)
+
+compare_bar_S
+
+ggsave(file.path(figpath, 'red_gum_bars_side.png'),
+       compare_bar_S, width = 16, height = 9, units = "cm")
+ggsave(file.path(figpath, 'red_gum_bars_side.svg'),
+       compare_bar_S, width = 16, height = 9, units = "cm")
+```
+
+```{r}
+bar_layout_side2 <- "
+AABB#C
+"
+
+compare_bar_S2 <- (new_basin_bar_hab_c + 
+                  scale_x_discrete(labels = \(x) 
+                                   stringr::str_wrap(x, width = 12)) +
+                  theme(legend.position = 'none')) + 
+  (new_seq_hab_bar_c + scale_x_discrete(labels = \(x) 
+                                        stringr::str_wrap(x, width = 12)) +
+     theme(legend.position = 'none'))  +
+    wrap_plots(ggpubr::as_ggplot(bar_legend), plot_spacer()) +
+plot_layout(design = bar_layout_side2)
+
+compare_bar_S2
+
+ggsave(file.path(figpath, 'red_gum_bars_side2.png'),
+       compare_bar_S2, width = 16, height = 9, units = "cm")
+ggsave(file.path(figpath, 'red_gum_bars_side2.svg'),
+       compare_bar_S2, width = 16, height = 9, units = "cm")
 ```
 
 Now, can we do something similar with maps? Do we need the difference/relative? Or is it enough to just plot the raw dta? Also a q for the bars- we could do a relativized version to look at the proportional sensitivity, but would that just confuse the issue?
@@ -1280,9 +1560,21 @@ inter_matrix_maps <- all_data_time |>
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_wrap('stage_name', nrow = 2, drop = FALSE) +
   # facet_wrap('stage_name', ncol = 3) +
-  werptoolkitr::theme_werp_toolkit()
+  werptoolkitr::theme_werp_toolkit() +
+  labs(fill = 'log(area + 1)')
 
 inter_matrix_maps
+
+
+ggsave_multi(file.path(figpath, 'red_gum_interaction_map'),
+        plot = inter_matrix_maps,
+        devices = c('png', 'svg', 'pdf'),
+        width = 16, height = 9, units = "cm")
+
+ggsave(file.path(figpath, 'red_gum_interaction_map'), device = 'png',
+       inter_matrix_maps, width = 16, height = 9, units = "cm")
+ggsave(file.path(figpath, 'red_gum_interaction_map'), device = c('svg', 'pdf'),
+       inter_matrix_maps, width = 16, height = 9, units = "cm")
 ```
 
 We could obviously fill those two middle panels with the difference or the relative change, but is it needed? or is the bar plot covering it?
@@ -1298,7 +1590,7 @@ We can do those separately (below), but I think that covers it pretty well.
 #| fig-cap: Area favourable for red gum life stages in the basin
 seq_proc_basin_ts <- all_data_basin |> 
   filter(species == 'red_gum' & stage_name %in% sequential_stages) |> 
-ggplot(aes(x = date, y = (area + 1), color = stage_name)) +
+ggplot(aes(x = year, y = (area + 1), color = stage_name)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -1314,7 +1606,7 @@ seq_proc_basin_ts
 #| fig-cap: Area favourable for red gum life stages in the basin
 seq_hab_basin_ts <- all_data_basin |> 
   filter(species == 'red_gum' & stage_name %in% sequential_hab) |> 
-ggplot(aes(x = date, y = area, color = stage_name)) +
+ggplot(aes(x = year, y = area, color = stage_name)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -1329,7 +1621,7 @@ seq_hab_basin_ts
 #| fig-cap: Area favourable for red gum life stages in the basin
 all_data_basin |> 
   filter(species == 'red_gum' & stage_name %in% combo_stages) |> 
-ggplot(aes(x = date, y = area, color = stage_name)) +
+ggplot(aes(x = year, y = area, color = stage_name)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -1409,7 +1701,7 @@ Here, we assess area of favourable adult condition, primarily as a consequence o
 ```{r}
 all_process |> 
   filter(stage == 'adult'& species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = ValleyName)) +
+ggplot(aes(x = year, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
   theme(legend.position = 'none')
@@ -1429,7 +1721,7 @@ Basin-scale
 ```{r}
 all_process_basin |> 
   filter(stage == 'adult'& species == 'red_gum') |> 
-  ggplot(aes(x = date, y = area)) +
+  ggplot(aes(x = year, y = area)) +
   geom_line() +
   geom_point() +
   theme(legend.position = 'none')
@@ -1444,7 +1736,7 @@ Just based on requirements for preceding inundation and subsequent soil moisture
 #| fig-cap: Area favourable for red gum germination in each catchment
 all_process |> 
   filter(stage == 'germination'& species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = ValleyName)) +
+ggplot(aes(x = year, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
   theme(legend.position = 'none')
@@ -1468,7 +1760,7 @@ At the basin scale, @fig-regen-basin, we see temporal variation. We should proba
 #| fig-cap: Area favourable for red gum germination summed across the basin
 all_process_basin |> 
   filter(stage == 'germination'& species == 'red_gum') |> 
-  ggplot(aes(x = date, y = area)) +
+  ggplot(aes(x = year, y = area)) +
   geom_line() +
   geom_point() +
   theme(legend.position = 'none')
@@ -1483,7 +1775,7 @@ The third step in the life cycle is survival of seedlings post-germination. When
 #| fig-cap: Area favourable for red gum seedling survival in each catchment
 all_process |> 
   filter(stage == 'seedling'& species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = ValleyName)) +
+ggplot(aes(x = year, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
   theme(legend.position = 'none')
@@ -1507,7 +1799,7 @@ At the basin scale, that is @fig-seed-basin.
 #| fig-cap: Area favourable for red gum seedling survival summed to basin
 all_process_basin |> 
   filter(stage == 'seedling'& species == 'red_gum') |> 
-  ggplot(aes(x = date, y = area)) +
+  ggplot(aes(x = year, y = area)) +
   geom_line() +
   geom_point() +
   theme(legend.position = 'none')
@@ -1526,7 +1818,7 @@ The life cycle is sequential, and so what we are interested in ultimately is rec
 ```{r}
 all_process |> 
   filter(stage == 'adult_regen'& species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = ValleyName)) +
+ggplot(aes(x = year, y = area, color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
   theme(legend.position = 'none')
@@ -1546,7 +1838,7 @@ At the basin scale, that is
 ```{r}
 all_process_basin |> 
   filter(stage == 'adult_regen'& species == 'red_gum') |> 
-  ggplot(aes(x = date, y = area)) +
+  ggplot(aes(x = year, y = area)) +
   geom_line() +
   geom_point() +
   theme(legend.position = 'none')
@@ -1557,7 +1849,7 @@ all_process_basin |>
 ```{r}
 all_process |> 
   filter(stage == 'recruitment'& species == 'red_gum') |> 
-ggplot(aes(x = date, y = log(area), color = ValleyName)) +
+ggplot(aes(x = year, y = log(area), color = ValleyName)) +
   geom_line() + 
   facet_wrap('ValleyName') +
   theme(legend.position = 'none')
@@ -1577,7 +1869,7 @@ At the basin scale, that is
 ```{r}
 all_process_basin |> 
   filter(stage == 'recruitment'& species == 'red_gum') |> 
-  ggplot(aes(x = date, y = area)) +
+  ggplot(aes(x = year, y = area)) +
   geom_line() +
   geom_point() +
   theme(legend.position = 'none')
@@ -1592,7 +1884,7 @@ The adults swamp the others. Though not everywhere- it's spatio-temporally varia
 ```{r}
 all_process |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() + 
   scale_color_manual(values = stage_pal) +
   facet_wrap('ValleyName')
@@ -1603,7 +1895,7 @@ Ignoring adults is still not very informative- germination just comes in as obvi
 ```{r}
 all_process |> 
   filter(species == 'red_gum' & stage != 'adult') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
   facet_wrap('ValleyName')
@@ -1616,7 +1908,7 @@ At the basin scale, we see the same pattern but cleaner @fig-process-basin . I u
 #| fig-cap: Area favourable for red gum life stages in the basin
 all_process_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -1631,8 +1923,8 @@ If we summarise over time, we can make a cool bar graph (or, should we use time 
 all_process_basin |> 
   filter(species == 'red_gum') |>
   sf::st_drop_geometry() |> 
-  summarise(mean_area = mean(log(area + 1), na.rm = TRUE),
-            sd_area = sd(log(area + 1), na.rm = TRUE),
+  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
+            sd_area = sd(log10(area + 1), na.rm = TRUE),
             .by = stage) |>
 ggplot(aes(x = stage, y = mean_area, fill = stage)) +
   geom_col() +
@@ -1687,7 +1979,7 @@ I haven't logged area here to illustrate how striking the difference is, but hav
 #| fig-cap: Area of inundation in ANAE types that match the name ('anae_name') or where there are ALA records ('anae_ala') for red gum.
 inun_anae_types |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
 facet_wrap('ValleyName')
@@ -1698,7 +1990,7 @@ A map example, separate here because of scaling and readability. It's too much, 
 ```{r}
 inun_anae_types |> 
   filter(species == 'red_gum' & stage == 'anae_name') |> 
-ggplot(aes(fill = log(area+1))) +
+ggplot(aes(fill = log10(area + 1))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
   scale_fill_viridis_c()
@@ -1707,7 +1999,7 @@ ggplot(aes(fill = log(area+1))) +
 ```{r}
 inun_anae_types |> 
   filter(species == 'red_gum' & stage == 'anae_ala') |> 
-ggplot(aes(fill = log(area+1))) +
+ggplot(aes(fill = log10(area + 1))) +
   geom_sf(color = NA) +
   facet_wrap('date') +
   scale_fill_viridis_c()
@@ -1718,7 +2010,7 @@ At the basin scale
 ```{r}
 inun_anae_types_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -1745,7 +2037,7 @@ What to say about it?
 #| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'germination' here is in all ANAE wetlands, not only those that are 'habitat'.
 process_and_hab |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
   scale_color_manual(values = stage_pal) +
@@ -1759,7 +2051,7 @@ Basin
 #| fig-cap: Area favourable for each red gum life stage and the two definitions of habitat *without interactions*, i.e. 'germination' here is in all ANAE wetlands, not only those that are 'habitat'.
 process_and_hab_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -1802,13 +2094,13 @@ anae_ala is almost always highest, so we're not losing much if any germ habitat 
 #| fig-cap: Area favourable for each red gum germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
 process_and_hab_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
 germ_hab |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -1822,7 +2114,7 @@ Basin
 #| fig-cap: Area favourable for each red gum germination alone and after clipping to 'habitat' defined both ways. The overall inundation of the habitat types is included as reference 'anae_ala' and 'anae_name'.
 germ_hab_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -1857,7 +2149,7 @@ If we relativise to the germination stricture alone, we get the proportional los
 #| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the germination favourability in the absence of a habitat requirement, thus showing proportional reduction in germination due to habitat requirements.
 germ_compare_r |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
       scale_color_manual(values = stage_pal) +
@@ -1867,7 +2159,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 ```{r}
 germ_compare_d |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = difference_area, color = stage)) +
+ggplot(aes(x = year, y = difference_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
       scale_color_manual(values = stage_pal) +
@@ -1888,7 +2180,7 @@ germ_compare_r_basin <- germ_hab_basin |>
 
 germ_compare_r_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -1920,7 +2212,7 @@ Whether 'habitat' is determined by name or ALA records, there are *massive* drop
 #| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types described by the species in the absence of a germination requirement, thus showing proportional reduction in germination due to the biological germination requirements.
 germ_inun_name_compare |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
   scale_color_manual(values = stage_pal) +
@@ -1932,7 +2224,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 #| fig-cap: Area favourable for red gum germination when both germination and habitat are considered, relativised to the habitat favourability of ANAE types with ALA records in the absence of a germination requirement, thus showing proportional reduction in germination due to the biological germination requirements.
 germ_anae_ala_compare |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
   scale_color_manual(values = stage_pal) +
@@ -1953,7 +2245,7 @@ germ_inun_name_compare_basin <- germ_hab_basin |>
 
 germ_inun_name_compare_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -1971,7 +2263,7 @@ germ_anae_ala_compare_basin <- germ_hab_basin |>
 
 germ_anae_ala_compare_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -2072,7 +2364,7 @@ Again, start with just plotting the outcomes
 ```{r}
 adult_germ_seed_hab |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -2084,7 +2376,7 @@ Basin, also logged so we can see the data.
 ```{r}
 adult_germ_seed_hab_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -2116,7 +2408,7 @@ This is almost all NaN because there's so little recruitment it's all divide-by-
 ```{r}
 adult_germ_seed_compare_r |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
@@ -2128,7 +2420,7 @@ Here we can see that not much gets lost to the habitat requirements, because the
 ```{r}
 adult_germ_seed_compare_d |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = difference_area, color = stage)) +
+ggplot(aes(x = year, y = difference_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
@@ -2149,7 +2441,7 @@ adult_germ_seed_compare_r_basin <- adult_germ_seed_hab_basin |>
 
 adult_germ_seed_compare_r_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -2180,7 +2472,7 @@ This is kind of silly, since the strictures are almost all basically 0, but it m
 ```{r}
 adult_germ_seed_inun_name_compare |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
@@ -2192,7 +2484,7 @@ For the ALA, there *is* some data, but it's not possible to see on an unscaled 0
 ```{r}
 adult_germ_seed_anae_ala_compare |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
   # scale_y_continuous(trans = 'log10') +
@@ -2207,7 +2499,7 @@ In fact, we could drop the upper two plots, and just plot the name and ala toget
 adult_germ_seed_anae_ala_compare |> 
   bind_rows(adult_germ_seed_inun_name_compare) |> 
   filter(species == 'red_gum' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
     scale_color_manual(values = stage_pal) +
   # scale_y_continuous(trans = 'log10') +
@@ -2235,7 +2527,7 @@ adult_germ_seed_anae_ala_compare_basin <- adult_germ_seed_hab_basin |>
 adult_germ_seed_anae_ala_compare_basin |> 
   bind_rows(adult_germ_seed_inun_name_compare_basin) |> 
   filter(species == 'red_gum' & stage %in% c('recruitment_ala', 'recruitment_name')) |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   geom_point() +
     scale_color_manual(values = stage_pal) +
@@ -2249,7 +2541,7 @@ Again, start with the overall outputs
 ```{r}
 adult_hab |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() + 
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -2261,7 +2553,7 @@ Basin, also logged so we can see the data.
 ```{r}
 adult_hab_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() +
   scale_y_continuous(trans = 'log10') +
     scale_color_manual(values = stage_pal) +
@@ -2293,7 +2585,7 @@ What fraction of the area of the process-based strictures alone is lost when the
 ```{r}
 adult_compare_r |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
       scale_color_manual(values = stage_pal) +
@@ -2303,7 +2595,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 ```{r}
 adult_compare_d |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = difference_area, color = stage)) +
+ggplot(aes(x = year, y = difference_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
       scale_color_manual(values = stage_pal) +
@@ -2323,7 +2615,7 @@ adult_compare_r_basin <- adult_hab_basin |>
 
 adult_compare_r_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -2356,7 +2648,7 @@ Here, we have an interesting and counterintuitive result that there's actually M
 ```{r}
 adult_inun_name_compare |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
   scale_color_manual(values = stage_pal) +
@@ -2366,7 +2658,7 @@ ggplot(aes(x = date, y = relative_area, color = stage)) +
 ```{r}
 adult_anae_ala_compare |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = relative_area, color = stage)) +
+ggplot(aes(x = year, y = relative_area, color = stage)) +
   geom_line() + 
   scale_y_continuous() +
   scale_color_manual(values = stage_pal) +
@@ -2386,7 +2678,7 @@ adult_inun_name_compare_basin <- adult_hab_basin |>
 
 adult_inun_name_compare_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -2402,7 +2694,7 @@ adult_anae_ala_compare_basin <- adult_hab_basin |>
 
 adult_anae_ala_compare_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area, color = stage)) +
+ggplot(aes(x = year, y = area, color = stage)) +
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point()
@@ -2435,7 +2727,7 @@ So, the adult_name and adult_ala are always below the total available habitat in
 ```{r}
 adult_hab |> 
   filter(species == 'red_gum') |>
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() + 
   geom_hline(data = total_wetland_area |> 
               filter(species == 'red_gum'),
@@ -2451,7 +2743,7 @@ Basin, also logged so we can see the data.
 ```{r}
 adult_hab_basin |> 
   filter(species == 'red_gum') |> 
-ggplot(aes(x = date, y = area+1, color = stage)) +
+ggplot(aes(x = year, y = area+1, color = stage)) +
   geom_line() +
   geom_hline(data = total_wetland_area_basin |> 
               filter(species == 'red_gum'),
