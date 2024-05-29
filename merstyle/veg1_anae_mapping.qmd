@@ -208,10 +208,26 @@ lignum_type <- lignum_anae |>
 Save that. I think it'd be entirely reasonable to cut off the rare occurrences (\<10, \<0.5%, etc), but that should be an analysis/use decision.
 
 ```{r}
+#| eval: false
 if (!dir.exists(vegdir)) {dir.create(vegdir, recursive = TRUE)}
 saveRDS(red_gum_type, file = file.path(vegdir, 'red_gum_anae_type.rds'))
 saveRDS(black_box_type, file = file.path(vegdir, 'black_box_anae_type.rds'))
 saveRDS(coolabah_type, file = file.path(vegdir, 'coolabah_anae_type.rds'))
 saveRDS(lignum_type, file = file.path(vegdir, 'lignum_anae_type.rds'))
 
+```
+
+Save out the records themselves too, I keep wanting them
+
+```{r}
+#| eval: false
+saveRDS(red_gum_mdb, file = file.path(vegdir, 'red_gum_mdb_records.rds'))
+saveRDS(black_box_mdb, file = file.path(vegdir, 'black_box_mdb_records.rds'))
+saveRDS(coolabah_mdb, file = file.path(vegdir, 'coolabah_mdb_records.rds'))
+saveRDS(lignum_mdb, file = file.path(vegdir, 'lignum_mdb_records.rds'))
+
+saveRDS(red_gum_anae, file = file.path(vegdir, 'red_gum_anae_records.rds'))
+saveRDS(black_box_anae, file = file.path(vegdir, 'black_box_anae_records.rds'))
+saveRDS(coolabah_anae, file = file.path(vegdir, 'coolabah_anae_records.rds'))
+saveRDS(lignum_anae, file = file.path(vegdir, 'lignum_anae_records.rds'))
 ```
