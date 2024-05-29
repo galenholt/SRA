@@ -19,7 +19,7 @@ format:
 bibliography: references.bib
 ---
 
-```{r setup}
+```{r}
 #| include: false
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
@@ -123,13 +123,10 @@ All outputs produced timeseries of the area of favourability in each of the 287,
 
 ## Analyses
 
-Our analyses explore the favourability for each species as determined by each of the three models (wetland type alone, biological process, and interactive), including the two types of wetland type specification *named* and *recorded* and the different stages in the life cycle. Our primary interest here is in comparing the outcomes of the different modelling choices. We perform these comparisons at different scales (for each of 25 catchments and the whole Murray-Darling Basin, yearly and over the full available period of data 1988-2022). To obtain favourable areas at the catchment or basin scale from a model, we simply summed the favourable areas according to that model of all ANAE wetlands. This yielded a timeseries of favourabilities at either the catchment or basin scale. In some cases, we also averaged over these timeseries to give a mean favourability over time, where we also report the standard deviation of the timeseries to indicate the (often large) temporal fluctuations. 
+Our analyses explore the favourability for each species as determined by each of the three models (wetland type alone, biological process, and interactive), including the two types of wetland type specification *named* and *recorded* and the different stages in the life cycle. Our primary interest here is in comparing the outcomes of the different modelling choices. We perform these comparisons at different scales (for each of 25 catchments and the whole Murray-Darling Basin, yearly and over the full available period of data 1988-2022). To obtain favourable areas at the catchment or basin scale from a model, we simply summed the favourable areas according to that model of all ANAE wetlands. This yielded a timeseries of favourabilities at either the catchment or basin scale. In some cases, we also averaged over these timeseries to give a mean favourability over time, where we also report the standard deviation of the timeseries to indicate the (often large) temporal fluctuations.
 
-*You may have written this more eloquently elsewhere- feel free to delete*. Whatever the scale of analysis, our focus is on comparing the favourabilities obtained from modeling approaches alone (e.g. wetland type vs process-based) and in interaction. Thus, we present the favourabilities of each type paired with those from the joint models. The target is to assess how 1) requiring favourable conditions for biological conditions within a wetland type reduces the favourability relative to simply requiring inundation, and 2) how restricting biological processes to only particular wetland types reduces favourability relative to allowing them to occur in any wetland.  
+*You may have written this more eloquently elsewhere- feel free to delete*. Whatever the scale of analysis, our focus is on comparing the favourabilities obtained from modeling approaches alone (e.g. wetland type vs process-based) and in interaction. Thus, we present the favourabilities of each type paired with those from the joint models. The target is to assess how 1) requiring favourable conditions for biological conditions within a wetland type reduces the favourability relative to simply requiring inundation, and 2) how restricting biological processes to only particular wetland types reduces favourability relative to allowing them to occur in any wetland.
 
 # Appendix? Notes? Trash
 
 For example, the seedling period is poorly documented, with @jensen2008 stating both 2 years and 'through the summer' for Red Gum, Black, Box, and Coolabah though does not have data. @roberts2011 provides some indications of the ages at which Black Box and Red Gum seedlings have been seen to persist through flooding or drying, though no systematic studies. @capon2009 used three-month old Lignum for a series of experiments showing they were robust to both flooding and drying. However, none of these studies were intended to identify the necessary seedling period, and so are necessarily approximate. What is clear is that soil moisture must persist long enough for seedlings to grow from the cotyledon stage to established plants capable of withstanding both flooding and drought. This establishment requires growing stems, leaves, and a vigorous root system to support the plant. In many species seedlings are known to only be rarely succesful, e.g. only 6 major Coolabah regeneration events have occurred in the basin since 1890 @roberts2011. While the seedling durations chosen here are approximations, shifts in that value do not qualitatively change our results.
-
-
-
