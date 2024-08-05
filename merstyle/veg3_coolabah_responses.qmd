@@ -20,11 +20,15 @@ if (parset == 'local') {
   plan(multisession)
 }
 
+# These don't actually utilise two levels of parallelism. I have two options then- 
+# change this to just multicore and call sbatch big_R.sh run_r_hpc.R "merstyle/veg3_coolabah_responses.qmd"
+# Or drop the tasks per node to 1 and let it still node-parallel.
+# In the big scheme of things, it probably doesn't matter, though I'd get an extra core due to my limit throttling if I use the first.
 if (parset == 'gandalf') {
   plan(list(tweak(future.batchtools::batchtools_slurm,
                 template = "batchtools.slurm.tmpl",
                 resources = list(time = 60,
-                                 ntasks.per.node = 12,
+                                 ntasks.per.node = 5,
                                  mem = "70GB",
                                  job.name = 'coolabah')),
           multicore))
