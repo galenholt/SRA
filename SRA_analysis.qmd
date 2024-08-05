@@ -125,6 +125,7 @@ class(pal_climate) <- 'colors'
 ```
 
 ## Data - Connectivity
+
 ```{r}
 #LATERALconnectivity - Valley
 Timeseries_Valley_LATERALconnectivity <- readRDS(file.path(data_path, "Timeseries_Valley_LATERALconnectivity.rds"))
@@ -180,6 +181,7 @@ Timeseries_Basin_EWRconnectivity <- filter(Timeseries_Basin_EWRconnectivity, yea
 ```
 
 ## Data - ANAE diversity
+
 ```{r}
 #ANAEdiversity
 #ANAEdiversity - Valley
@@ -195,6 +197,10 @@ Timeseries_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
 
 Timeseries_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
+
+#JOIN VALLEY SPECIFIC EXPECTATIONS:
+shannon_expectations <- readRDS(file.path(datOut, 'diversity/shannon_expectations.rds'))
+Timeseries_Valley_ANAEdiversity <- left_join(Timeseries_Valley_ANAEdiversity, shannon_expectations,by = join_by(name_clean, ValleyName))
 
 #ANAEdiversity - Basin
 diversity_anae_summary <- catch_cat_sf('diversity_anae_summary', outerdir = 'diversity')
@@ -219,10 +225,13 @@ Timeseries_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
 Timeseries_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
 
+#JOIN VALLEY SPECIFIC EXPECTATIONS:
+Timeseries_Basin_ANAEdiversity$max_shannon_basin <- unique(shannon_expectations$max_shannon_basin)
 
 ```
 
 ## Data - ANAE inundation
+
 ```{r}
 ##ANAEinundation
 #Valley
@@ -270,8 +279,8 @@ Timeseries_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
 
 ```
 
-
 ## Data - ANAE veg
+
 ```{r}
 # Read in data
 # Setting these up to read in all the species at once with purrr
@@ -353,6 +362,7 @@ Timeseries_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
 ```
 
 ## IS Scaling - EWRconnectivity
+
 ```{r}
 #EWRconnectivity
 #ANAEinundation
@@ -444,7 +454,8 @@ Condition_Basin_EWRconnectivity <- Timeseries_Basin_EWRconnectivity |>
 Condition_Trend_Basin_EWRconnectivity <- left_join(Condition_Basin_EWRconnectivity, Trend_Basin_EWRconnectivity, by = join_by(Indicator))
 ```
 
-## IS Scaling - diversity 
+## IS Scaling - ANAE diversity
+
 ```{r}
 #EWRconnectivity
 #ANAEinundation
@@ -454,13 +465,15 @@ Condition_Trend_Basin_EWRconnectivity <- left_join(Condition_Basin_EWRconnectivi
 #Valley
 Timeseries_Valley_ANAEdiversity <- Timeseries_Valley_ANAEdiversity |>
   ungroup()|>
-  group_by(Indicator)|>
+  group_by(ValleyName)|>
   filter(year>=1988)|>
   #Outcome
   mutate(Outcome = diversity_shannon_area)|>
   #Total 
-  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(unique(max_shannon_catchment)-0)) |>
   mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  
+  ungroup()|>
   #Basin 
   mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
   mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
@@ -504,7 +517,7 @@ Timeseries_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
   #Outcome
   mutate(Outcome = diversity_shannon_area)|>
   #Total 
-  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(unique(max_shannon_basin)-0)) |>
   mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
   #Basin 
   mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
@@ -536,8 +549,8 @@ Condition_Basin_ANAEdiversity <- Timeseries_Basin_ANAEdiversity |>
 Condition_Trend_Basin_ANAEdiversity <- left_join(Condition_Basin_ANAEdiversity, Trend_Basin_ANAEdiversity, by = join_by(Indicator))
 ```
 
+## IS Scaling - ANAEinundation
 
-## IS Scaling - ANAEinundation 
 ```{r}
 #EWRconnectivity
 #ANAEinundation
@@ -630,6 +643,7 @@ Condition_Trend_Basin_ANAEinundation <- left_join(Condition_Basin_ANAEinundation
 ```
 
 ## IS Scaling - ANAEvegetation
+
 ```{r}
 #ANAEvegetation
 #Valley
@@ -718,7 +732,9 @@ Condition_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
 
 Condition_Trend_Basin_ANAEvegetation <- left_join(Condition_Basin_ANAEvegetation, Trend_Basin_ANAEvegetation, by = join_by(Indicator))
 ```
+
 ## Joins
+
 ```{r}
 Indicators_keep <- c('black box adult', 'black box recruitment', 'coolabah adult', 'coolabah recruitment',  'lignum adult', 'lignum recruitment',  'red gum adult', 'red gum recruitment')
 
@@ -825,11 +841,9 @@ ggsave(plot = IS_example_plot, filename = file.path(plot_path, paste0("IS_exampl
 
 ## SUGGESTED
 
-add current condition and trend to left hand corner ? lines for year type mean? (some kind of range 95%ile?)
-Condition = yr type scaled. = good fair poor
+add current condition and trend to left hand corner ? lines for year type mean? (some kind of range 95%ile?) Condition = yr type scaled. = good fair poor
 
 Fit spline with 1) all data and 2) all data excluding post BP - amiar?
-
 
 ```{r}
 #BASIN
@@ -954,6 +968,7 @@ ggsave(plot = Plot_Timeseries_Basin_LATERAL_IS6, filename = file.path(plot_path,
        width = 8, height = 6)
 
 ```
+
 ```{r}
 BD_data <- Timeseries_Valley_LATERALconnectivity|>
   filter(ValleyName == "Barwon Darling")
@@ -1085,7 +1100,6 @@ Plot_Timeseries_BD_LATERAL_IS6
 ggsave(plot = Plot_Timeseries_BD_LATERAL_IS6, filename = file.path(plot_path, paste0("SUGGESTED_plot_BD_LATERALconnectivity_", Sys.Date(), ".tiff")), device = "tiff",
        width = 8, height = 6)
 ```
-
 
 ## Stepping through combining ISs
 
@@ -1226,7 +1240,9 @@ Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity
 ggsave(plot = Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity, filename = file.path(plot_path, paste0("Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity", "_", Sys.Date(), ".tiff")), device = "tiff",
        width = 5, height = 3)
 ```
+
 ## LIST OF VALLEYS BY INDICATOR:
+
 ```{r}
 #MAKE LIST OF VALLEYS BY INDICATORS:
 Valley_indicator_list <- tibble(
@@ -1254,8 +1270,10 @@ Valley_indicator_list<- Valley_indicator_list |>
 ```
 
 ## Timeseries plots
+
 <!-- # BRoken works for lateral but not longitudinal???? same for Central Murray. -->
- #BASIN PLOTS
+
+#BASIN PLOTS
 
 ```{r}
 #Timeseries
@@ -1365,7 +1383,9 @@ purrr::pmap(Valley_indicator_list, ~Plot_Trend_Timeseries(IndicatorX = .x, Valle
 #     filter(Indicator == Valley_indicator_list[34,]$IndicatorX & ValleyName == Valley_indicator_list[34,]$ValleyNameY)
 
 ```
-## Connecting Inundation to EWR lateral connectivity 
+
+## Connecting Inundation to EWR lateral connectivity
+
 ```{r}
 Timeseries_Connecting_Basin <- Timeseries |>
   ungroup()|>
@@ -1392,7 +1412,8 @@ plot1 <- ggplot(data = Timeseries_Connecting_Basin, aes(x = `Lateral connectivit
          device = "tiff", width = 5, height = 3)
 
 ```
-## Connecting Inundation to EWR lateral connectivity 
+
+## Connecting Inundation to EWR lateral connectivity
 
 ```{r}
 ## Connecting Inundation to EWR lateral connectivity 
@@ -1438,11 +1459,9 @@ Timeseries |>
   filter(Indicator == "ANAE inundation" | Indicator == "Lateral connectivity")
 
 ```
- 
- 
- 
+
 ## Condition and Trend Values
- 
+
 ```{r}
 write.csv(
   Condition_Trend_Basin,
@@ -1451,6 +1470,25 @@ write.csv(
 write.csv(
   Condition_Trend_Valley,
   file.path(plot_path, "Condition_and_Trend_values", paste0("Condition_and_Trend_Valley", "_", Sys.Date(), ".csv")))
+
+write.csv(
+  select(shannon_expectations, c(ValleyName, n_anae_types, total_wetland_area)),
+  file.path(plot_path, "Condition_and_Trend_values", paste0("ANAE_wetlands_number_and_area", "_", Sys.Date(), ".csv")))
+
+
+ANAE_wetlands_area <- diversity_anae_summary |>
+  filter(time == max(time))|>
+  select(ValleyName, ANAE_DESC, total_area) |>
+  st_drop_geometry()
+
+write.csv(
+  ANAE_wetlands_area,
+  file.path(plot_path, "Condition_and_Trend_values", paste0("ANAE_wetlands_area_each", "_", Sys.Date(), ".csv")))
+
+
+write.csv(
+  select(shannon_expectations, -expected_catchment_shannon, -basin_shannon_overall),
+  file.path(plot_path, "Condition_and_Trend_values", paste0("ANAE_wetlands_max_shannon_diversity", "_", Sys.Date(), ".csv")))
 ```
 
 ## TILE plots
@@ -1507,11 +1545,7 @@ ggsave(plot = Tile_plot2, filename = file.path(plot_path, paste0("Tile_plot_ANAE
 
 ```
 
-
-
-
-
-## Add geometry 
+## Add geometry
 
 ```{r}
 
@@ -1585,4 +1619,3 @@ ggsave(plot = Map_Tagg_PrePostBP_Basin_COOLABAH, filename = file.path(plot_path,
 nrow(Valley_indicator_list)*3 + nrow(Valley_indicator_list_subset)
 
 ```
-

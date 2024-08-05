@@ -449,9 +449,55 @@ EWR_table$ewr_code <- sub("_[^_]+$", "", EWR_table$Code)
 
 temp <- EWR_table |>
   filter(ValleyName %in% Valleys_no_long)
+```
+
+#how many EWRs in each valley
+```{r}
+Longitudinal_EWRS <- Timeseries_gauge_EWR |>
+    filter(Longitudinal_connectivity_CF == "Y" | Longitudinal_connectivity_FD == "Y") |>
+    distinct(ValleyName, ewr_code, gauge,  Longitudinal_connectivity_CF, Longitudinal_connectivity_FD)|>
+    group_by(ValleyName)|>
+    summarise(`Number of EWRs relating to Longitudinal connectivity` = n(),
+              `Number of gauges` = length(unique(gauge)))
+
+
+Lateral_EWRS <- Timeseries_gauge_EWR |>
+    filter(Lateral_connectivity_including_SF == "Y") |>
+    distinct(ValleyName, ewr_code, gauge,  Lateral_connectivity_including_SF)|>
+    group_by(ValleyName)|>
+    summarise(`Number of EWRs relating to Lateral connectivity` = n(),
+              `Number of gauges` = length(unique(gauge)))
+
+Lat_and_Long_EWRS <- full_join(Lat_EWRS, Long_EWRS, by = join_by(ValleyName, `Number of gauges`))
+
+write.csv(
+  Longitudinal_EWRS,
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/DraftReport_plots",
+            paste0("Longitudinal_connectivity_EWRS", "_", Sys.Date(), ".csv")))
+
+write.csv(
+  Lateral_EWRS,
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/DraftReport_plots", 
+            paste0("Lateral_connectivity_EWRS", "_", Sys.Date(), ".csv")))
 
 ```
 
+## longitudinal or lateral connectivity for the Goulburn or Murrumbidgee Rivers
+```{r}
+
+#Lat
+Timeseries_gauge_EWR |>
+  filter(Lateral_connectivity_including_SF == "Y") |>
+  filter(ValleyName == "Murrumbidgee" | ValleyName == "Goulburn")|>
+  distinct(ewr_code, ValleyName)
+
+#Long
+Timeseries_gauge_EWR |>
+  filter(Longitudinal_connectivity_CF == "Y" | Longitudinal_connectivity_FD == "Y") |>
+  filter(ValleyName == "Murrumbidgee" | ValleyName == "Goulburn")|>
+  distinct(ewr_code, ValleyName)
+
+```
 
 
 
