@@ -11,7 +11,8 @@
 
   # Then, we build the R from qmd if needed.
   infile <- commandArgs()[6]
-  rfile <- stringr::str_replace(infile, '.qmd', '.R')
+  # name it something we can easily gitignore
+  rfile <- stringr::str_replace(infile, '.qmd', '_TEMP_HPC.R')
 
   knitr::purl(input = infile, output = rfile)
 
