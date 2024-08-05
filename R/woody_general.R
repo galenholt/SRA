@@ -120,6 +120,8 @@ woody_general <- function(out_dir, catchment,
   # In both cases, we develop the stricture at the end, but we read in the ALA side here.
   anae_types <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_anae_type.rds')))
 
+  catchment_records <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_catchment.rds')))
+
   # the set of times.
   times <- stars::st_get_dimension_values(anae_inun$aggdata, 'time')
 
@@ -400,23 +402,42 @@ woody_general <- function(out_dir, catchment,
   # Option 2: it's an anae type with records from ALA
   # Let's say it needs to have at least 0.5% of the records to be appreciable.
   ala_types <- anae_types |>
-    filter(n_records > 0.005*sum(anae_types$n_records)) |>
-    select(ANAE_DESC) |>
-    pull() |>
+    dplyr::filter(n_records > 0.005*sum(anae_types$n_records)) |>
+    dplyr::select(ANAE_DESC) |>
+    dplyr::pull() |>
     unique() # Should be, but ensure
+
+  # make a catchment restriction too. Say there needs to be > 10 records to beleive it
+  catchments <- catchment_records |>
+    dplyr::filter(n_records > 10) |>
+    dplyr::select(ValleyName) |>
+    dplyr::pull() |>
+    unique()
 
   # Have each method in separate cols of a df because we need logical vectors that match the full anae df (and stars)
   anaestricts <- anaes |>
     # option 1- by name
     dplyr::mutate(name_anae = grepl(veg_grep, ANAE_DESC, ignore.case = TRUE),
                   # option 2: by ala record
-                  ala_anae = ANAE_DESC %in% ala_types)
+                  ala_anae = ANAE_DESC %in% ala_types,
+                  catchment = ValleyName %in% catchments)
 
   # clip the strictures
   anae_name_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$name_anae) |>
     setNames(paste0(names(yrstricts), '_anae_name'))
   anae_ala_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$ala_anae) |>
     setNames(paste0(names(yrstricts), '_anae_ala'))
+
+  # It's tempting to do the catchment clips post-catchment aggregation, but it's
+  # more general to do it here and keeps things standard. It doesn't seem to be
+  # where speed bottlenecks are anyway
+  # Do these for the raw data and for the two anae-limited datas
+  catchment_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$catchment) |>
+    setNames(paste0(names(yrstricts), '_catchment'))
+  catchment_name_stricts <- purrr::map(anae_name_stricts, \(x) x * anaestricts$catchment) |>
+    setNames(paste0(names(yrstricts), '_anae_name_catchment'))
+  catchment_ala_stricts <- purrr::map(anae_ala_stricts, \(x) x * anaestricts$catchment) |>
+    setNames(paste0(names(yrstricts), '_anae_ala_catchment'))
 
   rlang::inform(glue::glue("ANAE clipped in {round(Sys.time() - starttime)} seconds."))
 
@@ -454,7 +475,8 @@ woody_general <- function(out_dir, catchment,
     return(t2)
   }
 
-  response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
+  response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts,
+                     catchment_stricts, catchment_name_stricts, catchment_ala_stricts) |>
     purrr::map(\(x) super_aggforce(x, catchpoly, newname = 'area'))
   # response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
   #   purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))

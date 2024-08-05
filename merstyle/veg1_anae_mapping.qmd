@@ -130,6 +130,8 @@ lignum_mdb <- st_join(lignum, basin, left = FALSE)
 
 I could obviously do this as a single run, just \|\> the basin to the anaes, but this lets me check intermediately.
 
+### To ANAEs
+
 ```{r}
 system.time(
 red_gum_anae <- st_join(red_gum_mdb, all_anaes, left = FALSE)
@@ -145,7 +147,55 @@ lignum_anae <- st_join(lignum_mdb, all_anaes, left = FALSE)
 )
 ```
 
-Gut check maps
+### To catchment
+
+We also want to limit those not just to ANAE type, but to catchments where there are records.
+
+This is straight to catchment- records don't have to be in an ANAE
+
+```{r}
+system.time(
+red_gum_catchment <- st_join(red_gum_mdb, ltimNoNorth, left = FALSE)
+)
+system.time(
+black_box_catchment <- st_join(black_box_mdb, ltimNoNorth, left = FALSE)
+)
+system.time(
+coolabah_catchment <- st_join(coolabah_mdb, ltimNoNorth, left = FALSE)
+)
+system.time(
+lignum_catchment <- st_join(lignum_mdb, ltimNoNorth, left = FALSE)
+)
+```
+
+And this says they have to be in an anae wetland to count.
+
+```{r}
+
+# don't assume the ValleyNames in the ANAE are exactly the same (though they should be)
+system.time(
+red_gum_anae_catchment <- st_join(red_gum_anae |> 
+                                    select(scientificName),
+                                  ltimNoNorth, left = FALSE)
+)
+system.time(
+black_box_anae_catchment <- st_join(black_box_anae |> 
+                                    select(scientificName),
+                                  ltimNoNorth, left = FALSE)
+)
+system.time(
+coolabah_anae_catchment <- st_join(coolabah_anae |> 
+                                    select(scientificName),
+                                  ltimNoNorth, left = FALSE)
+)
+system.time(
+lignum_anae_catchment <- st_join(lignum_anae |> 
+                                    select(scientificName),
+                                  ltimNoNorth, left = FALSE)
+)
+```
+
+Gut check maps anae
 
 ```{r}
 ggplot() + 
@@ -170,6 +220,70 @@ ggplot() +
   geom_sf(data = base_aus) +
   geom_sf(data = basin) +
   geom_sf(data = lignum_anae) + 
+  ggtitle('Lignum')
+```
+
+catchment
+
+```{r}
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = red_gum_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
+  ggtitle('red_gum')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = black_box_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
+  ggtitle('Black box')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = coolabah_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
+  ggtitle('Coolabah')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = lignum_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
+  ggtitle('Lignum')
+```
+
+ANAE and then catchment
+
+```{r}
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = red_gum_anae_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
+  ggtitle('red_gum')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = black_box_anae_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
+  ggtitle('Black box')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = coolabah_anae_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
+  ggtitle('Coolabah')
+
+ggplot() + 
+  geom_sf(data = base_aus) +
+  geom_sf(data = ltimNoNorth) +
+  geom_sf(data = lignum_anae_catchment, mapping = aes(color = ValleyName)) + 
+  theme(legend.position = 'none') +
   ggtitle('Lignum')
 ```
 
@@ -216,6 +330,102 @@ saveRDS(coolabah_type, file = file.path(vegdir, 'coolabah_anae_type.rds'))
 saveRDS(lignum_type, file = file.path(vegdir, 'lignum_anae_type.rds'))
 
 ```
+
+## Extract catchments
+
+Straight to catchments
+
+```{r}
+red_gum_catch <- red_gum_catchment |> 
+  st_drop_geometry() |> 
+  # drop subspecies
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+
+black_box_catch <- black_box_catchment |> 
+  st_drop_geometry() |> 
+  # no subspecies here anyway
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+
+coolabah_catch <- coolabah_catchment |> 
+   st_drop_geometry() |> 
+  # Some are Eucalyptus microtheca, just change to make standard
+  mutate(species = "Eucalyptus coolabah") |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+
+lignum_catch <- lignum_catchment |> 
+  st_drop_geometry() |> 
+  # no subspecies here anyway
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+```
+
+anae and then catchments
+
+```{r}
+red_gum_anae_catch <- red_gum_anae_catchment |> 
+  st_drop_geometry() |> 
+  # drop subspecies
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+
+black_box_anae_catch <- black_box_anae_catchment |> 
+  st_drop_geometry() |> 
+  # no subspecies here anyway
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+
+coolabah_anae_catch <- coolabah_anae_catchment |> 
+   st_drop_geometry() |> 
+  # Some are Eucalyptus microtheca, just change to make standard
+  mutate(species = "Eucalyptus coolabah") |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+
+lignum_anae_catch <- lignum_anae_catchment |> 
+  st_drop_geometry() |> 
+  # no subspecies here anyway
+  mutate(species = stringr::str_remove_all(scientificName, ' subsp.*')) |> 
+  summarise(n_records = n(),
+            .by = c(species, ValleyName))
+```
+
+Join those together, allow analysis-time decisions
+
+```{r}
+
+red_gum_catch <- red_gum_catch |> 
+  left_join(red_gum_anae_catch |> rename(in_anae = n_records))
+
+black_box_catch <- black_box_catch |> 
+  left_join(black_box_anae_catch |> rename(in_anae = n_records))
+
+coolabah_catch <- coolabah_catch |> 
+  left_join(coolabah_anae_catch |> rename(in_anae = n_records))
+
+lignum_catch <- lignum_catch |> 
+  left_join(lignum_anae_catch |> rename(in_anae = n_records))
+```
+
+Save
+
+```{r}
+#| eval: false
+if (!dir.exists(vegdir)) {dir.create(vegdir, recursive = TRUE)}
+saveRDS(red_gum_catch, file = file.path(vegdir, 'red_gum_catchment.rds'))
+saveRDS(black_box_catch, file = file.path(vegdir, 'black_box_catchment.rds'))
+saveRDS(coolabah_catch, file = file.path(vegdir, 'coolabah_catchment.rds'))
+saveRDS(lignum_catch, file = file.path(vegdir, 'lignum_catchment.rds'))
+```
+
+## Raw records
 
 Save out the records themselves too, I keep wanting them
 
