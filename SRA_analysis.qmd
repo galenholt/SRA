@@ -289,7 +289,7 @@ species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
 
 # Germination
 # The first step in the life cycle is germination. It requires
-germ <- purrr::map(species, \(x) catch_cat_sf('germ_area', outerdir = x) |> 
+germ <- purrr::map(species, \(x) catch_cat_sf('germ_area_catchment', outerdir = x) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'regeneration',
@@ -299,16 +299,16 @@ germ <- purrr::map(species, \(x) catch_cat_sf('germ_area', outerdir = x) |>
 # Seedling survival
 # 
 # The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), we get the following.
-seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area', outerdir = x) |> 
+seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area_catchment', outerdir = x) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'seedling',
          species = x)) |> 
   bind_rows()
 
-# Germination and seedlings
+# Germination and seedlings #NOW INCULDES ADULTS
 # The life cycle is sequential, and so what we are interested in ultimately is regeneration success; that is, germination and subsequent survival. Here, we as whether conditions supported seedling survival after successful germination conditions. Thus, this is not simply the minimum of the upper two, it actually takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
-germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed', outerdir = x) |> 
+germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_catchment', outerdir = x) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'recruitment',
@@ -318,7 +318,7 @@ germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('germ_and_seed', outerdir
 # Adult condition
 # Here, we assess area of favourable adult condition, primarily as a consequence of inundation duration and periods between events. This is not connected to the regeneration due to the length of available data and tree life spans.
 
-adult <- purrr::map(species, \(x) catch_cat_sf('adult_area', outerdir = x) |> 
+adult <- purrr::map(species, \(x) catch_cat_sf('adult_area_catchment', outerdir = x) |> 
   # There's no adult data prior to 1995 because of the lookback period
   filter(date > lubridate::ymd(19950101)) |> 
   mutate(stage = 'adult',
