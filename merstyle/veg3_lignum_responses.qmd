@@ -21,13 +21,14 @@ if (parset == 'local') {
 }
 
 if (parset == 'gandalf') {
-  plan(list(tweak(future.batchtools::batchtools_slurm,
-                template = "batchtools.slurm.tmpl",
-                resources = list(time = 60,
-                                 ntasks.per.node = 5,
-                                 mem = "70GB",
-                                 job.name = 'lignum')),
-          multicore))
+  plan(multicore)
+  # plan(list(tweak(future.batchtools::batchtools_slurm,
+  #               template = "batchtools.slurm.tmpl",
+  #               resources = list(time = 60,
+  #                                ntasks.per.node = 5,
+  #                                mem = "70GB",
+  #                                job.name = 'lignum')),
+  #         multicore))
 }
 ```
 

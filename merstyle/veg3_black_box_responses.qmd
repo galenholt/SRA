@@ -25,14 +25,14 @@ if (parset == 'local') {
 # Or drop the tasks per node to 1 and let it still node-parallel.
 # In the big scheme of things, it probably doesn't matter, though I'd get an extra core due to my limit throttling if I use the first.
 if (parset == 'gandalf') {
-  # plan(multisession)
-  plan(list(tweak(future.batchtools::batchtools_slurm,
-                template = "batchtools.slurm.tmpl",
-                resources = list(time = 60,
-                                 ntasks.per.node = 5,
-                                 mem = "60GB",
-                                 job.name = 'black_box')),
-          multicore))
+  plan(multicore)
+  # plan(list(tweak(future.batchtools::batchtools_slurm,
+  #               template = "batchtools.slurm.tmpl",
+  #               resources = list(time = 60,
+  #                                ntasks.per.node = 5,
+  #                                mem = "60GB",
+  #                                job.name = 'black_box')),
+  #         multicore))
 }
 ```
 
