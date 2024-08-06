@@ -29,12 +29,12 @@ This is ugly. Would be better to have functions and only return what we need, bu
 
 ```{r}
 #| label: read-data-clean
-knitr::purl(file.path('HabProcessPaper', '2_data_cleaning.qmd'),
-            file.path('HabProcessPaper', '2_data_cleaning.R'))
+knitr::purl(file.path('HabProcessPaper', '2_data_cleaning_catchment.qmd'),
+            file.path('HabProcessPaper', '2_data_cleaning_catchment.R'))
 
-source(file.path('HabProcessPaper', '2_data_cleaning.R'))
+source(file.path('HabProcessPaper', '2_data_cleaning_catchment.R'))
 
-unlink(file.path('HabProcessPaper', '2_data_cleaning.R'))
+unlink(file.path('HabProcessPaper', '2_data_cleaning_catchment.R'))
 ```
 
 # PLOT BUILDING

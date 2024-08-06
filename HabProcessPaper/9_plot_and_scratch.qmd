@@ -28,7 +28,7 @@ library(kableExtra)
 figpath <- file.path(datOut, 'habprocesspaper', 'Figures')
 
 if (!dir.exists(figpath)) {
-  dir.create(figpath)
+  dir.create(figpath, recursive = TRUE)
 }
 ```
 

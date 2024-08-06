@@ -46,7 +46,7 @@ paperdatadir <- '' # was 'habprocesspaper/' when we used different data.
 
 # I might end up linking these with the catchment-clipped version, but that would take a restructure. In the meantime, let's just do them separately.
 
-figpath <- file.path(datOut, 'habprocesspaper', 'Figures', 'uncatchment')
+figpath <- file.path(datOut, 'habprocesspaper', 'Figures', 'catchment')
 tspath <- file.path(figpath, 'timeseries')
 barpath <- file.path(figpath, 'bar')
 mappath <- file.path(figpath, 'map')
@@ -170,7 +170,7 @@ These are the strictures for just biological processes.
 
 ```{r}
 adult <- purrr::map(species, \(x) 
-                    catch_cat_sf('adult_area', 
+                    catch_cat_sf('adult_area_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -179,7 +179,7 @@ adult <- purrr::map(species, \(x)
   bind_rows()
 
 germ <- purrr::map(species, \(x) 
-                   catch_cat_sf('germ_area', 
+                   catch_cat_sf('germ_area_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -188,7 +188,7 @@ germ <- purrr::map(species, \(x)
   bind_rows()
 
 seed <- purrr::map(species, \(x) 
-                   catch_cat_sf('seedling_area',
+                   catch_cat_sf('seedling_area_catchment',
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -198,7 +198,7 @@ seed <- purrr::map(species, \(x)
 
 # Two step
 adult_germ <- purrr::map(species, \(x) 
-                            catch_cat_sf('adult_germ_area',
+                            catch_cat_sf('adult_germ_area_catchment',
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -207,7 +207,7 @@ adult_germ <- purrr::map(species, \(x)
   bind_rows()
 
 adult_germ_seed <- purrr::map(species, \(x) 
-                            catch_cat_sf('adult_germ_seed_area',
+                            catch_cat_sf('adult_germ_seed_area_catchment',
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -224,7 +224,7 @@ adult_germ_seed <- purrr::map(species, \(x)
 # Keep using 'stage' as the name of the data, since it makes joining for comparison easier.
 
 inun_anae_all <- purrr::map(species,
-                             \(x) catch_cat_sf('anae_inun',
+                             \(x) catch_cat_sf('anae_inun_catchment',
                                 outerdir = paste0(paperdatadir, x)) |> 
                                  # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -233,7 +233,7 @@ inun_anae_all <- purrr::map(species,
   bind_rows()
 
 inun_anae_name <- purrr::map(species,
-                             \(x) catch_cat_sf('anae_inun_anae_name',
+                             \(x) catch_cat_sf('anae_inun_anae_name_catchment',
                                 outerdir = paste0(paperdatadir, x)) |> 
                                  # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -242,7 +242,7 @@ inun_anae_name <- purrr::map(species,
   bind_rows()
   
 inun_anae_ala <- purrr::map(species,
-                             \(x) catch_cat_sf('anae_inun_anae_ala', 
+                             \(x) catch_cat_sf('anae_inun_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
                                 # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -330,7 +330,7 @@ Include independent and full for the stages. Skip the adult_germ, it's not very 
 ```{r}
 # ALA records
 
-adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala', 
+adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no adult data prior to 1995 because of the lookback period
   filter(date > lubridate::ymd(19880101)) |> 
@@ -338,7 +338,7 @@ adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala',
          species = x)) |> 
   bind_rows()
 
-germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala', 
+germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -346,7 +346,7 @@ germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala',
          species = x)) |> 
   bind_rows()
 
-seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala', 
+seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -354,7 +354,7 @@ seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala',
          species = x)) |> 
   bind_rows()
 
-adult_germ_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_ala', 
+adult_germ_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -362,7 +362,7 @@ adult_germ_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_al
          species = x)) |> 
   bind_rows()
 
-adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_ala', 
+adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -372,7 +372,7 @@ adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_ar
 
 # Name
 
-adult_name <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_name', 
+adult_name <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_name_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no adult data prior to 1995 because of the lookback period
   filter(date > lubridate::ymd(19880101)) |> 
@@ -380,7 +380,7 @@ adult_name <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_name',
          species = x)) |> 
   bind_rows()
 
-germ_name <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_name', 
+germ_name <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_name_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -388,7 +388,7 @@ germ_name <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_name',
          species = x)) |> 
   bind_rows()
 
-seed_name <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_name', 
+seed_name <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_name_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -396,7 +396,7 @@ seed_name <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_name',
          species = x)) |> 
   bind_rows()
 
-adult_germ_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_name', 
+adult_germ_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_name_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -404,7 +404,7 @@ adult_germ_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_n
          species = x)) |> 
   bind_rows()
 
-adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_name', 
+adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_name_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
