@@ -10,18 +10,19 @@ editor: visual
 #| include: false
 
 library(CC2)
-library(werptoolkitr)
+#library(werptoolkitr)
 library(dplyr)
 library(sf)
 library(ggplot2)
 library(patchwork)
 library(tidyr)
 library(foreach)
+library(ggh4x)
+
+devtools::load_all(path = file.path("~/Georgia/WERP_toolkit"))
 
 # get directories
 source('directorySet.R')
-
-#devtools::build("E:/Georgia/CC2")
 
 catch_cat_sf <- function(which_strict, catchments = cleancatch, outerdir = 'hello') {
   foreach(i = catchments,
@@ -51,6 +52,8 @@ currenttimeend <- lubridate::ymd('20240301')
 preBPtimestart <- lubridate::ymd('20070101')
 preBPtimeend <- lubridate::ymd('20120101')
 
+time_compare <- lubridate::ymd('20090701') 
+
 comparison_years <- data.frame(timeperiod = c("pre-BP", "current"),
                                timestart = c(preBPtimestart, currenttimestart),
                                timeend = c(preBPtimeend, currenttimeend),
@@ -78,7 +81,7 @@ agg_results <- file.path(project_dir, 'aggregator_output_numeric_gauges')
 comp_results <- file.path(project_dir, 'comparer_output') 
 
 data_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Final_datasets")
-plot_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/DraftReport_plots")
+plot_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots")
 ```
 
 ## Climate categories
@@ -287,28 +290,28 @@ Timeseries_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
 species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
 # species <- c('black_box', 'coolabah', 'lignum')
 
-# Germination
-# The first step in the life cycle is germination. It requires
-germ <- purrr::map(species, \(x) catch_cat_sf('germ_area_catchment', outerdir = x) |> 
-  # There's no data prior ot 1988
-  filter(date > lubridate::ymd(19880101)) |> 
-  mutate(stage = 'regeneration',
-         species = x)) |> 
-  bind_rows()
-
-# Seedling survival
+# # Germination
+# # The first step in the life cycle is germination. It requires
+# germ <- purrr::map(species, \(x) catch_cat_sf('germ_area_catchment', outerdir = x) |>
+#   # There's no data prior ot 1988
+#   filter(date > lubridate::ymd(19880101)) |>
+#   mutate(stage = 'regeneration',
+#          species = x)) |>
+#   bind_rows()
 # 
-# The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), we get the following.
-seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area_catchment', outerdir = x) |> 
-  # There's no data prior ot 1988
-  filter(date > lubridate::ymd(19880101)) |> 
-  mutate(stage = 'seedling',
-         species = x)) |> 
-  bind_rows()
+# # Seedling survival
+# #
+# # The second step in the life cycle is survival of seedlings post-germination. When considered on its own (i.e. were conditions right for seedling survival), we get the following.
+# seed <- purrr::map(species, \(x) catch_cat_sf('seedling_area_catchment', outerdir = x) |>
+#   # There's no data prior ot 1988
+#   filter(date > lubridate::ymd(19880101)) |>
+#   mutate(stage = 'seedling',
+#          species = x)) |>
+#   bind_rows()
 
 # Germination and seedlings #NOW INCULDES ADULTS
 # The life cycle is sequential, and so what we are interested in ultimately is regeneration success; that is, germination and subsequent survival. Here, we as whether conditions supported seedling survival after successful germination conditions. Thus, this is not simply the minimum of the upper two, it actually takes sequencing into account, and we lose some areas of successful seedling conditions because they were not preceded by germination.
-germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_catchment', outerdir = x) |> 
+germ_and_seed <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_catchment', outerdir = x) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
   mutate(stage = 'recruitment',
@@ -326,7 +329,7 @@ adult <- purrr::map(species, \(x) catch_cat_sf('adult_area_catchment', outerdir 
   bind_rows()
 
 # All together
-all_strictures <- bind_rows(germ, seed, germ_and_seed, adult)
+all_strictures <- bind_rows(germ_and_seed, adult)
 
 all_strictures <- all_strictures |>
   mutate(Indicator = paste(sub("_", " ", species), stage, sep = " "),
@@ -358,6 +361,53 @@ Timeseries_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
 Timeseries_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
   left_join(Climate_Categories, by = join_by(year, Climate_category.data))
 
+
+```
+
+## Data - ANAE Waterbirds
+
+```{r}
+
+#FOR MER-STYLE
+# read in the mapping of sdls/valleys to the climate category areas:
+Climate_Category_to_polygons_SWWRPAName <- read.csv(file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "Climate_Category_to_polygons.csv"))
+
+Climate_Category_to_polygons_SWWRPAName <- Climate_Category_to_polygons_SWWRPAName |>
+  dplyr::select(Climate_category.data, SWWRPANAME)|>
+  filter(Climate_category.data != "")|>
+  filter(SWWRPANAME != "")|>
+  distinct(Climate_category.data, SWWRPANAME)
+
+Climate_Category_to_polygons_SWWRPAName <- Climate_Category_to_polygons_SWWRPAName |> 
+   mutate(name_clean = stringr::str_remove_all(SWWRPANAME, ' '))
+
+
+# This is summed to Wetland
+breeding_polys <- readRDS(file.path(datOut, 'waterbird_breeding', 'breeding_polys.rds'))
+
+Timeseries_Valley_ANAEwaterbirds <- foreach(i = breeding_polys$wetland_clean,
+                                  .combine = dplyr::bind_rows,
+                                  .multicombine = TRUE) %do% {
+  thiscatch <- readRDS(file.path(datOut, 'waterbirds', 'bird_breed_area', 
+                                 paste0(i, '_', 'bird_breed_area.rds')))
+                                  }
+
+Timeseries_Valley_ANAEwaterbirds <- Timeseries_Valley_ANAEwaterbirds |>
+  mutate(year = lubridate::year(lubridate::ymd(time)))|>
+  mutate(SWWRPAName = ifelse(SWWRPAName == "South Australian River Murray", "Eastern Mount Lofty Ranges", SWWRPAName))|> #DODGY NOT LOOKING AT catchment scale anyway! but remember this if you ever do!
+  mutate(name_clean = stringr::str_remove_all(SWWRPAName, ' '))|>
+  left_join(Climate_Category_to_polygons_SWWRPAName, by = join_by(name_clean))
+  
+Timeseries_Valley_ANAEwaterbirds <- Timeseries_Valley_ANAEwaterbirds |>
+  left_join(Climate_Categories, by = join_by(year, Climate_category.data))|>
+  mutate(SWWRPAName = ifelse(Wetland == "Lindsay-Walpolla-Chowilla", "South Australian River Murray", SWWRPAName))|> #DODGY fix just in case.
+  mutate(ValleyName =  Wetland,
+         Indicator = "waterbirds",
+         Scale = "Wetland",
+         Label = "Bird breeding inundation (area)")
+
+
+unique(Timeseries_Valley_ANAEwaterbirds$Wetland)
 
 ```
 
@@ -733,6 +783,57 @@ Condition_Basin_ANAEvegetation <- Timeseries_Basin_ANAEvegetation |>
 Condition_Trend_Basin_ANAEvegetation <- left_join(Condition_Basin_ANAEvegetation, Trend_Basin_ANAEvegetation, by = join_by(Indicator))
 ```
 
+## IS Scaling - ANAE Waterbirds
+
+```{r}
+Timeseries_Valley_ANAEwaterbirds <- Timeseries_Valley_ANAEwaterbirds |>
+  ungroup()|>
+  group_by(Indicator)|>
+  filter(year>=1988)|>
+  #Outcome
+  mutate(Outcome = breeding_area)|>
+  #Total 
+  mutate(Outcome_TotalScaled  = (Outcome-0)/(1-0)) |>
+  mutate(Outcome_TotalScaled    = ifelse(is.nan(Outcome_TotalScaled), 0, Outcome_TotalScaled)) |>
+  #Basin 
+  mutate(Outcome_BasScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_BasScaled    = ifelse(is.nan(Outcome_BasScaled), 0, Outcome_BasScaled)) |>
+  #Valley
+  group_by(ValleyName)|>  
+  mutate(Outcome_ValScaled    = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_ValScaled    = ifelse(is.nan(Outcome_ValScaled), 0, Outcome_ValScaled)) |>
+  #YrType
+  group_by(ValleyName, Climate_Category)|>
+  mutate(Outcome_YrTypeScaled = (Outcome-min(Outcome))/(max(Outcome)-min(Outcome))) |>
+  mutate(Outcome_YrTypeScaled    = ifelse(is.nan(Outcome_YrTypeScaled), 0, Outcome_YrTypeScaled)) 
+
+Trend_Valley_ANAEwaterbirds <- Timeseries_Valley_ANAEwaterbirds |>
+    filter(year>=2009)|>
+    group_by(Indicator, ValleyName)|>
+    do({model = lm(Outcome_YrTypeScaled ~ year, data = .)    # create your model
+      data.frame(broom::tidy(model))})|>          # get model info
+    filter(term == "year")
+
+Condition_Valley_ANAEwaterbirds <- Timeseries_Valley_ANAEwaterbirds |>
+  filter(year %in% c(2022, 2021, 2020, 2019, 2018))|>
+    group_by(Indicator, ValleyName, Label, Scale)|>
+    summarise(Outcome_mean = mean(Outcome),
+              Outcome_SE = plotrix::std.error(Outcome),
+              Outcome_TotalScaled_mean = mean(Outcome_TotalScaled),
+              Outcome_TotalScaled_SE = plotrix::std.error(Outcome_TotalScaled),
+              Outcome_BasScaled_mean = mean(Outcome_BasScaled),
+              Outcome_BasScaled_SE = plotrix::std.error(Outcome_BasScaled),
+              Outcome_ValScaled_mean = mean(Outcome_ValScaled),
+              Outcome_ValScaled_SE = plotrix::std.error(Outcome_ValScaled),
+              Outcome_YrTypeScaled_mean = mean(Outcome_YrTypeScaled),
+              Outcome_YrTypeScaled_SE = plotrix::std.error(Outcome_YrTypeScaled))
+
+Condition_Trend_Valley_ANAEwaterbirds <- left_join(Condition_Valley_ANAEwaterbirds, Trend_Valley_ANAEwaterbirds, by = join_by(Indicator, ValleyName))
+
+#Basin
+#Not looking at the basin scale for waterbirds
+```
+
 ## Joins
 
 ```{r}
@@ -741,7 +842,9 @@ Indicators_keep <- c('black box adult', 'black box recruitment', 'coolabah adult
 Condition_Trend_Valley <- bind_rows(    st_drop_geometry(Condition_Trend_Valley_EWRconnectivity),
 st_drop_geometry(Condition_Trend_Valley_ANAEdiversity),
 st_drop_geometry(Condition_Trend_Valley_ANAEinundation),
-st_drop_geometry(filter(Condition_Trend_Valley_ANAEvegetation, Indicator %in% Indicators_keep)))
+st_drop_geometry(filter(Condition_Trend_Valley_ANAEvegetation, Indicator %in% Indicators_keep)),
+st_drop_geometry(Condition_Trend_Valley_ANAEwaterbirds)
+)
 
 Condition_Trend_Basin <- bind_rows(    st_drop_geometry(Condition_Trend_Basin_EWRconnectivity),
 st_drop_geometry(Condition_Trend_Basin_ANAEdiversity),
@@ -751,7 +854,8 @@ st_drop_geometry(filter(Condition_Trend_Basin_ANAEvegetation, Indicator %in% Ind
 Timeseries_Valley <- bind_rows(st_drop_geometry(Timeseries_Valley_EWRconnectivity),
 st_drop_geometry(Timeseries_Valley_ANAEdiversity),
 st_drop_geometry(Timeseries_Valley_ANAEinundation),
-st_drop_geometry(filter(Timeseries_Valley_ANAEvegetation, stage == "recruitment" | stage == "adult")))
+st_drop_geometry(filter(Timeseries_Valley_ANAEvegetation, stage == "recruitment" | stage == "adult")),
+st_drop_geometry(Timeseries_Valley_ANAEwaterbirds))
 
 Timeseries_Basin <- bind_rows(st_drop_geometry(Timeseries_Basin_EWRconnectivity),
 st_drop_geometry(Timeseries_Basin_ANAEdiversity),
@@ -1245,35 +1349,21 @@ ggsave(plot = Plot_Trend_Timeseries_BarwonDarling_LATERALconnectivity, filename 
 
 ```{r}
 #MAKE LIST OF VALLEYS BY INDICATORS:
-Valley_indicator_list <- tibble(
-  IndicatorX = (sort(rep(unique(Timeseries$Indicator), 
-                           times = length(unique(Timeseries$ValleyName))))),
-  ValleyNameY = (rep(unique(Timeseries$ValleyName), 
-                     times = length(unique(Timeseries$Indicator)))),
-)
-
-# EXCLUSIONS:
-#Some valleys dont have EWRs - cannot assess lateral or longitudinal connectivity
-Valleys_no_EWRs <- c("Avoca", "Kiewa", "Mitta Mitta", "Upper Murray", "Wimmera")
-Indicators_no_EWRs <- c("Longitudinal connectivity", "Lateral connectivity")
-
-#Castlereagh does not have CF or BF EWRs (only SF LF and OB) - cannot assess longitudinal connectivity
-Valley_indicator_list<- Valley_indicator_list |>
-  filter(!(ValleyNameY == "Castlereagh" & IndicatorX == "Longitudinal connectivity"))|>
-  filter(!(ValleyNameY %in% Valleys_no_EWRs & IndicatorX %in% Indicators_no_EWRs))
-
 #Tibble should have this many rows:
-312 - 1 - 10
+312 - 1 - 10 + 11
 
+Valley_indicator_list <- Timeseries |>
+  ungroup()|>
+  distinct(Indicator, ValleyName)|>
+  rename(IndicatorX = Indicator,  
+         ValleyNameY = ValleyName)
 
-
+nrow(Valley_indicator_list)
 ```
 
 ## Timeseries plots
 
 <!-- # BRoken works for lateral but not longitudinal???? same for Central Murray. -->
-
-#BASIN PLOTS
 
 ```{r}
 #Timeseries
@@ -1332,7 +1422,7 @@ Plot_Boxplots <- function(IndicatorX, ValleyNameY, data) {
   theme(axis.text.x = element_text(angle = 90))
 
  ggsave(plot = plot1, 
-         filename = file.path(plot_path, "Boxplots", paste0("Boxplot_Timeseries_", unique(data1$name_clean), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         filename = file.path(plot_path, "Boxplots", paste0("Boxplot_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
          device = "tiff", width = 5, height = 3)
  
 }
@@ -1369,7 +1459,7 @@ Plot_Trend_Timeseries <- function(IndicatorX, ValleyNameY, data) {
   theme(axis.text.x = element_text(angle = 90))
 
  ggsave(plot = plot1, 
-         filename = file.path(plot_path, "Trend", paste0("Trend_Timeseries_", unique(data1$name_clean), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         filename = file.path(plot_path, "Trend", paste0("Trend_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
          device = "tiff", width = 5, height = 3)
  
 }
@@ -1489,6 +1579,75 @@ write.csv(
 write.csv(
   select(shannon_expectations, -expected_catchment_shannon, -basin_shannon_overall),
   file.path(plot_path, "Condition_and_Trend_values", paste0("ANAE_wetlands_max_shannon_diversity", "_", Sys.Date(), ".csv")))
+```
+
+## Paired boxplots
+
+```{r}
+#boxplots
+
+Plot_PeriodBoxplots <- function(IndicatorX, ValleyNameY, data) {
+ data1 <- data |>
+    filter(Indicator == IndicatorX & ValleyName == ValleyNameY)|>
+    filter(year > 1988)|>
+    filter(!is.na(Climate_Category))|>
+    mutate(Period = ifelse(year < 2009, "< 2009", ">= 2009"))|>
+    mutate(Period = factor(Period, levels = c("< 2009", ">= 2009")))
+    
+ plot1 <- ggplot(data = data1, 
+         aes(x = interaction(Period, Climate_Category), y = Outcome, colour = Climate_Category, shape = Period))+
+  geom_boxplot()+#, colour = "black")+
+  geom_jitter(height = 0, width = 0.25)+
+  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+  facet_grid(.~ ValleyName)+
+  theme_bw()+
+  theme(strip.background =element_rect(fill=NA),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill=NA),
+        panel.spacing=unit(0, "lines"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  labs(x = "SWC", colour = "SWC", y = unique(data1$Label))
+
+ ggsave(plot = plot1, 
+         filename = file.path(plot_path, "ByPeriodBoxplots", paste0("ByPeriodBoxplot_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         device = "tiff", width = 6, height = 3)
+ 
+}
+
+# RUN and SAVE PLOT
+purrr::pmap(Valley_indicator_list, ~Plot_PeriodBoxplots(IndicatorX = .x, ValleyNameY = .y, data = Timeseries))
+
+#Valley_indicator_list<- Valley_indicator_list[101,]
+
+
+
+ data1 <- Timeseries |>
+    filter(Indicator == Valley_indicator_list$IndicatorX[1] & ValleyName == Valley_indicator_list$ValleyNameY[1])|>
+    filter(year > 1988)|>
+    filter(!is.na(Climate_Category))|>
+    mutate(Period = ifelse(year < 2009, "< 2009", ">= 2009"))|>
+    mutate(Period = factor(Period, levels = c("< 2009", ">= 2009")))
+    
+ plot1 <- ggplot(data = data1, 
+         aes(x = interaction(Period, Climate_Category), y = Outcome, colour = Climate_Category, shape = Period))+
+  geom_boxplot()+#, colour = "black")+
+  geom_jitter(height = 0, width = 0.25)+
+  scale_colour_manual(values = pal_climate, aesthetics = "colour") +
+  facet_grid(.~ ValleyName)+
+  theme_bw()+
+  theme(strip.background =element_rect(fill=NA),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill=NA),
+        panel.spacing=unit(0, "lines"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  labs(x = "SWC", colour = "SWC", y = unique(data1$Label))
+
 ```
 
 ## TILE plots

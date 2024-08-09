@@ -10,7 +10,8 @@ execute:
 #| include: false
 #| 
 
-library(werptoolkitr)
+#library(werptoolkitr)
+devtools::load_all(path = file.path("~/Georgia/WERP_toolkit"))
 library(dplyr)
 library(sf)
 library(ggplot2)
@@ -19,7 +20,7 @@ library(tidyr)
 library(CC2)
 
 # get directories
-source('directorySet.R')
+#source('directorySet.R')
 ```
 
 ## Paths
@@ -423,7 +424,9 @@ temp <- Tagg_gauge_EWRversions |>
   left_join(gauges_df, by = join_by(gauge, "planning_unit_name" == "planningunitname"))|>
   left_join(gauges_df_valleys)
 ```
+
 ## Checking EWRS
+
 ```{r}
 #checking that i have some lateral and longitudinal EWRs for each catchment:
 
@@ -452,6 +455,7 @@ temp <- EWR_table |>
 ```
 
 #how many EWRs in each valley
+
 ```{r}
 Longitudinal_EWRS <- Timeseries_gauge_EWR |>
     filter(Longitudinal_connectivity_CF == "Y" | Longitudinal_connectivity_FD == "Y") |>
@@ -483,23 +487,46 @@ write.csv(
 ```
 
 ## longitudinal or lateral connectivity for the Goulburn or Murrumbidgee Rivers
+
 ```{r}
 
 #Lat
-Timeseries_gauge_EWR |>
+Lat <- Timeseries_gauge_EWR |>
   filter(Lateral_connectivity_including_SF == "Y") |>
   filter(ValleyName == "Murrumbidgee" | ValleyName == "Goulburn")|>
-  distinct(ewr_code, ValleyName)
+  distinct(ewr_code)
+
 
 #Long
-Timeseries_gauge_EWR |>
+Long <- Timeseries_gauge_EWR |>
   filter(Longitudinal_connectivity_CF == "Y" | Longitudinal_connectivity_FD == "Y") |>
   filter(ValleyName == "Murrumbidgee" | ValleyName == "Goulburn")|>
-  distinct(ewr_code, ValleyName)
+  distinct(ewr_code)
 
 ```
 
+## longitudinal or lateral connectivity EWRs
+
+```{r}
+#Lat
+Lat <- EWRS_df |>
+  filter(Lateral_connectivity_including_SF == "Y") |>
+  distinct(ewr_code)
 
 
+#Long
+Long <- EWRS_df |>
+  filter(Longitudinal_connectivity_CF == "Y" | Longitudinal_connectivity_FD == "Y") |>
+  distinct(ewr_code)
+
+
+write.csv(
+  Long,
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots",
+            paste0("List_Longitudinal_connectivity_EWRS", "_", Sys.Date(), ".csv")))
+
+write.csv(
+  Lat,
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots", 
+            paste0("List_Lateral_connectivity_EWRS", "_", Sys.Date(), ".csv")))
 ```
-
