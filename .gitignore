@@ -19,3 +19,9 @@ datOut/
 state_ts2.rds
 
 bom_ts2.rds
+
+*.pptx
+
+macquarie_ds_ewrs.csv
+
+*.docx

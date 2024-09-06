@@ -17,7 +17,8 @@ doFuture::registerDoFuture()
 
 ```{r}
 if (parset == 'local') {
-  plan(multisession)
+  # plan(multisession)
+  plan(sequential)
 }
 
 # These don't actually utilise two levels of parallelism. I have two options then- 

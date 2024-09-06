@@ -47,7 +47,7 @@ unlink(file.path('HabProcessPaper', '3_figure_making.R'))
 
 # Appendix: ALA records and ANAE
 
-The Recorded wetland types were extracted from the ALA (Atlas of Living Australia). Those records were intersected with ANAE polygons (@fig-anae-locations) to determine the ANAE wetland types where there were records. The records that intersect with ANAE wetlands are shown in @fig-ala-records. The number of records for each species in each catchment is shown in @fig-ala-catch, which is on the log scale due to the wide range of values. Grey catchments had no records.
+The Recorded wetland types were extracted from the ALA (Atlas of Living Australia). Those records were intersected with ANAE polygons (@fig-anae-locations) to determine the ANAE wetland types where there were records. The records that intersect with ANAE wetlands are shown in @fig-ala-records and @fig-all-records *we should drop one of these figs*. The number of records for each species in each catchment is shown in @fig-ala-catch, which is on the log scale due to the wide range of values. Grey catchments had no records.
 
 ```{r}
 #| label: anaes
@@ -70,14 +70,14 @@ anae_map
 
 ```{r}
 #| label: fig-ala-records
-#| fig-cap: ALA records for each species that intersect with ANAE wetlands. This is the vast majority of ALA records in the Murray-Darling Basin for these species, though there are a small number that fall outside the ANAE polygons.
+#| fig-cap: ALA records for each species that intersect with ANAE wetlands. The vast majority of ALA records in the Murray-Darling Basin do fall within ANAE wetlands for these species.
 ala_records_map
 ```
 
 ```{r}
-#| label: fig-ala-catch
-#| fig-cap: ALA records for each species that intersect with ANAE wetlands. This is the vast majority of ALA records in the Murray-Darling Basin for these species, though there are a small number that fall outside the ANAE polygons.
-ala_records_map
+#| label: fig-all-records
+#| fig-cap: ALA records for each species that intersect with ANAE wetlands (green) or do not (brown). The vast majority of ALA records in the Murray-Darling Basin do fall within ANAE wetlands for these species.
+all_records_map
 ```
 
 The number of ALA records is highly variable across wetland type and varies between species (@tbl-ala-records-rg, black box @tbl-ala-records-bb, coolabah @tbl-ala-records-cool, and lignum @tbl-ala-records-l). Strikingly, the *Named* wetland types are not always the wetland types with the most records, and in some cases are even excluded from the *Recorded* set because they contain \< 0.05% of the total records.
@@ -295,7 +295,7 @@ Each species shows the largest area of success in the adult life stage, followed
 
 ```{r}
 #| label: fig-process-bar
-#| fig-cap: Area of favourability after each stage in the life cycle. We present these for the stages *independently* and *sequentially*, with the difference between the two (e.g. between Germinaton and Regeneration) being the consequence of requiring success in preceding stages. Error bars are standard deviation over time, giving a description of the variability, rather than CI.
+#| fig-cap: Area of favourability after each stage in the life cycle. We present these for the stages *independently* and *sequentially*, with the difference between the two (e.g. between Germination and Regeneration) being the consequence of requiring success in preceding stages. Error bars are standard deviation over time, giving a description of the variability, rather than CI.
 
 proc_bar_panel <- purrr::imap(proc_basin_bar, \(x, i) 
                    x + ggtitle(stringr::str_replace(i, '_', ' ') |>
@@ -382,7 +382,7 @@ The species are quite different in these relationships. Lignum and Red gum are m
 
 ```{r}
 #| label: fig-all-process-basin
-#| fig-cap: Area favourable for each life stage in a process model, both independently (dashed) and sequentially (solid). Note that Coolabah and Lignum have long lookbacks for adult condition, and so cannot assess adult favourability for a large proprotion of the timeseries.
+#| fig-cap: Area favourable for each life stage in a process model, both independently (dashed) and sequentially (solid). Note that Coolabah and Lignum have long lookbacks for adult condition, and so cannot assess adult favourability for a large proportion of the timeseries.
 
 all_proc_panel <- purrr::imap(all_proc_basin_ts, \(x, i) 
                    x + ggtitle(stringr::str_replace(i, '_', ' ') |>

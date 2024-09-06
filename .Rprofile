@@ -9,4 +9,9 @@ if (grepl('^pearcey', Sys.info()["nodename"])) {
 } else if (grepl('^gandalf', Sys.info()["nodename"])) {
   renvpaths <- .libPaths()
   .libPaths(new = c(renvpaths,'/ceph-g/opt/R/4.3/lib/R/library' ))
+} else {
+  # This is docker (rocker/geospatial) running on windows. I'm not sure how
+  # stable these paths are or how to test for them more generally
+  renvpaths <- .libPaths()
+  .libPaths(new = c(renvpaths, "/usr/local/lib/R/site-library", "/usr/local/lib/R/library"))
 }

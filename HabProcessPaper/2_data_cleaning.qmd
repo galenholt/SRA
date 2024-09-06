@@ -160,8 +160,14 @@ alarecords <- foreach(i = species,
                         mutate(species = i)
                     }
 
-alarecords <- alarecords |> 
-  mutate()
+allrecords <- foreach(i = species,
+                    .combine = bind_rows, .multicombine = TRUE) %do% {
+  readRDS(file.path(datOut, 'vegmapping', paste0(i, '_mdb_records.rds'))) |> 
+                        mutate(species = i)
+                    }
+
+allrecords <- allrecords |> 
+  mutate(in_ala = recordID %in% alarecords$recordID)
 ```
 
 ### Process-only
@@ -241,8 +247,9 @@ inun_anae_name <- purrr::map(species,
          species = x)) |> 
   bind_rows()
   
+# For most things, we'll use the records, but with the catchment clip requiring 10 or more to count. We will probably want the non-clipped in an appendix section.
 inun_anae_ala <- purrr::map(species,
-                             \(x) catch_cat_sf('anae_inun_anae_ala', 
+                             \(x) catch_cat_sf('anae_inun_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
                                 # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -330,7 +337,9 @@ Include independent and full for the stages. Skip the adult_germ, it's not very 
 ```{r}
 # ALA records
 
-adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala', 
+# For most things, we will put the catchment conditions on these records, though in an appendix we may want to compare them.
+
+adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no adult data prior to 1995 because of the lookback period
   filter(date > lubridate::ymd(19880101)) |> 
@@ -338,7 +347,7 @@ adult_ala <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_ala',
          species = x)) |> 
   bind_rows()
 
-germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala', 
+germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -346,7 +355,7 @@ germ_ala <- purrr::map(species, \(x) catch_cat_sf('germ_area_anae_ala',
          species = x)) |> 
   bind_rows()
 
-seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala', 
+seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -354,7 +363,7 @@ seed_ala <- purrr::map(species, \(x) catch_cat_sf('seedling_area_anae_ala',
          species = x)) |> 
   bind_rows()
 
-adult_germ_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_ala', 
+adult_germ_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -362,7 +371,7 @@ adult_germ_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_area_anae_al
          species = x)) |> 
   bind_rows()
 
-adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_ala', 
+adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_area_anae_ala_catchment', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no data prior ot 1988
   filter(date > lubridate::ymd(19880101)) |> 
@@ -371,7 +380,7 @@ adult_germ_seed_ala <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_ar
   bind_rows()
 
 # Name
-
+# *don't* clip these by catchment, since it's about where the named wetlands are
 adult_name <- purrr::map(species, \(x) catch_cat_sf('adult_area_anae_name', 
                                 outerdir = paste0(paperdatadir, x)) |> 
   # There's no adult data prior to 1995 because of the lookback period

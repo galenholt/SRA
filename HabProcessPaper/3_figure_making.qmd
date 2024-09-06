@@ -703,7 +703,7 @@ make_ala_record_map <- function(species) {
     geom_sf(data = valleys, fill = 'azure', color = 'grey80') +
     geom_sf(alpha = 0.3) +
   facet_wrap("species_name") +
-  werptoolkitr::theme_werp_toolkit()
+  werptoolkitr::theme_werp_toolkit(legend.position = 'none')
 
   
   return(ala_maps)
@@ -711,6 +711,30 @@ make_ala_record_map <- function(species) {
 
 # Individual per-species plots
 ala_records_map <- make_ala_record_map(NULL)
+```
+
+```{r}
+#| label: allrecords-function
+make_all_record_map <- function(species) {
+  
+  # just species-facet, so no need to filter
+  ala_maps <- allrecords |>
+    mutate(species_name = stringr::str_replace(species, '_', ' ') |>
+                                 stringr::str_to_sentence()) |> 
+  # filter(species == {{species}}) |>
+  ggplot() +
+    geom_sf(data = valleys, fill = 'azure', color = 'grey80') +
+    geom_sf(alpha = 0.3, mapping = aes(color = in_ala)) +
+  facet_wrap("species_name") +
+    scale_color_manual(values = c('burlywood', 'seagreen') ) +
+  werptoolkitr::theme_werp_toolkit(legend.position = 'none')
+
+  
+  return(ala_maps)
+}
+
+# Individual per-species plots
+all_records_map <- make_all_record_map(NULL)
 ```
 
 summed by catchment (the sum by type is done in making the tables)
