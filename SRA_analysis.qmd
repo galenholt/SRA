@@ -10,7 +10,7 @@ editor: visual
 #| include: false
 
 library(CC2)
-#library(werptoolkitr)
+library(HydroBOT)
 library(dplyr)
 library(sf)
 library(ggplot2)
@@ -19,7 +19,6 @@ library(tidyr)
 library(foreach)
 library(ggh4x)
 
-devtools::load_all(path = file.path("~/Georgia/WERP_toolkit"))
 
 # get directories
 source('directorySet.R')
@@ -82,6 +81,7 @@ comp_results <- file.path(project_dir, 'comparer_output')
 
 data_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Final_datasets")
 plot_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots")
+plot_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots_LongConnect")
 ```
 
 ## Climate categories
@@ -246,7 +246,7 @@ Timeseries_Valley_ANAEinundation <- diversity_anae_summary |>
             n_anaes = sum(n_anaes),
             .by = c(time, name_clean, ValleyName)) |>
   mutate(prop_wetland_inundated = area_inundated/total_area) |>
-  left_join(werptoolkitr::cewo_valleys, by = 'ValleyName') |>
+  left_join(HydroBOT::cewo_valleys, by = 'ValleyName') |>
   st_as_sf()
 
 Timeseries_Valley_ANAEinundation$Indicator <- "ANAE inundation"
@@ -868,6 +868,7 @@ Timeseries <- bind_rows(Timeseries_Valley, Timeseries_Basin)
 
 ```
 
+
 ## Stepping through scaling
 
 with one example
@@ -1359,6 +1360,9 @@ Valley_indicator_list <- Timeseries |>
          ValleyNameY = ValleyName)
 
 nrow(Valley_indicator_list)
+
+#Valley_indicator_list <- dplyr::filter(Valley_indicator_list, grepl("Longitudinal connectivity",IndicatorX))
+
 ```
 
 ## Timeseries plots
@@ -1388,7 +1392,7 @@ Plot_Timeseries <- function(IndicatorX, ValleyNameY, data) {
          filename = file.path(plot_path, "Timeseries", paste0("Plot_Timeseries_", 
                                                               stringr::str_remove_all(unique(data1$ValleyName), ' '), "_",
                                                               stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
-         device = "tiff", width = 5, height = 3)
+         device = "tiff", width = 5, height = 3.5)
 }
 
 # RUN and SAVE PLOT
@@ -1423,7 +1427,7 @@ Plot_Boxplots <- function(IndicatorX, ValleyNameY, data) {
 
  ggsave(plot = plot1, 
          filename = file.path(plot_path, "Boxplots", paste0("Boxplot_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
-         device = "tiff", width = 5, height = 3)
+         device = "tiff", width = 5, height = 3.5)
  
 }
 
@@ -1460,7 +1464,7 @@ Plot_Trend_Timeseries <- function(IndicatorX, ValleyNameY, data) {
 
  ggsave(plot = plot1, 
          filename = file.path(plot_path, "Trend", paste0("Trend_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
-         device = "tiff", width = 5, height = 3)
+         device = "tiff", width = 5, height = 3.5)
  
 }
 
@@ -1613,7 +1617,7 @@ Plot_PeriodBoxplots <- function(IndicatorX, ValleyNameY, data) {
 
  ggsave(plot = plot1, 
          filename = file.path(plot_path, "ByPeriodBoxplots", paste0("ByPeriodBoxplot_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
-         device = "tiff", width = 6, height = 3)
+         device = "tiff", width = 6, height = 3.5)
  
 }
 

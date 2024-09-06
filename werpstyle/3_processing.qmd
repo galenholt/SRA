@@ -530,3 +530,31 @@ write.csv(
   file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots", 
             paste0("List_Lateral_connectivity_EWRS", "_", Sys.Date(), ".csv")))
 ```
+
+```{r}
+ewrs_in_pyewr <- get_ewr_table() |>
+      dplyr::rename(planning_unit_name = PlanningUnitName, gauge = Gauge, ewr_code = Code) |>
+      separate_ewr_codes()
+
+EWR_table <- left_join(ewrs_in_pyewr, EWRS_df, by = join_by(ewr_code))
+
+Lat <- EWR_table |>
+  filter(Lateral_connectivity_including_SF == "Y") |>
+  select(planning_unit_name, gauge, ewr_code:WithinEventGapTolerance)
+
+Long <- EWR_table |>
+  filter(Longitudinal_connectivity_CF == "Y" | Longitudinal_connectivity_FD == "Y") |>
+  select(planning_unit_name, gauge, ewr_code:WithinEventGapTolerance)
+
+
+write.csv(
+  Long,
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots",
+            paste0("Longitudinal_connectivity_EWR_table", "_", Sys.Date(), ".csv")))
+
+write.csv(
+  Lat,
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/UpdatedReport_plots", 
+            paste0("List_Lateral_connectivity_EWR_table", "_", Sys.Date(), ".csv")))
+
+```
