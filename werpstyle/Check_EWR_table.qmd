@@ -1,0 +1,15 @@
+---
+title: "Check EWR table"
+format: html
+editor: visual
+---
+
+```{r}
+ewr_tab <- get_ewr_table()
+ewr_tab |> 
+  dplyr::filter(if_any(c(PlanningUnitID, AccumulationPeriod), ~ grepl(' ', .x))) |> 
+  tibble::tibble()
+
+
+head(ewr_tab)
+```
