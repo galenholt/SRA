@@ -11,7 +11,7 @@ This file is just for sorting out issues and double checking things for the wate
 ```{r}
 library(ggplot2)
 library(sf)
-library(CC2)
+library(eFlowEval)
 ```
 
 This assumes I've run waterbird_breeding_polys.qmd to create the breeding polygons.

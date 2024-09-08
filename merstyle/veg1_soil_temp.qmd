@@ -10,7 +10,7 @@ First, set directories and set up for parallel
 
 ```{r}
 source('directorySet.R')
-library(CC2)
+library(eFlowEval)
 ```
 
 ```{r}
@@ -49,7 +49,7 @@ if (parset == 'gandalf') {
 
 We need to do a few things here. And so may want to break this notebook up.
 
-For soil temp, let's just get the area-weighted mean for each polygon. `CC2::weightedMean` does this.
+For soil temp, let's just get the area-weighted mean for each polygon. `eFlowEval::weightedMean` does this.
 
 ## Run and check
 
@@ -76,7 +76,7 @@ This gets done in the above, but it's handy to past in to a terminal
 
 ```{r}
 #| eval: false
-library(CC2)
+library(eFlowEval)
 source('directorySet.R')
 ct <- chunks_to_process(dataname = 'soiltemp',
                         summaryFun = 'weightedMean',

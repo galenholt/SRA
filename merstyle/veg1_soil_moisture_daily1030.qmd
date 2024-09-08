@@ -10,7 +10,7 @@ First, set directories and set up for parallel
 
 ```{r}
 source('directorySet.R')
-library(CC2)
+library(eFlowEval)
 ```
 
 ```{r}
@@ -91,7 +91,7 @@ This gets done in the above, but it's handy to paste in to a terminal
 ```{r}
 #| eval: false
 source('directorySet.R')
-library(CC2)
+library(eFlowEval)
 ct <- chunks_to_process(dataname = 'soilmoisture',
                         summaryFun = 'areamoist_10_30',
                           catchment = 'all',

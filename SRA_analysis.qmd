@@ -9,7 +9,7 @@ editor: visual
 ```{r}
 #| include: false
 
-library(CC2)
+library(eFlowEval)
 library(HydroBOT)
 library(dplyr)
 library(sf)

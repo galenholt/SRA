@@ -1,6 +1,6 @@
 # simple R
 source('directorySet.R')
-library(CC2)
+library(eFlowEval)
 library(foreach)
 library(doFuture)
 library(progressr)

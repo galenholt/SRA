@@ -10,7 +10,7 @@ First, set directories and set up for parallel
 
 ```{r}
 source('directorySet.R')
-library(CC2)
+library(eFlowEval)
 ```
 
 ```{r}

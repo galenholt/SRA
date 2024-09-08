@@ -9,7 +9,7 @@ This doc is to make sure we do things correctly for the main analyses.
 ## Understanding the spatial layers
 
 ```{r}
-library(CC2)
+library(eFlowEval)
 library(sf)
 library(ggplot2)
 ```

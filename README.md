@@ -5,7 +5,7 @@ Analyses for the SRA project
 
 This repo (will) use two sets of analyses- one examining inundation in ANAE polygons for bird breeding opportunity, diversity of wetland types, and vegetation, and the other using the WERP toolkit to assess EWRs from flow. 
 
-The first (merstyle) uses the [eFlowEval](https://github.com/galenholt/CC2) workflow. Notebooks to control the data processing, response models, and analyses are in `/merstyle`, and require `eFlowEval` (the dev branch) to be installed to run (see below).
+The first (merstyle) uses the [eFlowEval](https://github.com/galenholt/eFlowEval) workflow. Notebooks to control the data processing, response models, and analyses are in `/merstyle`, and require `eFlowEval` (the dev branch) to be installed to run (see below).
 
 The second (werpstyle) uses the [WERP toolkit](https://github.com/MDBAuth/WERP_toolkit) to run. 
 
@@ -29,7 +29,7 @@ Renv struggles to install git packages from the lockfile for some reason. The fo
 If you have [generated ssh keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) and  [added them to github](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account), then use this. You might have to for werp.
 
 ```
-renv::install('git@github.com:galenholt/CC2.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
+renv::install('git@github.com:galenholt/eFlowEval.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 
 renv::install('git@github.com:MDBAuth/WERP_toolkit.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 ```
@@ -41,20 +41,20 @@ If you set up a PAT, then use the following to manage it in R.
 credentials::set_github_pat()
 ```
 
-We used to have to install the toolkit with ssh because we're not able to have personal PAT on MDBA. But it just worked for me? And Renv didnt work for CC2 but devtools did.
+We used to have to install the toolkit with ssh because we're not able to have personal PAT on MDBA. But it just worked for me? And Renv didnt work for eFlowEval but devtools did.
 
 Then install with
 ```
 renv::install('MDBAuth/WERP_toolkit')
 
-renv::install('galenholt/CC2', ref = 'dev')
+renv::install('galenholt/eFlowEval', ref = 'dev')
 ```
 
 or 
 ```
 devtools::install_github('MDBAuth/WERP_toolkit')
 
-devtools::install_github('galenholt/CC2', ref = 'dev')
+devtools::install_github('galenholt/eFlowEval', ref = 'dev')
 ```
 
 

@@ -12,7 +12,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r}
 #| include: false
-library(CC2)
+library(eFlowEval)
 library(sf)
 source('directorySet.R')
 source('R/catch_cat_sf.R')

@@ -29,7 +29,7 @@ This is essentially a data cleaning script, but I like being able to put in note
 
 ```{r}
 #| include: false
-library(CC2)
+library(eFlowEval)
 library(sf)
 source('directorySet.R')
 source('R/catch_cat_sf.R')

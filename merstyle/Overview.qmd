@@ -10,9 +10,9 @@ editor: visual
 
 The work is all done in the [SRA repo](https://github.com/galenholt/SRA). It has a renv, but renv keeps being annoying about github, so you might have to manually install that and then do the usual `renv::install()`.
 
-`{r}} #| eval: false renv::install('git@github.com:galenholt/CC2.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)`
+`{r}} #| eval: false renv::install('git@github.com:galenholt/eFlowEval.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)`
 
-All input data is in `QAEL - MER/Model/dataBase` . Processing uses *the dev branch of* [eFlowEval](https://github.com/galenholt/CC2) - you'll need to install that, it comes with some canonical data and processing functions.
+All input data is in `QAEL - MER/Model/dataBase` . Processing uses *the dev branch of* [eFlowEval](https://github.com/galenholt/eFlowEval) - you'll need to install that, it comes with some canonical data and processing functions.
 
 ### Notebooks
 

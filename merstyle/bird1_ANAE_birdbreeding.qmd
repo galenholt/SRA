@@ -6,7 +6,7 @@ editor: visual
 
 ```{r}
 # devtools::load_all()
-library(CC2)
+library(eFlowEval)
 source('directorySet.R')
 ```
 

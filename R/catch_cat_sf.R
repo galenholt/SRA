@@ -10,7 +10,7 @@
 #' @examples
 catch_cat_sf <- function(which_strict, outerdir, catchments = 'all') {
   if ('all' %in% catchments) {
-    cleancatch <- CC2::ltimNoNorth |>
+    cleancatch <- eFlowEval::ltimNoNorth |>
       mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
 
     catchments <- cleancatch$name_clean

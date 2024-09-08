@@ -13,13 +13,13 @@
     ]
   },
   "Packages": {
-    "CC2": {
-      "Package": "CC2",
+    "eFlowEval": {
+      "Package": "eFlowEval",
       "Version": "0.0.0.9047",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
-      "RemoteRepo": "CC2",
+      "RemoteRepo": "eFlowEval",
       "RemoteUsername": "galenholt",
       "RemoteRef": "dev",
       "RemoteSha": "b2d1b7e4a088ce5568f371d82944903877eb282a",

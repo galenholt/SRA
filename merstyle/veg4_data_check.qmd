@@ -10,7 +10,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r}
 source('directorySet.R')
-library(CC2)
+library(eFlowEval)
 library(dplyr)
 library(ggplot2)
 library(foreach)

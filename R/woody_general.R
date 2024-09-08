@@ -505,7 +505,7 @@ woody_general <- function(out_dir, catchment,
 # # testing -----------------------------------------------------------------
 # # This should move if this goes in the package, obviously
 # source('directorySet.R')
-# library(CC2)
+# library(eFlowEval)
 # library(ggplot2)
 # # source('R/woody_general.R')
 # catchment <- 'Avoca'

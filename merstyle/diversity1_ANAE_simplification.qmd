@@ -6,7 +6,7 @@ editor: visual
 
 ```{r}
 source('directorySet.R')
-library(CC2)
+library(eFlowEval)
 library(sf)
 library(foreach)
 library(doFuture)

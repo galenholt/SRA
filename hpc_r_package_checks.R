@@ -24,8 +24,8 @@ mi
 wi
 # END TESTING
 
-renv::install('git@github.com:galenholt/CC2.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
-# renv::install('git@github.com:galenholt/CC2.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
+renv::install('git@github.com:galenholt/eFlowEval.git@dev', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
+# renv::install('git@github.com:galenholt/eFlowEval.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 
 deps <- unique(renv::dependencies()$Package)
 pkgavail <- dimnames(installed.packages())[[1]]
@@ -36,7 +36,7 @@ if (length(not_installed) > 0) {
   message(paste0("These packages are not installed: ", not_installed,
           '.\nThey are in the object `not_installed`, so first thing to try is `renv::install(not_installed)`\n',
           'sf may need admin help due to C libraries\n',
-          'CC2 and other github packages seem to need to be handled manually'))
+          'eFlowEval and other github packages seem to need to be handled manually'))
 }
 
 # NOTE:

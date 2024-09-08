@@ -27,7 +27,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 #| include: false
 library(dplyr)
 library(ggplot2)
-library(CC2)
+library(eFlowEval)
 library(foreach)
 library(kableExtra)
 source('directorySet.R')
