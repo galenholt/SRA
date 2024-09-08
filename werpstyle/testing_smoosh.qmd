@@ -13,7 +13,7 @@ So here, I want to check that if I smash them together for the maximum date rang
 So, the question is, do we get the same results both ways?
 
 ```{r}
-library(werptoolkitr)
+library(HydroBOT)
 library(sf)
 library(dplyr)
 # get directories

@@ -10,7 +10,7 @@ execute:
 #| include: false
 #| 
 
-library(werptoolkitr)
+library(HydroBOT)
 library(dplyr)
 library(sf)
 library(ggplot2)
@@ -474,7 +474,7 @@ pal_env = list(EB = 'grDevices::Grays',
 # use the first level of each of those to make a named pal. I wish there were an easier way
 pal_envgroup <- purrr::imap_chr(pal_env,
                                 \(x,y) make_pal(levels = y, palette = x)) |> 
-  werptoolkitr:::as_colors()
+  HydroBOT:::as_colors()
 
 # Quantitative- sequential achievement
 pal_achieve <- 'grDevices::Blue-Yellow'

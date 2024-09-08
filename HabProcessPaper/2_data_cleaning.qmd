@@ -610,28 +610,28 @@ stagenames <- unique(all_data$stage_name)
 #  "palettetown::surskit"
 # "RColorBrewer::Set3"
 # This worked pretty well with 12, but is a mess with 15.
-# stage_pal <- werptoolkitr::make_pal(stages, "rcartocolor::Safe")
+# stage_pal <- HydroBOT::make_pal(stages, "rcartocolor::Safe")
 
 # This is going to take some tweaking to get right.
 # having hte names in separate vectors can make some filtering easier
 # "beyonce::X41" "ggprism::plasma" "rcartocolor::ag_Sunset" "RColorBrewer::RdPu", direction = -1 "PNWColors::Sunset2"
-anae_cols <- werptoolkitr::make_pal(anae_stages, "rcartocolor::ag_Sunset")
+anae_cols <- HydroBOT::make_pal(anae_stages, "rcartocolor::ag_Sunset")
 
 process_stages <- c('Adult', 'Germination', 'Seedling',
                     'Regeneration', 'Recruitment')
 
-process_cols <- werptoolkitr::make_pal(process_stages,
+process_cols <- HydroBOT::make_pal(process_stages,
                                        "calecopal::superbloom1")
 # that last one is just barely too purple
 process_cols[names(process_cols) == 'Recruitment'] <- '#527E87FF' # '#477173FF'
 
-combo_cols <- werptoolkitr::make_pal(combo_stages, "rcartocolor::Safe")
+combo_cols <- HydroBOT::make_pal(combo_stages, "rcartocolor::Safe")
 
 stage_pal <- c(anae_cols, process_cols, combo_cols)
 class(stage_pal) <- 'colors'
 
 # probably need to change this
-type_pal <- werptoolkitr::make_pal(c('Wetland type', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
+type_pal <- HydroBOT::make_pal(c('Wetland type', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
 
 
 # make a consistent set of shapes that allows patchworking

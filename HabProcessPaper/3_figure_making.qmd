@@ -61,7 +61,7 @@ make_habitat_bar <- function(species) {
   geom_col() +
   geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
   scale_fill_manual(values = stage_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = 'Mean log(area + 1)', fill = 'Model')
 
   
@@ -100,7 +100,7 @@ make_process_bar <- function(species) {
                    position = position_dodge(width = 0.9)) +
     scale_fill_manual(values = stage_pal) +
     scale_color_manual(values = c(sequential = 'black', independent = 'grey70')) +
-    werptoolkitr::theme_werp_toolkit() +
+    HydroBOT::theme_werp_toolkit() +
     labs(y = 'Mean log(area + 1)', x = 'Step',
          fill = 'Life stage', color = 'Stage type')
   
@@ -133,7 +133,7 @@ make_interact_seq_bar <- function(species) {
   geom_col() +
   geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
   scale_fill_manual(values = stage_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = 'Mean log(area + 1)',
        fill = 'Life stage')
 
@@ -167,7 +167,7 @@ new_basin_bar_hab <- all_data_basin |>
                  position = position_dodge2(width = 0.9)) + # Why 0.9?
   scale_fill_manual(values = stage_pal) +
   scale_color_manual(values = type_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = 'Mean log(area + 1)',
        fill = 'Model', color = 'Model type')
 
@@ -199,7 +199,7 @@ new_basin_bar_proc <- all_data_basin |>
                  position = position_dodge2(width = 0.9)) + # Why 0.9?
   scale_fill_manual(values = stage_pal) +
   scale_color_manual(values = type_pal) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = 'Mean log(area + 1)',
        fill = 'Model', color = 'Model type')
 
@@ -243,7 +243,7 @@ basin_bar_hab2proc <- all_data_basin |>
   scale_color_manual(values = type_pal) +
   scale_alpha_manual(values = alpha_type) +
   scale_linetype_manual(values = line_type) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "Mean\nlog(area + 1)", fill = "Model",
        color = "Model type", linetype = "Model type",
        alpha = 'Model type')
@@ -277,7 +277,7 @@ basin_bar_proc2hab <- all_data_basin |>
   scale_color_manual(values = type_pal) +
   scale_alpha_manual(values = alpha_type) +
   scale_linetype_manual(values = line_type) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "Mean\nlog(area + 1)", fill = "Model",
        color = "Model type", linetype = "Model type",
        alpha = 'Model type')
@@ -321,7 +321,7 @@ ggplot(aes(x = proc_type, y = mean_area,
     scale_color_manual(values = type_pal) +
   scale_alpha_manual(values = alpha_type) +
   scale_linetype_manual(values = line_type) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "Mean\nlog(area + 1)", fill = "Model", 
        color = "Model type", linetype = "Model type", 
        alpha = 'Model type')
@@ -389,7 +389,7 @@ ggplot(aes(x = year, y = log10(area + 1),
   scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
   
   # Seems like a good idea, but the 'All wetlands' isn't duplicated over species.
@@ -421,7 +421,7 @@ make_all_process_ts <- function(species) {
     scale_shape_manual(values = shape_type) +
     scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
-    werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+    HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
     labs(y = "log(area + 1)", color = "Model",
        linetype = "Stage type", shape = "Model type")
   
@@ -450,7 +450,7 @@ make_seq_process_ts <- function(species) {
   scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
   
   return(proc_basin_seq_ts)
@@ -479,7 +479,7 @@ ggplot(aes(x = year, y = log10(area + 1),
   scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
   
   return(inter_basin_named_ts)
@@ -501,7 +501,7 @@ ggplot(aes(x = year, y = log10(area + 1),
       scale_color_manual(values = stage_pal) +
   scale_shape_manual(values = shape_type) +
   scale_y_continuous() +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
   
   return(inter_basin_recorded_ts)
@@ -603,7 +603,7 @@ ggplot(aes(x = year, y = log10(area + 1),
   geom_line() +
     scale_color_manual(values = stage_pal) +
 geom_point() +
-  werptoolkitr::theme_werp_toolkit(axis.title.x = element_blank()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
 
 # Some other legend orientations for testing
@@ -634,7 +634,7 @@ make_venn_plots <- function(venn_data) {
    scale_fill_manual(values = stage_pal) +
   coord_fixed() + 
   lims(x = c(1988, NA)) +
-  werptoolkitr::theme_werp_toolkit(axis.ticks.y = element_blank(),
+  HydroBOT::theme_werp_toolkit(axis.ticks.y = element_blank(),
                                    axis.text.y = element_blank(),
                                    legend.position = 'none')
   return(vennplot)
@@ -703,7 +703,7 @@ make_ala_record_map <- function(species) {
     geom_sf(data = valleys, fill = 'azure', color = 'grey80') +
     geom_sf(alpha = 0.3) +
   facet_wrap("species_name") +
-  werptoolkitr::theme_werp_toolkit(legend.position = 'none')
+  HydroBOT::theme_werp_toolkit(legend.position = 'none')
 
   
   return(ala_maps)
@@ -727,7 +727,7 @@ make_all_record_map <- function(species) {
     geom_sf(alpha = 0.3, mapping = aes(color = in_ala)) +
   facet_wrap("species_name") +
     scale_color_manual(values = c('burlywood', 'seagreen') ) +
-  werptoolkitr::theme_werp_toolkit(legend.position = 'none')
+  HydroBOT::theme_werp_toolkit(legend.position = 'none')
 
   
   return(ala_maps)
@@ -769,7 +769,7 @@ ala_catch_maps <- catch_ala |>
   geom_sf(aes(fill = log10(n_records))) +
   facet_wrap("species_name") +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
   return(ala_catch_maps)
@@ -791,7 +791,7 @@ make_habitat_map <- function(species) {
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
   
@@ -817,7 +817,7 @@ make_totalhabitat_map <- function(species) {
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
   
@@ -842,7 +842,7 @@ make_process_indep_map <- function(species) {
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
   
@@ -858,7 +858,7 @@ make_process_seq_map <- function(species) {
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
   
@@ -907,7 +907,7 @@ make_process_indepseq_map <- function(species) {
     #              aes(label = stage_name), nudge_x = 1, nudge_y = 1) +
     scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
     facet_grid(is_independent_proc~base_stage) +
-    werptoolkitr::theme_werp_toolkit() +
+    HydroBOT::theme_werp_toolkit() +
     labs(fill = "log(area + 1)")
   
   
@@ -936,7 +936,7 @@ inter_maps <- all_data_time |>
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
   
@@ -961,7 +961,7 @@ inter_seq_maps <- all_data_time |>
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
   
@@ -1003,7 +1003,7 @@ inter_habseq_maps <- habseqdata |>
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_wrap('stage_name', nrow = 3) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
   
   return(inter_habseq_maps)
@@ -1033,7 +1033,7 @@ make_interact2d_fig <- function(species, print = TRUE) {
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   facet_wrap('stage_name', nrow = 2, drop = FALSE) +
   # facet_wrap('stage_name', ncol = 3) +
-  werptoolkitr::theme_werp_toolkit() +
+  HydroBOT::theme_werp_toolkit() +
   labs(fill = 'log(area + 1)')
 
 

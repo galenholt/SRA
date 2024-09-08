@@ -103,7 +103,7 @@ total_inun_area <- diversity_anae_summary |>
             n_anaes = sum(n_anaes),
             .by = c(time, name_clean, ValleyName)) |> 
   mutate(prop_wetland_inundated = area_inundated/total_area) |> 
-  left_join(werptoolkitr::cewo_valleys, by = 'ValleyName') |> 
+  left_join(HydroBOT::cewo_valleys, by = 'ValleyName') |> 
   st_as_sf()
 ```
 
@@ -375,7 +375,7 @@ ggplot(shannon_area_prepost, aes(fill = diversity_shannon_area)) +
   geom_sf() +
   facet_wrap('timeperiod') +
   scale_fill_viridis_c(option = 'magma') +
-  werptoolkitr::theme_werp_toolkit() + 
+  HydroBOT::theme_werp_toolkit() + 
   labs(fill = "Shannon diversity")
 ```
 

@@ -14,19 +14,19 @@ anaes <- readRDS(file.path(datOut, 'anae_simplify', 'all_anae_simplify.rds'))
 
 ```{r}
 ggplot() +
-  geom_sf(data = werptoolkitr::basin, fill = 'black') +
+  geom_sf(data = HydroBOT::basin, fill = 'black') +
   geom_sf(data = anaes, fill = 'lightskyblue2', color = NA,
           linewidth = 0.1, stroke = 0.1) +
-  werptoolkitr::theme_werp_toolkit()
+  HydroBOT::theme_werp_toolkit()
 ```
 
 The models for the werptstyle models (in other parts of SRA) were built largely on the EWR tool.
 
 ```{r}
-ewrgauges <- werptoolkitr::get_ewr_gauges()
+ewrgauges <- HydroBOT::get_ewr_gauges()
 ggplot() +
-  geom_sf(data = werptoolkitr::basin, fill = 'black') +
-  geom_sf(data = werptoolkitr::basin_rivers, color = 'dodgerblue') +
+  geom_sf(data = HydroBOT::basin, fill = 'black') +
+  geom_sf(data = HydroBOT::basin_rivers, color = 'dodgerblue') +
   geom_sf(data = ewrgauges, color = 'goldenrod') +
-  werptoolkitr::theme_werp_toolkit()
+  HydroBOT::theme_werp_toolkit()
 ```

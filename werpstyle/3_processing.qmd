@@ -10,7 +10,7 @@ execute:
 #| include: false
 #| 
 
-#library(werptoolkitr)
+#library(HydroBOT)
 devtools::load_all(path = file.path("~/Georgia/WERP_toolkit"))
 library(dplyr)
 library(sf)

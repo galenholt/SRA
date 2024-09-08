@@ -1885,8 +1885,8 @@
       ],
       "Hash": "390f9315bc0025be03012054103d227c"
     },
-    "werptoolkitr": {
-      "Package": "werptoolkitr",
+    "HydroBOT": {
+      "Package": "HydroBOT",
       "Version": "0.1.4",
       "Source": "GitHub",
       "RemoteType": "github",

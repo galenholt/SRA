@@ -8,7 +8,7 @@ if (grepl("unix", .Platform$OS.type)) {
     deps <- renv::dependencies()
     depchars <- c(deps$Package, 'scico', 'ggthemes', 'furrr', 'git2r')
     depchars <- depchars[depchars != 'R']
-    depchars <- depchars[depchars != 'werptoolkitr']
+    depchars <- depchars[depchars != 'HydroBOT']
     depchars <- unique(depchars)
     sysdeps <- pak::pkg_sysreqs(depchars)
 

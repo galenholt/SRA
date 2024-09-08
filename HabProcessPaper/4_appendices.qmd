@@ -60,10 +60,10 @@ anaes <- readRDS(file.path(datOut, 'anae_simplify', 'all_anae_simplify.rds'))
 #| fig-cap: ANAE wetlands across the Murray-Darling Basin
 anae_map <- 
 ggplot() +
-  geom_sf(data = werptoolkitr::basin, fill = 'azure') +
+  geom_sf(data = HydroBOT::basin, fill = 'azure') +
   geom_sf(data = anaes, fill = 'grey20', color = NA,
           linewidth = 0.1, stroke = 0.1) +
-  werptoolkitr::theme_werp_toolkit()
+  HydroBOT::theme_werp_toolkit()
 
 anae_map
 ```

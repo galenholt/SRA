@@ -5,7 +5,7 @@ editor: visual
 ---
 
 ```{r}
-library(werptoolkitr)
+library(HydroBOT)
 #devtools::load_all('E:/Georgia/WERP_toolkit') 
 
 

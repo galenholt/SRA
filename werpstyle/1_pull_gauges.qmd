@@ -8,7 +8,7 @@ editor: visual
 #| echo: false
 #| warning: false
 #| message: false
-library(werptoolkitr)
+library(HydroBOT)
 library(hydrogauge)
 library(dplyr)
 library(ggplot2)

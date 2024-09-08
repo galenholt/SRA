@@ -7,7 +7,7 @@ editor: visual
 ## Finding EWR table for lowest gauges
 
 ```{r}
-library(werptoolkitr)
+library(HydroBOT)
 library(sf)
 library(dplyr)
 library(ggplot2)

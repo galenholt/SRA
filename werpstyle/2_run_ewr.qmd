@@ -12,7 +12,7 @@ Hoping this works to just bring over from toolkit_use except for the new format 
 #| echo: false
 #| warning: false
 #| message: false
-library(werptoolkitr)
+library(HydroBOT)
 library(dplyr)
 library(ggplot2)
 library(sf)
