@@ -1,47 +1,21 @@
----
-title: "Data cleaning and setup"
-editor: visual
-echo: false
-# setting fig-width: 7 and fig-height: 5 are the defaults, changing here to be more standard ms sizes
-format:
-  html:
-    embed-resources: true
-    toc: true
-    fig-width: 9
-    fig-height: 6
-    comments:
-      hypothesis: true
-  docx:
-    toc: true
-    toc-depth: 2
-    prefer-html: true
-    fig-width: 9
-    fig-height: 6
-    reference-doc: ../default_word_template.docx
-bibliography: references.bib
----
-
-This is essentially a data cleaning script, but I like being able to put in notes and intermediate figs and whatnot. The idea is then it will get knitr::purled, I think. I could use a quarto include, but I don't want all the text etc.
-
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 #| include: false
 library(CC2)
 library(sf)
 source('directorySet.R')
-
 source('R/catch_cat_sf.R')
 library(dplyr)
 library(ggplot2)
 library(foreach) # needed internally for some funs
 library(patchwork)
 library(kableExtra)
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 paperdatadir <- '' # was 'habprocesspaper/' when we used different data.
 
@@ -67,41 +41,29 @@ if (!dir.exists(barpath)) {
 if (!dir.exists(mappath)) {
   dir.create(mappath, recursive = TRUE)
 }
-```
 
-## Data read-in
 
-I'm leading with this because we're tweaking the data, but it could all be offloaded to a script to focus on the ms. Or just collapse the section.
-
-I'm splitting this up into a few sections since the process and anae-clipped (2 ways) gets confusing to do in one go.
-
-### Background
-
-First, a few useful background pieces- which species, what are the anae types and a bit of a summary, etc
-
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 #| label: which-data
 species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
 species_names <- species |> 
   stringr::str_replace('_', ' ') |> 
   stringr::str_to_sentence()
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 valleys <- ltimNoNorth |> 
   select(-ValleyID, -ValleyCode) |> 
   mutate(name_orig = ValleyName,
          ValleyName = stringr::str_remove_all(ValleyName, ' '))
-```
 
-What are the anae types?
 
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # this dataset generated in the diversity analysis is really useful to get overall info about what got inundated and the wetland areas, but it's massive. I need it here though to get assorted areas and the full set of anae types
 diversity_anae_summary <- catch_cat_sf('diversity_anae_summary', 'diversity')
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # all_anaes <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
 # bbala <- readRDS(file.path(datOut, 'vegmapping', 'black_box_anae_type.rds'))
 
@@ -149,11 +111,9 @@ for (s in species) {
 
 
 # We get the area in the different types below.
-```
 
-Where are the ala records?
 
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # use the anae overlap records, not the mdb, since the anae match the rest.
 alarecords <- foreach(i = species,
                     .combine = bind_rows, .multicombine = TRUE) %do% {
@@ -169,13 +129,9 @@ allrecords <- foreach(i = species,
 
 allrecords <- allrecords |> 
   mutate(in_ala = recordID %in% alarecords$recordID)
-```
 
-### Process-only
 
-These are the strictures for just biological processes.
-
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 adult <- purrr::map(species, \(x) 
                     catch_cat_sf('adult_area', 
                                 outerdir = paste0(paperdatadir, x)) |> 
@@ -223,11 +179,9 @@ adult_germ_seed <- purrr::map(species, \(x)
   bind_rows()
 
 
-```
 
-### Habitat only
 
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Keep using 'stage' as the name of the data, since it makes joining for comparison easier.
 
 inun_anae_all <- purrr::map(species,
@@ -258,11 +212,9 @@ inun_anae_ala <- purrr::map(species,
          species = x)) |> 
   bind_rows()
 
-```
 
-There are also two other sorts of baselines we might want for the habitat- the total amount of inundation in *any* wetland type, and the total amount of area in each set of habitats, ignoring inundation. I had been doing this in the appendix, but think I'll move the data extraction here, anyway.
 
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # One use- total area of wetland habitat regardless of inundation for each species in various ways
 # First, get rid of the yearly since total area doesn't change and simplify
 
@@ -299,22 +251,22 @@ total_wetland_area_basin <- total_wetland_area |>
 total_wetland_area <- total_wetland_area |> 
   left_join(valleys, by = 'ValleyName') |> 
   st_as_sf()
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 #| eval: false
-# a check of that, probably delete if passes- does that actually have all the anae wetlands?
-all_anae <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
+## # a check of that, probably delete if passes- does that actually have all the anae wetlands?
+## all_anae <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
+## 
+## all_anae <- all_anae |>
+##   mutate(area = st_area(geometry))
+## 
+## all(unique(all_anae$ANAE_DESC) %in% typearea$ANAE_DESC)
+## 
+## # Yes, so no need for both.
 
-all_anae <- all_anae |> 
-  mutate(area = st_area(geometry))
 
-all(unique(all_anae$ANAE_DESC) %in% typearea$ANAE_DESC)
-
-# Yes, so no need for both.
-```
-
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # First, simplify
 # There's no species differences here
@@ -329,13 +281,9 @@ inun_area <- diversity_anae_summary |>
     st_as_sf() |> 
   select(-name_orig)
 
-```
 
-### Interactive
 
-Include independent and full for the stages. Skip the adult_germ, it's not very interesting
-
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ALA records
 
 # For most things, we will put the catchment conditions on these records, though in an appendix we may want to compare them.
@@ -421,11 +369,9 @@ adult_germ_seed_name <- purrr::map(species, \(x) catch_cat_sf('adult_germ_seed_a
   mutate(stage = 'recruitment_name',
          species = x)) |> 
   bind_rows()
-```
 
-### Concatenate
 
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 all_data <- bind_rows(adult, germ, seed, 
                          adult_germ, adult_germ_seed, 
                          adult_ala, germ_ala, seed_ala,
@@ -470,16 +416,12 @@ rm(adult, germ, seed,
    adult_germ_seed_name,
    inun_anae_name, inun_anae_ala, inun_area)
 
-```
 
-Set up a standard color palette for the types. Could do the same for species if we every plot those, and should choose a standard ramp for things like maps. Could do it for catchments too, but there's a million. This is ugly, but changing it is easy.
 
-Clean up the names
-
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Set up various groupings
 # the different types
-anae_stages <- c('Named wetland types', 'Recorded wetland types', 'All wetland types')
+anae_stages <- c('Named wetland types', 'Recorded wetland types', 'All wetlands')
 process_stages <- c('Adult', 'Germination', 'Seedling',
                     'Regeneration', 'Recruitment')
 combo_stages <- c('Adult and Named', 'Germination and Named',
@@ -505,9 +447,9 @@ proc_seed <- c('Seedling', combo_stages[grepl('Seed', combo_stages)])
 proc_regen <- c('Regeneration', combo_stages[grepl('Regeneration', combo_stages)])
 proc_recruit <- c('Recruitment', combo_stages[grepl('Recruitment', combo_stages)])
 
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 clean_stages <- function(x) {
   x <- x |> 
     mutate(stage_name = case_when(
@@ -528,11 +470,11 @@ clean_stages <- function(x) {
       stage == 'recruitment_name' ~ 'Recruitment and Named',
       stage == 'anae_name' ~ 'Named wetland types',
       stage == 'anae_ala' ~ 'Recorded wetland types',
-      stage == 'wetland_inundation' ~ 'All wetland types',
+      stage == 'wetland_inundation' ~ 'All wetlands',
       .default = 'FAIL'
     ),
     stage_name = factor(stage_name,
-                        levels = c('All wetland types',
+                        levels = c('All wetlands',
                                    'Recorded wetland types',
                                    'Named wetland types',
                                    'Adult', 'Germination', 'Seedling',
@@ -562,12 +504,12 @@ clean_stages <- function(x) {
       ),
     is_independent_proc = factor(is_independent_proc, levels = c('sequential', 'independent'))) |> 
     mutate(hab_type = case_when(
-      stage_name %in% hab_all ~ "All wetland types",
+      stage_name %in% hab_all ~ "All wetlands",
                                 stage_name %in% hab_named ~ "Named wetland types",
                                 stage_name %in% hab_record ~ "Recorded wetland types",
                                 .default = NA
       ),
-           hab_type = factor(hab_type, levels = c('All wetland types',
+           hab_type = factor(hab_type, levels = c('All wetlands',
                                                   'Recorded wetland types',
                                                   'Named wetland types')),
            proc_type = case_when(
@@ -584,63 +526,12 @@ clean_stages <- function(x) {
                                   stage_name %in% combo_stages ~ "Process within\nwetland type", 
                                   .default = NA),
            model_type = factor(model_type, levels = c('Wetland type', 'Process', 'Process within\nwetland type')),
-           proc_type = factor(proc_type, levels = c('Adult', 'Germination', 'Seedling', 'Regeneration', 'Recruitment')),
-  
-      proc_shape = case_when(
-      stage == 'adult' ~ 'Adult',
-      stage == 'germination' ~ 'Germination',
-      stage == 'seedling' ~ 'Seedling',
-      stage == 'adult_regen' ~ 'Regeneration',
-      stage == 'recruitment' ~ 'Recruitment',
-      stage == 'adult_ala' ~ 'Adult',
-      stage == 'germination_ala' ~ 'Germination',
-      stage == 'seedling_ala' ~ 'Seedling',
-      stage == 'regeneration_ala' ~ 'Regeneration',
-      stage == 'recruitment_ala' ~ 'Recruitment',
-      stage == 'adult_name' ~ 'Adult',
-      stage == 'germination_name' ~ 'Germination',
-      stage == 'seedling_name' ~ 'Seedling ',
-      stage == 'regeneration_name' ~ 'Regeneration',
-      stage == 'recruitment_name' ~ 'Recruitment',
-      stage == 'anae_name' ~ 'No process-based component',
-      stage == 'anae_ala' ~ 'No process-based component',
-      stage == 'wetland_inundation' ~ 'No process-based component',
-      .default = stage_name
-    ),
-    
-      wetland_colour = case_when(
-      stage == 'adult' ~ 'All wetland types',
-      stage == 'germination' ~ 'All wetland types',
-      stage == 'seedling' ~ 'All wetland types',
-      stage == 'adult_regen' ~ 'All wetland types',
-      stage == 'recruitment' ~ 'All wetland types',
-      stage == 'adult_ala' ~ 'All wetland types',
-      stage == 'germination_ala' ~ 'Recorded wetland types',
-      stage == 'seedling_ala' ~ 'Recorded wetland types',
-      stage == 'regeneration_ala' ~ 'Recorded wetland types',
-      stage == 'recruitment_ala' ~ 'Recorded wetland types',
-      stage == 'adult_name' ~ 'Named wetland types',
-      stage == 'germination_name' ~ 'Named wetland types',
-      stage == 'seedling_name' ~ 'Named wetland types',
-      stage == 'regeneration_name' ~ 'Named wetland types',
-      stage == 'recruitment_name' ~ 'Named wetland types',
-      stage == 'anae_name' ~ 'Named wetland types',
-      stage == 'anae_ala' ~ 'Recorded wetland types',
-      stage == 'wetland_inundation' ~ 'All wetland types',
-      .default = stage_name
-    ),
-    proc_shape = factor(proc_shape,
-                        levels = c('Adult', 'Germination', 'Seedling',
-                                   'Regeneration', 'Recruitment',
-                                   'No process-based component'))
-    )
+           proc_type = factor(proc_type, levels = c('Adult', 'Germination', 'Seedling', 'Regeneration', 'Recruitment')))
   
 }
-```
 
-Use that to clean data
 
-```{r}
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 all_data <- clean_stages(all_data)
 all_data_basin <- clean_stages(all_data_basin)
 all_data_time <- clean_stages(all_data_time)
@@ -648,9 +539,9 @@ all_data_basin_time <- clean_stages(all_data_basin_time)
 
 # the wetland type area regardless of inundation
 total_wetland_area <- clean_stages(total_wetland_area)
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # just to make it easy to access
 stages <- unique(all_data$stage)
 stagenames <- unique(all_data$stage_name)
@@ -660,59 +551,37 @@ stagenames <- unique(all_data$stage_name)
 #  "palettetown::surskit"
 # "RColorBrewer::Set3"
 # This worked pretty well with 12, but is a mess with 15.
-# stage_pal <- HydroBOT::make_pal(stages, "rcartocolor::Safe")
+# stage_pal <- werptoolkitr::make_pal(stages, "rcartocolor::Safe")
 
 # This is going to take some tweaking to get right.
 # having hte names in separate vectors can make some filtering easier
 # "beyonce::X41" "ggprism::plasma" "rcartocolor::ag_Sunset" "RColorBrewer::RdPu", direction = -1 "PNWColors::Sunset2"
-anae_cols <- HydroBOT::make_pal(anae_stages, "rcartocolor::ag_Sunset")
+anae_cols <- werptoolkitr::make_pal(anae_stages, "rcartocolor::ag_Sunset")
 
 process_stages <- c('Adult', 'Germination', 'Seedling',
                     'Regeneration', 'Recruitment')
 
-process_cols <- HydroBOT::make_pal(process_stages,
+process_cols <- werptoolkitr::make_pal(process_stages,
                                        "calecopal::superbloom1")
 # that last one is just barely too purple
 process_cols[names(process_cols) == 'Recruitment'] <- '#527E87FF' # '#477173FF'
 
-combo_cols <- HydroBOT::make_pal(combo_stages, "rcartocolor::Safe")
+combo_cols <- werptoolkitr::make_pal(combo_stages, "rcartocolor::Safe")
 
 stage_pal <- c(anae_cols, process_cols, combo_cols)
 class(stage_pal) <- 'colors'
 
 # probably need to change this
-type_pal <- HydroBOT::make_pal(c('Wetland type', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
+type_pal <- werptoolkitr::make_pal(c('Wetland type', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
 
-wetland_type_pal <- stats::setNames(c("white", "#872CA2FF", "#C0369DFF"),
-  c( "All wetland types", "Recorded wetland types",  "Named wetland types"))
-class(wetland_type_pal) <- 'colors'
-
-wetland_type_pal_line <- stats::setNames(c("black", "black", "#872CA2FF", "#C0369DFF"),
-  c('No process-based component',  "All wetland types", "Recorded wetland types",  "Named wetland types"))
-class(wetland_type_pal_line) <- 'colors'
 
 # make a consistent set of shapes that allows patchworking
 shape_type <- scales::shape_pal()(3) |> 
   setNames(names(type_pal))
-
-
-#shape_type_process <- c(15,17,16,1,1,1,1, 1)
-shape_type_process <- c(0,2,1,19,19,19,19,19)
-names(shape_type_process) <- c("Adult", "Regeneration", "Recruitment", 
-                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA)
-
-colour_type_process <- stats::setNames(c("black","black","black","#C0369DFF","#872CA2FF","white", "white", "white"), c("Adult", "Regeneration", "Recruitment", 
-                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA))
-class(colour_type_process) <- 'colors'
-
-fill_type_process <- stats::setNames(c("white", "white","white", "#C0369DFF","#872CA2FF","black", "black","black"), c("Adult", "Regeneration", "Recruitment", 
-                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA))
-class(fill_type_process) <- 'colors'
-
 
 # make an alpha scale for that too
 alpha_type <- c('Wetland type' = 1, 'Process' = 1, 'Process within\nwetland type' = 0.75)
 
 # make an alpha scale for that too
 line_type <- c('Wetland type' = 'solid', 'Process' = 'solid', 'Process within\nwetland type' = 'dashed')
-```
+

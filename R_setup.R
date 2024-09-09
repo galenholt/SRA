@@ -31,7 +31,7 @@ if (grepl("unix", .Platform$OS.type)) {
   # line below
 
 install.packages("devtools")
-#devtools::install_git("git@github.com:MDBAuth/WERP_toolkit.git", ref = 'master', force = TRUE, upgrade = 'ask', git = 'external')
+#devtools::install_git("git@github.com:MDBAuth/HydroBOT.git", ref = 'master', force = TRUE, upgrade = 'ask', git = 'external')
 
 
 #renv::install('git@github.com:MDBAuth/WERP_toolkit.git@Georgia_fast', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
@@ -40,6 +40,9 @@ renv::install('git@github.com:MDBAuth/WERP_toolkit.git@galen_working', rebuild =
 
 #CC2
 renv::install('galenholt/eFlowEval')
+
+#OTHER
+renv::install('galenholt/galenholt.github.io@dev')
 
 renv::install()
 # Some extras
