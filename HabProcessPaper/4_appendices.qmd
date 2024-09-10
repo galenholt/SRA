@@ -45,6 +45,14 @@ source(file.path('HabProcessPaper', '3_figure_making.R'))
 unlink(file.path('HabProcessPaper', '3_figure_making.R'))
 ```
 
+```{r}
+appath <- file.path(figpath, 'Appendix')
+if (!dir.exists(appath)) {
+  dir.create(appath, recursive = TRUE)
+}
+
+```
+
 # Appendix: ALA records and ANAE
 
 The Recorded wetland types were extracted from the ALA (Atlas of Living Australia). Those records were intersected with ANAE polygons (@fig-anae-locations) to determine the ANAE wetland types where there were records. The records that intersect with ANAE wetlands are shown in @fig-ala-records and @fig-all-records *we should drop one of these figs*. The number of records for each species in each catchment is shown in @fig-ala-catch, which is on the log scale due to the wide range of values. Grey catchments had no records.
@@ -66,6 +74,9 @@ ggplot() +
   HydroBOT::theme_werp_toolkit()
 
 anae_map
+
+galenR::ggsave_multi(appath, plot = anae_map, device = c('pdf', 'png'),
+                     width = 8, height = 8, units = 'cm')
 ```
 
 ```{r}
