@@ -32,6 +32,7 @@ This is essentially a data cleaning script, but I like being able to put in note
 library(eFlowEval)
 library(sf)
 source('directorySet.R')
+
 source('R/catch_cat_sf.R')
 library(dplyr)
 library(ggplot2)
@@ -478,7 +479,7 @@ Clean up the names
 ```{r}
 # Set up various groupings
 # the different types
-anae_stages <- c('Named wetland types', 'Recorded wetland types', 'All wetlands')
+anae_stages <- c('Named wetland types', 'Recorded wetland types', 'All wetland types')
 process_stages <- c('Adult', 'Germination', 'Seedling',
                     'Regeneration', 'Recruitment')
 combo_stages <- c('Adult and Named', 'Germination and Named',
@@ -527,11 +528,11 @@ clean_stages <- function(x) {
       stage == 'recruitment_name' ~ 'Recruitment and Named',
       stage == 'anae_name' ~ 'Named wetland types',
       stage == 'anae_ala' ~ 'Recorded wetland types',
-      stage == 'wetland_inundation' ~ 'All wetlands',
+      stage == 'wetland_inundation' ~ 'All wetland types',
       .default = 'FAIL'
     ),
     stage_name = factor(stage_name,
-                        levels = c('All wetlands',
+                        levels = c('All wetland types',
                                    'Recorded wetland types',
                                    'Named wetland types',
                                    'Adult', 'Germination', 'Seedling',
@@ -561,12 +562,12 @@ clean_stages <- function(x) {
       ),
     is_independent_proc = factor(is_independent_proc, levels = c('sequential', 'independent'))) |> 
     mutate(hab_type = case_when(
-      stage_name %in% hab_all ~ "All wetlands",
+      stage_name %in% hab_all ~ "All wetland types",
                                 stage_name %in% hab_named ~ "Named wetland types",
                                 stage_name %in% hab_record ~ "Recorded wetland types",
                                 .default = NA
       ),
-           hab_type = factor(hab_type, levels = c('All wetlands',
+           hab_type = factor(hab_type, levels = c('All wetland types',
                                                   'Recorded wetland types',
                                                   'Named wetland types')),
            proc_type = case_when(
@@ -583,7 +584,56 @@ clean_stages <- function(x) {
                                   stage_name %in% combo_stages ~ "Process within\nwetland type", 
                                   .default = NA),
            model_type = factor(model_type, levels = c('Wetland type', 'Process', 'Process within\nwetland type')),
-           proc_type = factor(proc_type, levels = c('Adult', 'Germination', 'Seedling', 'Regeneration', 'Recruitment')))
+           proc_type = factor(proc_type, levels = c('Adult', 'Germination', 'Seedling', 'Regeneration', 'Recruitment')),
+  
+      proc_shape = case_when(
+      stage == 'adult' ~ 'Adult',
+      stage == 'germination' ~ 'Germination',
+      stage == 'seedling' ~ 'Seedling',
+      stage == 'adult_regen' ~ 'Regeneration',
+      stage == 'recruitment' ~ 'Recruitment',
+      stage == 'adult_ala' ~ 'Adult',
+      stage == 'germination_ala' ~ 'Germination',
+      stage == 'seedling_ala' ~ 'Seedling',
+      stage == 'regeneration_ala' ~ 'Regeneration',
+      stage == 'recruitment_ala' ~ 'Recruitment',
+      stage == 'adult_name' ~ 'Adult',
+      stage == 'germination_name' ~ 'Germination',
+      stage == 'seedling_name' ~ 'Seedling ',
+      stage == 'regeneration_name' ~ 'Regeneration',
+      stage == 'recruitment_name' ~ 'Recruitment',
+      stage == 'anae_name' ~ 'No process-based component',
+      stage == 'anae_ala' ~ 'No process-based component',
+      stage == 'wetland_inundation' ~ 'No process-based component',
+      .default = stage_name
+    ),
+    
+      wetland_colour = case_when(
+      stage == 'adult' ~ 'All wetland types',
+      stage == 'germination' ~ 'All wetland types',
+      stage == 'seedling' ~ 'All wetland types',
+      stage == 'adult_regen' ~ 'All wetland types',
+      stage == 'recruitment' ~ 'All wetland types',
+      stage == 'adult_ala' ~ 'All wetland types',
+      stage == 'germination_ala' ~ 'Recorded wetland types',
+      stage == 'seedling_ala' ~ 'Recorded wetland types',
+      stage == 'regeneration_ala' ~ 'Recorded wetland types',
+      stage == 'recruitment_ala' ~ 'Recorded wetland types',
+      stage == 'adult_name' ~ 'Named wetland types',
+      stage == 'germination_name' ~ 'Named wetland types',
+      stage == 'seedling_name' ~ 'Named wetland types',
+      stage == 'regeneration_name' ~ 'Named wetland types',
+      stage == 'recruitment_name' ~ 'Named wetland types',
+      stage == 'anae_name' ~ 'Named wetland types',
+      stage == 'anae_ala' ~ 'Recorded wetland types',
+      stage == 'wetland_inundation' ~ 'All wetland types',
+      .default = stage_name
+    ),
+    proc_shape = factor(proc_shape,
+                        levels = c('Adult', 'Germination', 'Seedling',
+                                   'Regeneration', 'Recruitment',
+                                   'No process-based component'))
+    )
   
 }
 ```
@@ -633,10 +683,32 @@ class(stage_pal) <- 'colors'
 # probably need to change this
 type_pal <- HydroBOT::make_pal(c('Wetland type', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
 
+wetland_type_pal <- stats::setNames(c("white", "#872CA2FF", "#C0369DFF"),
+  c( "All wetland types", "Recorded wetland types",  "Named wetland types"))
+class(wetland_type_pal) <- 'colors'
+
+wetland_type_pal_line <- stats::setNames(c("black", "black", "#872CA2FF", "#C0369DFF"),
+  c('No process-based component',  "All wetland types", "Recorded wetland types",  "Named wetland types"))
+class(wetland_type_pal_line) <- 'colors'
 
 # make a consistent set of shapes that allows patchworking
 shape_type <- scales::shape_pal()(3) |> 
   setNames(names(type_pal))
+
+
+#shape_type_process <- c(15,17,16,1,1,1,1, 1)
+shape_type_process <- c(0,2,1,19,19,19,19,19)
+names(shape_type_process) <- c("Adult", "Regeneration", "Recruitment", 
+                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA)
+
+colour_type_process <- stats::setNames(c("black","black","black","#C0369DFF","#872CA2FF","white", "white", "white"), c("Adult", "Regeneration", "Recruitment", 
+                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA))
+class(colour_type_process) <- 'colors'
+
+fill_type_process <- stats::setNames(c("white", "white","white", "#C0369DFF","#872CA2FF","black", "black","black"), c("Adult", "Regeneration", "Recruitment", 
+                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA))
+class(fill_type_process) <- 'colors'
+
 
 # make an alpha scale for that too
 alpha_type <- c('Wetland type' = 1, 'Process' = 1, 'Process within\nwetland type' = 0.75)

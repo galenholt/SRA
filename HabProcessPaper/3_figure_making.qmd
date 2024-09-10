@@ -73,6 +73,21 @@ hab_basin_bar <- purrr::map(species, make_habitat_bar) |>
   setNames(species)
 ```
 
+```{r}
+#| label: Function stolen from my scatch site
+#| include: false
+ggsave_multi <- function(filename, plot = last_plot(), device, ...) {
+
+  extnames <- lapply(device, \(x) paste0(filename, '.', x))
+  lapply(extnames, \(x) ggsave(
+    filename = x, plot = plot,
+    ...
+  ))
+  # similar to the ggsave return
+  return(invisible(unlist(extnames)))
+}
+```
+
 ### Process alone
 
 ```{r}
@@ -358,8 +373,8 @@ BBB#C
 
   if (print) {
     thispath <- file.path(barpath, paste0(species, '_bar'))
-    galenR::ggsave_multi(filename = thispath, plot = compare_bar, 
-                         device = c('png', 'svg'),
+    ggsave_multi(filename = thispath, plot = compare_bar, 
+                         device = c('png', 'pdf'),
                          width = 12, height = 9, units = "cm")
   }
 
@@ -383,12 +398,12 @@ make_habitat_timeseries <- function(species) {
   filter((species %in% {{species}} | is.na(species)) & 
            stage_name %in% anae_stages) |> 
 ggplot(aes(x = year, y = log10(area + 1), 
-           color = stage_name, shape = model_type)) +
+           color = wetland_colour, shape = proc_shape)) +
     geom_line(show.legend = TRUE) +
-  geom_point(show.legend = TRUE)  +
+  geom_point(show.legend = TRUE, size =3)  +
   scale_y_continuous() +
-    scale_color_manual(values = stage_pal) +
-  scale_shape_manual(values = shape_type) +
+    scale_color_manual(values = wetland_type_pal_line) +
+  scale_shape_manual(values = shape_type_process) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
   
@@ -404,6 +419,7 @@ ggplot(aes(x = year, y = log10(area + 1),
 # Individual per-species plots
 hab_basin_ts <- purrr::map(species, make_habitat_timeseries) |> 
   setNames(species)
+
 ```
 
 ### Process alone
@@ -417,7 +433,7 @@ make_all_process_ts <- function(species) {
     ggplot(aes(x = year, y = log10(area + 1), color = stage_name,
            linetype = is_independent_proc, shape = model_type)) +
     geom_line(show.legend = TRUE) +
-    geom_point(show.legend = TRUE) +
+    geom_point(show.legend = TRUE, size =3) +
     scale_shape_manual(values = shape_type) +
     scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
@@ -443,13 +459,12 @@ make_seq_process_ts <- function(species) {
            stage_name %in% process_stages &
            stage_name %in% sequential_stages) |> 
     ggplot(aes(x = year, y = log10(area + 1), 
-               color = stage_name, 
-               shape = model_type)) +
+               color = hab_type, shape = stage_name), alpha = 1) +
     geom_line(show.legend = TRUE) +
-  geom_point(show.legend = TRUE)  +
+  geom_point(show.legend = TRUE, size =3)  +
   scale_y_continuous() +
-    scale_color_manual(values = stage_pal) +
-  scale_shape_manual(values = shape_type) +
+  scale_color_manual(values = wetland_type_pal_line) +
+  scale_shape_manual(values = shape_type_process) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
   
@@ -473,12 +488,12 @@ make_named_process_interact_ts <- function(species) {
   filter(species %in% {{species}} & 
            stage_name %in% c('Named wetland types', 'Recruitment and Named', 'Recruitment')) |> 
 ggplot(aes(x = year, y = log10(area + 1), 
-           color = stage_name, shape = model_type)) +
+           color = wetland_colour , shape = proc_shape )) +
     geom_line(show.legend = TRUE) +
-  geom_point(show.legend = TRUE)  +
+  geom_point(show.legend = TRUE, size =3)  +
   scale_y_continuous() +
-    scale_color_manual(values = stage_pal) +
-  scale_shape_manual(values = shape_type) +
+  scale_color_manual(values = wetland_type_pal_line) +
+  scale_shape_manual(values = shape_type_process) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
   
@@ -495,11 +510,11 @@ make_recorded_process_interact_ts <- function(species) {
            stage_name %in% c('Recorded wetland types', 
                              'Recruitment and Recorded', 'Recruitment')) |> 
 ggplot(aes(x = year, y = log10(area + 1),
-           color = stage_name, shape = model_type)) +
+           color = wetland_colour , shape = proc_shape )) +
   geom_line(show.legend = TRUE) +
-  geom_point(show.legend = TRUE)  +
-      scale_color_manual(values = stage_pal) +
-  scale_shape_manual(values = shape_type) +
+  geom_point(show.legend = TRUE, size =3)  +
+  scale_color_manual(values = wetland_type_pal_line) +
+  scale_shape_manual(values = shape_type_process) +
   scale_y_continuous() +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "log(area + 1)", color = "Model", shape = "Model type")
@@ -531,7 +546,56 @@ recorded_venn_data <- function(species) {
                                'Recruitment and Recorded',
                                'Recruitment')) |> 
     mutate(area = log10(area + 1)) |>
-    mutate(area = area/max(area, na.rm = TRUE)) |> 
+    mutate(area = area/max(area, na.rm = TRUE),
+           ,
+  
+      proc_shape = case_when(
+      stage == 'adult' ~ 'Adult',
+      stage == 'germination' ~ 'Germination',
+      stage == 'seedling' ~ 'Seedling',
+      stage == 'adult_regen' ~ 'Regeneration',
+      stage == 'recruitment' ~ 'Recruitment',
+      stage == 'adult_ala' ~ 'Adult',
+      stage == 'germination_ala' ~ 'Germination',
+      stage == 'seedling_ala' ~ 'Seedling',
+      stage == 'regeneration_ala' ~ 'Regeneration',
+      stage == 'recruitment_ala' ~ 'Recruitment',
+      stage == 'adult_name' ~ 'Adult',
+      stage == 'germination_name' ~ 'Germination',
+      stage == 'seedling_name' ~ 'Seedling ',
+      stage == 'regeneration_name' ~ 'Regeneration',
+      stage == 'recruitment_name' ~ 'Recruitment',
+      stage == 'anae_name' ~ 'No process-based component',
+      stage == 'anae_ala' ~ 'No process-based component',
+      stage == 'wetland_inundation' ~ 'No process-based component',
+      .default = stage_name
+    ),
+    
+      wetland_colour = case_when(
+      stage == 'adult' ~ 'All wetland types',
+      stage == 'germination' ~ 'All wetland types',
+      stage == 'seedling' ~ 'All wetland types',
+      stage == 'adult_regen' ~ 'All wetland types',
+      stage == 'recruitment' ~ 'All wetland types',
+      stage == 'adult_ala' ~ 'All wetland types',
+      stage == 'germination_ala' ~ 'Recorded wetland types',
+      stage == 'seedling_ala' ~ 'Recorded wetland types',
+      stage == 'regeneration_ala' ~ 'Recorded wetland types',
+      stage == 'recruitment_ala' ~ 'Recorded wetland types',
+      stage == 'adult_name' ~ 'Named wetland types',
+      stage == 'germination_name' ~ 'Named wetland types',
+      stage == 'seedling_name' ~ 'Named wetland types',
+      stage == 'regeneration_name' ~ 'Named wetland types',
+      stage == 'recruitment_name' ~ 'Named wetland types',
+      stage == 'anae_name' ~ 'Named wetland types',
+      stage == 'anae_ala' ~ 'Recorded wetland types',
+      stage == 'wetland_inundation' ~ 'All wetland types',
+      .default = stage_name
+    ),
+    proc_shape = factor(proc_shape,
+                        levels = c('Adult', 'Germination', 'Seedling',
+                                   'Regeneration', 'Recruitment',
+                                   'No process-based component'))) |> 
     # need to do a funny flip-flop here to get overlap in its own column
     tidyr::pivot_wider(id_cols = date,
                        names_from = stage_name,
@@ -562,7 +626,53 @@ named_venn_data <- function(species) {
                                'Recruitment and Named',
                                'Recruitment')) |> 
     mutate(area = log10(area + 1)) |>
-    mutate(area = area/max(area, na.rm = TRUE)) |> 
+    mutate(area = area/max(area, na.rm = TRUE),
+      proc_shape = case_when(
+      stage == 'adult' ~ 'Adult',
+      stage == 'germination' ~ 'Germination',
+      stage == 'seedling' ~ 'Seedling',
+      stage == 'adult_regen' ~ 'Regeneration',
+      stage == 'recruitment' ~ 'Recruitment',
+      stage == 'adult_ala' ~ 'Adult',
+      stage == 'germination_ala' ~ 'Germination',
+      stage == 'seedling_ala' ~ 'Seedling',
+      stage == 'regeneration_ala' ~ 'Regeneration',
+      stage == 'recruitment_ala' ~ 'Recruitment',
+      stage == 'adult_name' ~ 'Adult',
+      stage == 'germination_name' ~ 'Germination',
+      stage == 'seedling_name' ~ 'Seedling ',
+      stage == 'regeneration_name' ~ 'Regeneration',
+      stage == 'recruitment_name' ~ 'Recruitment',
+      stage == 'anae_name' ~ 'No process-based component',
+      stage == 'anae_ala' ~ 'No process-based component',
+      stage == 'wetland_inundation' ~ 'No process-based component',
+      .default = stage_name
+    ),
+      wetland_colour = case_when(
+      stage == 'adult' ~ 'All wetland types',
+      stage == 'germination' ~ 'All wetland types',
+      stage == 'seedling' ~ 'All wetland types',
+      stage == 'adult_regen' ~ 'All wetland types',
+      stage == 'recruitment' ~ 'All wetland types',
+      stage == 'adult_ala' ~ 'All wetland types',
+      stage == 'germination_ala' ~ 'Recorded wetland types',
+      stage == 'seedling_ala' ~ 'Recorded wetland types',
+      stage == 'regeneration_ala' ~ 'Recorded wetland types',
+      stage == 'recruitment_ala' ~ 'Recorded wetland types',
+      stage == 'adult_name' ~ 'Named wetland types',
+      stage == 'germination_name' ~ 'Named wetland types',
+      stage == 'seedling_name' ~ 'Named wetland types',
+      stage == 'regeneration_name' ~ 'Named wetland types',
+      stage == 'recruitment_name' ~ 'Named wetland types',
+      stage == 'anae_name' ~ 'Named wetland types',
+      stage == 'anae_ala' ~ 'Recorded wetland types',
+      stage == 'wetland_inundation' ~ 'All wetland types',
+      .default = stage_name
+    ),
+    proc_shape = factor(proc_shape,
+                        levels = c('Adult', 'Germination', 'Seedling',
+                                   'Regeneration', 'Recruitment',
+                                   'No process-based component'))) |> 
     # need to do a funny flip-flop here to get overlap in its own column
     tidyr::pivot_wider(id_cols = date,
                        names_from = stage_name,
@@ -586,6 +696,8 @@ named_venn_data <- function(species) {
 
 venndata_recorded <- purrr::map(species, recorded_venn_data) |> 
   setNames(species)
+
+
 venndata_named <- purrr::map(species, named_venn_data) |> 
   setNames(species)
 ```
@@ -599,17 +711,18 @@ ts_legend_plot <- all_data_basin |>
   filter(!stage_name %in% c('Adult and Recorded', 'Regeneration and Recorded',
                             'Adult and Named', 'Regeneration and Named')) |>
 ggplot(aes(x = year, y = log10(area + 1), 
-           color = stage_name, shape = model_type)) +
+           color = wetland_colour, shape = proc_shape)) +
   geom_line() +
-    scale_color_manual(values = stage_pal) +
+  scale_color_manual(values = wetland_type_pal_line) +
+  scale_shape_manual(values = shape_type_process) +
 geom_point() +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
+  labs(y = "log(area + 1)", color = "Wetland type models", shape = "Process-based models")
 
 # Some other legend orientations for testing
 ts_legend_plot_bottom <- ts_legend_plot + 
   theme(legend.position = 'bottom', legend.title.position = 'top') +
-  guides(shape = guide_legend(nrow = 3), color = guide_legend(nrow = 3))
+  guides(shape = guide_legend(nrow = 4), color = guide_legend(nrow = 3))
 
 ts_legend_plot_bottom_notype <- ts_legend_plot + 
   theme(legend.position = 'bottom', legend.title.position = 'top') +
@@ -631,7 +744,13 @@ make_venn_plots <- function(venn_data) {
                             r = radius, 
                             fill = factor(stage_name)),
               alpha = 0.7) + 
-   scale_fill_manual(values = stage_pal) +
+    
+  ggforce::geom_circle(mapping = aes(x0 = year, y0 = centers, 
+                            r = radius, 
+                            color = factor(stage_name)),
+              alpha = 1) + 
+   scale_fill_manual(values = fill_type_process) +
+   scale_colour_manual(values = colour_type_process) +
   coord_fixed() + 
   lims(x = c(1988, NA)) +
   HydroBOT::theme_werp_toolkit(axis.ticks.y = element_blank(),
@@ -642,6 +761,9 @@ make_venn_plots <- function(venn_data) {
 
 vennplots_recorded <- purrr::map(venndata_recorded, make_venn_plots)
 vennplots_named <- purrr::map(venndata_named, make_venn_plots)
+
+
+unique(venndata_recorded$red_gum$stage_name)
 ```
 
 ### Stacked fig for paper
@@ -671,8 +793,8 @@ ts_plot <-  topplot /
 
   if (print) {
     thispath <- file.path(tspath, paste0(species, '_timeseries'))
-    galenR::ggsave_multi(filename = thispath, plot = ts_plot, 
-                         device = c('png', 'svg'),
+    ggsave_multi(filename = thispath, plot = ts_plot, 
+                         device = c('png', 'pdf'),
                          width = 16, height = 22, units = "cm")
   }
 
@@ -1040,7 +1162,7 @@ make_interact2d_fig <- function(species, print = TRUE) {
 
   if (print) {
     thispath <- file.path(mappath, paste0(species, '_map'))
-    galenR::ggsave_multi(filename = thispath, 
+    ggsave_multi(filename = thispath, 
                          plot = inter_matrix_maps, 
                          device = c('png', 'svg'),
                          width = 16, height = 9, units = "cm")
@@ -1052,4 +1174,16 @@ make_interact2d_fig <- function(species, print = TRUE) {
 
 all_interactmap <- purrr::map(species, make_interact2d_fig) |> 
   setNames(species)
+```
+
+## ANAEs
+
+```{r}
+ANAEs <- readRDS(file.path(datOut,"anae_simplify", "all_anae_simplify.rds"))
+
+
+plot_ananes <- ggplot(ANAEs[1:250,])+
+    geom_sf()
+plot_ananes
+ggsave(plot = plot_ananes, file.path(mappath, "anaes.pdf"), device = "pdf")
 ```
