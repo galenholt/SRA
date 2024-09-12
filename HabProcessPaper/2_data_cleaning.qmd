@@ -491,8 +491,10 @@ combo_stages <- c('Adult and Named', 'Germination and Named',
 sequential_stages <- c('Adult', 'Regeneration', 'Recruitment',
                        'Recruitment and Named', 'Recruitment and Recorded')
 
-sequential_hab <- c('Named wetland types', 'Recorded wetland types', 'All wetlands',
-                       'Recruitment and Named', 'Recruitment and Recorded')
+sequential_hab <- c('Named wetland types', 'Recorded wetland types',
+                    'All wetland types',
+                    'Recruitment and Named',
+                    'Recruitment and Recorded')
 
 # The different comparisons across type
 hab_all <- c('All wetlands', process_stages)

@@ -75,7 +75,7 @@ ggplot() +
 
 anae_map
 
-galenR::ggsave_multi(appath, plot = anae_map, device = c('pdf', 'png'),
+ggsave_multi(file.path(appath, 'anaes'), plot = anae_map, device = c('pdf', 'png'),
                      width = 8, height = 8, units = 'cm')
 ```
 
@@ -89,6 +89,18 @@ ala_records_map
 #| label: fig-all-records
 #| fig-cap: ALA records for each species that intersect with ANAE wetlands (green) or do not (brown). The vast majority of ALA records in the Murray-Darling Basin do fall within ANAE wetlands for these species.
 all_records_map
+
+ggsave_multi(file.path(appath, 'ala_records'), plot = all_records_map,
+             device = c('pdf', 'png'),
+                     width = 12, height = 12, units = 'cm')
+```
+
+```{r}
+#| label: tbl-in-ala
+#| tbl-cap: Proportion of ALA records in ANAE wetlands for each species.
+allrecords |> 
+  st_drop_geometry() |> 
+  summarise("Proportion in ANAE" = sum(in_ala)/n(), .by = species)
 ```
 
 The number of ALA records is highly variable across wetland type and varies between species (@tbl-ala-records-rg, black box @tbl-ala-records-bb, coolabah @tbl-ala-records-cool, and lignum @tbl-ala-records-l). Strikingly, the *Named* wetland types are not always the wetland types with the most records, and in some cases are even excluded from the *Recorded* set because they contain \< 0.05% of the total records.
@@ -179,9 +191,14 @@ totalhab_maps <- purrr::imap(totalhab_basin_map, \(x, i)
                              x + ggtitle(stringr::str_replace(i, '_', ' ') |> 
                                            stringr::str_to_sentence())) |>
   wrap_plots() + 
-  plot_layout(guides = 'collect')  
+  plot_layout(guides = 'collect') & 
+  # make common limits
+  scale_fill_viridis_c(option = 'mako', limits = c(0,10.2)) &
+  theme(legend.position = 'bottom')
 
-totalhab_maps 
+ggsave_multi(file.path(appath, 'wetland_area'), plot = totalhab_maps,
+             device = c('pdf', 'png'),
+                     width = 16, height = 12, units = 'cm')
 ```
 
 # Appendix: Other species

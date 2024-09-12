@@ -938,7 +938,7 @@ make_totalhabitat_map <- function(species) {
   ggplot(aes(fill = log10(area + 1))) +
   geom_sf() +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
-  facet_grid(.~stage_name) +
+  facet_grid(.~stage_name, labeller = label_wrap_gen(18)) +
   HydroBOT::theme_werp_toolkit() +
   labs(fill = "log(area + 1)")
 
@@ -1164,7 +1164,7 @@ make_interact2d_fig <- function(species, print = TRUE) {
     thispath <- file.path(mappath, paste0(species, '_map'))
     ggsave_multi(filename = thispath, 
                          plot = inter_matrix_maps, 
-                         device = c('png', 'svg'),
+                         device = c('png', 'pdf'),
                          width = 16, height = 9, units = "cm")
   }
 
