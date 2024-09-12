@@ -232,7 +232,7 @@ woody_general <- function(out_dir, catchment,
   shift_inun <- daily_inun[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
   shift_inun <- cbind(shift_inun, daily_inun[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
 
-  rm(daily_inun)
+  # rm(daily_inun)
 
   germ_area <- soilmoist_germdays
   germ_area[[1]] <- pmin(shift_inun, soilmoist_germdays[[1]])
@@ -247,12 +247,12 @@ woody_general <- function(out_dir, catchment,
   shift_adult <- daily_adult[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
   shift_adult <- cbind(shift_adult, daily_adult[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
 
-  rm(daily_adult)
+  # rm(daily_adult)
 
   adult_germ_area <- germ_area
   adult_germ_area[[1]] <- pmin(shift_adult, germ_area[[1]])
 
-  rm(soilmoist_germdays, shift_inun, shift_adult)
+  # rm(soilmoist_germdays, shift_inun, shift_adult)
 
   rlang::inform(glue::glue("Germination done in {round(Sys.time() - starttime)} seconds."))
 
@@ -384,10 +384,15 @@ woody_general <- function(out_dir, catchment,
 
   # Aggregate to year with meaneven though these are only pseudo-daily. That
   # captures a time-dependence that the max would miss (e.g. one possible string
-  # of 10 days, vs every day). This uses as much time as the rest of the script put together. Should I furrr::future_map()?
+  # of 10 days, vs every day). This uses as much time as the rest of the script
+  # put together. Should I furrr::future_map()? Using na.rm = FALSE here sets
+  # partial years to NA. That may not matter for some species, but it will for
+  # those with seasonality- in the extreme case, Coolabah only germinates in a
+  # season not yet there in the last year of inundation data, and so gets set
+  # (inappropriately) to 0 instead of NA since we haven't really assessed.
   yrstricts <- purrr::map(bare_stricts, \(x)
                           tempaggregate(starObj = x, by = datebreaks,
-                                        FUN = mean, na.rm = TRUE) |>
+                                        FUN = mean, na.rm = FALSE) |>
                             aperm(c('geometry', 'time')))
 
   rm(bare_stricts)
