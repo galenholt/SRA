@@ -273,7 +273,7 @@ basin_bar_proc2hab <- all_data_basin |>
   filter((species == {{species}} | is.na(species)) &
            !is.na(proc_type) &
            !grepl('Germ|Seed', stage_name)) |>
-  mutate(hab_comp = ifelse(as.character(hab_type) == 'All wetlands',
+  mutate(hab_comp = ifelse(as.character(hab_type) == 'All wetland types',
                            as.character(proc_type), as.character(hab_type)),
          hab_comp = factor(hab_comp, levels = c(levels(proc_type), "Recorded wetland types","Named wetland types"))) |>
   sf::st_drop_geometry() |>
@@ -892,7 +892,7 @@ ala_catch_maps <- catch_ala |>
   facet_wrap("species_name") +
   scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  labs(fill = "log(ALA records)")
 
   return(ala_catch_maps)
 }

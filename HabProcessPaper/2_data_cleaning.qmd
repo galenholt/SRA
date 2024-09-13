@@ -497,7 +497,7 @@ sequential_hab <- c('Named wetland types', 'Recorded wetland types',
                     'Recruitment and Recorded')
 
 # The different comparisons across type
-hab_all <- c('All wetlands', process_stages)
+hab_all <- c('All wetland types', process_stages)
 hab_named <- c('Named wetland types', combo_stages[grepl('Named', combo_stages)])
 hab_record <- c('Recorded wetland types', combo_stages[grepl('Recorded', combo_stages)])
 
