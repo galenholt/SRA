@@ -63,16 +63,27 @@ We model four iconic species of woody vegetation in the Murray-Darling Basin (@f
 #| label: fig-mdb
 #| fig-cap: The Murray-Darling basin in Eastern Australia. In this paper, we divide the basin into 25 major catchments, indicated here by color. *Labeling them is terrible because of all the little ones in Victoria, even if we zoom in to just the basin. Do we need to?*
 
-ggplot() +
+basinmap <- ggplot() +
   geom_sf(data = aucut) +
   geom_sf(data = ltimNoNorth, mapping = aes(fill = ValleyName)) +
   geom_sf(data = cities) +
-  geom_sf_text(data = cities, mapping = aes(label = name)) +
+  ggrepel::geom_text_repel(data = cities, mapping = aes(label = name, geometry = geometry),
+                           stat = 'sf_coordinates',
+                           min.segment.length = 0,
+                           nudge_x = ifelse(cities$name == "Melbourne", 550000, 450000),
+                           nudge_y = ifelse(cities$name == "Melbourne", -100000, 0)) +
+  # geom_sf_text(data = cities, mapping = aes(label = name)) +
   # geom_sf_text(data = ltimNoNorth, mapping = aes(label = ValleyName)) +
   colorspace::scale_fill_discrete_qualitative(palette = 'Harmonic') +
   theme_bw() +
   theme(legend.position = 'none', axis.title = element_blank())
   # coord_sf(crs = st_crs(ltimNoNorth))
+
+basinmap
+
+galenR::ggsave_multi(file.path(datOut, 'habprocesspaper', 'Figures', 'basin_map'),
+             plot = basinmap, device = c('pdf', 'png'),
+                     width = 8, height = 12, units = 'cm')
 ```
 
 ## Wetland type favourability

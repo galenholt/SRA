@@ -103,6 +103,15 @@ allrecords |>
   summarise("Proportion in ANAE" = sum(in_ala)/n(), .by = species)
 ```
 
+```{r}
+#| label: fig-ala-catch
+#| fig-cap: Number of ALA records falling within ANAE wetlands in each catchment for each species. Grey catchments have no ALA records for that species.
+
+ggsave_multi(file.path(appath, 'ala_catchment'), plot = ala_catch_map,
+             device = c('pdf', 'png'),
+                     width = 12, height = 12, units = 'cm')
+```
+
 The number of ALA records is highly variable across wetland type and varies between species (@tbl-ala-records-rg, black box @tbl-ala-records-bb, coolabah @tbl-ala-records-cool, and lignum @tbl-ala-records-l). Strikingly, the *Named* wetland types are not always the wetland types with the most records, and in some cases are even excluded from the *Recorded* set because they contain \< 0.05% of the total records.
 
 ```{r}
