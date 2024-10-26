@@ -187,7 +187,6 @@ adult_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'adult'))
 print(adult_basin_time)
 ```
 
-
 ### Germ
 
 ```{r}
@@ -244,6 +243,7 @@ adult_germ_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'adult_ger
 
 print(adult_germ_basin_time)
 ```
+
 ### Full life cycle
 
 ```{r}
@@ -262,4 +262,3 @@ adult_germ_seed_basin_time <- purrr::map(species, \(x) basin_time_plots(x, 'full
 
 print(adult_germ_seed_basin_time)
 ```
-

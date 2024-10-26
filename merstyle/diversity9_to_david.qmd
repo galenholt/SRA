@@ -1,0 +1,58 @@
+---
+title: "Diversity outputs to David"
+format: html
+editor: visual
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r}
+source('directorySet.R')
+library(eFlowEval)
+library(ggplot2)
+library(foreach)
+library(patchwork)
+```
+
+```{r}
+# Making these up for now, we'll want to be consistent
+currenttimestart <- lubridate::ymd('20170701') # last day is 2022-07-01, so 5 years back
+currenttimeend <- lubridate::ymd('20240301')
+
+# Centered on BP date?
+preBPtimestart <- lubridate::ymd('20060701')
+preBPtimeend <- lubridate::ymd('20110701')
+
+# Need a clean name to bring in data
+catchments <- ltimNoNorth |> 
+  mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
+
+cleancatch <- catchments$name_clean
+```
+
+A read-in function
+
+```{r}
+catch_to_csv_sf <- function(which_strict, catchments = cleancatch, outerdir = 'diversity') {
+  foreach(i = catchments,
+          .combine = dplyr::bind_rows,
+          .multicombine = TRUE) %do% {
+            thiscatch <- readRDS(file.path(datOut, outerdir, which_strict, 
+                                           paste0(i, '_', which_strict, '.rds')))
+            thiscatch <- thiscatch |> 
+              dplyr::mutate(wetland_area = sf::st_area(geometry)) |> 
+              sf::st_drop_geometry() |> 
+              dplyr::select(ValleyName, time, UID, ANAE_DESC, areaInun05cm_from_depth, wetland_area) |> 
+              readr::write_csv(file = file.path(datOut, 'wetland_composition', 
+                                           paste0(i,'_yearly.csv')))
+          }
+  return(TRUE)
+}
+```
+
+```{r}
+diversity_savout <- catch_to_csv_sf("diversity_yearly_sf")
+```
+
