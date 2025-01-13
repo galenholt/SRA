@@ -1,0 +1,128 @@
+---
+title: "Report Data Updates"
+format: html
+editor: visual
+---
+
+We need to update some analyses for the report. I need to extract some data that has already been processed and summarise it in different ways than before. I don't want to re-run the analyses, and instead use the original data outputs, just process them a bit differently or extract thigns we hadn't extracted previously.
+
+```{r}
+library(sf)
+library(dplyr)
+library(foreach)
+source('directorySet.R')
+```
+
+```{r}
+# Making these up for now, we'll want to be consistent
+currenttimestart <- lubridate::ymd('20170701') # last day is 2022-07-01, so 5 years back
+currenttimeend <- lubridate::ymd('20240301')
+
+# Centered on BP date?
+preBPtimestart <- lubridate::ymd('20060701')
+preBPtimeend <- lubridate::ymd('20110701')
+
+# Need a clean name to bring in data
+catchments <- eFlowEval::ltimNoNorth |> 
+  mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
+
+cleancatch <- catchments$name_clean
+```
+
+
+## 'Lateral connectivity'
+
+Here, we want the area of inundation in ANAE polygons assigned to Red Gum (lower) and Black Box (upper). That's already been calculated, and is in the rds files in `file.path(datOut, 'red_gum', 'anae_inun_anae_name_catchment')`
+
+We will need to extract the total area of wetlands of each named type. We have it, but never aggregated it that way.
+
+```{r}
+allwets <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
+```
+
+
+```{r}
+# veg_name <- 'red_gum'
+# veg_grep <- dplyr::case_when(veg_name == 'black_box' ~ 'black box',
+#                                veg_name == 'red_gum' ~ 'red gum',
+#                                veg_name == 'coolabah' ~ 'cool',
+#                                veg_name == 'lignum' ~ 'lignum')
+
+  # Filter the polygons
+rgwets <- allwets |> 
+  dplyr::filter(grepl('red gum', ANAE_DESC, ignore.case = TRUE)) # the name filter
+
+# Add up their areas
+rgwets <- rgwets |> 
+  dplyr::mutate(area = sf::st_area(geometry)) |> 
+  st_drop_geometry() |> 
+  summarise(ValleyName = unique(ValleyName), area = sum(as.numeric(area)), 
+            .by = ValleyName) |> 
+  mutate(species = 'red_gum')
+
+bbwets <- allwets |> 
+  dplyr::filter(grepl('black box', ANAE_DESC, ignore.case = TRUE)) # the name filter
+
+# Add up their areas
+bbwets <- bbwets |> 
+  dplyr::mutate(area = sf::st_area(geometry)) |> 
+  st_drop_geometry() |> 
+  summarise(ValleyName = unique(ValleyName), area = sum(as.numeric(area)), 
+            .by = ValleyName) |> 
+  mutate(species = 'black_box')
+
+named_areas <- dplyr::bind_rows(rgwets, bbwets)
+
+named_areas <- left_join(named_areas, eFlowEval::ltimNoNorth) |> 
+  st_as_sf()
+saveRDS(named_areas, file.path(datOut, 'report_updates', 'named_wetland_areas.rds'))
+```
+
+## 'Extent'
+
+Here, we want to get the ANAE polygons with ALA records for each species, as well as the adult favourability in those specific polygons.
+
+```{r}
+bb <- readRDS(file.path(datOut, 'vegmapping','black_box_anae_records.rds'))
+```
+
+```{r}
+# are the UIDs enough?
+all(unique(bb$UID) %in% allwets$UID)
+```
+So, first we want all the ANAE polygons where there are records; the '_records.rds' files have hte records themselves, but have been joined to anaes, so we can select those UIDs. I might save a few useful things there too.
+
+Sort it out with black box
+
+```{r}
+bb_all_wetlands <- bb |> 
+  st_drop_geometry() |> 
+  summarise(n_records = n(), .by = c(UID)) |> 
+  mutate(species = 'black_box') |> 
+  left_join(allwets, by = 'UID') |> 
+  st_as_sf() |> 
+  mutate(area = as.numeric(st_area(geometry)))
+```
+
+```{r}
+bb_all_wetlands_catchment <- 
+  bb_all_wetlands |> 
+  st_drop_geometry() |> 
+  summarise(species = unique(species), 
+            area = sum(area), n_records = sum(n_records),
+            .by = ValleyName) |> 
+  left_join(eFlowEval::ltimNoNorth) |> 
+  st_as_sf()
+```
+
+Now, where are the adult favourabilities for *just those anaes*?
+
+I think everythign we save out might be the summaries. 
+
+In woody_general, it looks like bare_stricts are raw, and yearstricts are year-aggregated but still in ANAEs.
+
+```{r}
+ads <- readRDS(file.path(datOut, 'black_box', 'adult_area', 'Avoca_adult_area.rds'))
+```
+
+

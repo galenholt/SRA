@@ -13,39 +13,6 @@
     ]
   },
   "Packages": {
-    "eFlowEval": {
-      "Package": "eFlowEval",
-      "Version": "0.0.0.9047",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "eFlowEval",
-      "RemoteUsername": "galenholt",
-      "RemoteRef": "dev",
-      "RemoteSha": "b2d1b7e4a088ce5568f371d82944903877eb282a",
-      "Requirements": [
-        "R",
-        "Rcpp",
-        "RcppRoll",
-        "doFuture",
-        "dplyr",
-        "foreach",
-        "ggplot2",
-        "knitr",
-        "lubridate",
-        "lwgeom",
-        "purrr",
-        "readxl",
-        "rlang",
-        "sf",
-        "stars",
-        "stringr",
-        "tibble",
-        "tidyr",
-        "units"
-      ],
-      "Hash": "3220629ca96f6f22695290f20bf3f935"
-    },
     "DBI": {
       "Package": "DBI",
       "Version": "1.2.2",
@@ -84,6 +51,42 @@
         "visNetwork"
       ],
       "Hash": "584c1e1cbb6f9b6c3b0f4ef0ad960966"
+    },
+    "HydroBOT": {
+      "Package": "HydroBOT",
+      "Version": "0.1.4",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "MDBAuth",
+      "RemoteRepo": "WERP_toolkit",
+      "RemoteRef": "master",
+      "RemoteSha": "4b6f805ceb20b4c649c2202903ca6bb14fe3824d",
+      "Requirements": [
+        "DiagrammeR",
+        "R",
+        "dplyr",
+        "forcats",
+        "foreach",
+        "ggplot2",
+        "glue",
+        "grDevices",
+        "lwgeom",
+        "paletteer",
+        "purrr",
+        "readr",
+        "reticulate",
+        "rlang",
+        "scales",
+        "sf",
+        "stringi",
+        "stringr",
+        "tibble",
+        "tidyr",
+        "tidyselect",
+        "yaml"
+      ],
+      "Hash": "01ebadade90afeb7db59be230cc4ced3"
     },
     "KernSmooth": {
       "Package": "KernSmooth",
@@ -527,6 +530,39 @@
         "utils"
       ],
       "Hash": "4ef372b716824753719a8a38b258442d"
+    },
+    "eFlowEval": {
+      "Package": "eFlowEval",
+      "Version": "0.0.0.9047",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "eFlowEval",
+      "RemoteUsername": "galenholt",
+      "RemoteRef": "dev",
+      "RemoteSha": "b2d1b7e4a088ce5568f371d82944903877eb282a",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "RcppRoll",
+        "doFuture",
+        "dplyr",
+        "foreach",
+        "ggplot2",
+        "knitr",
+        "lubridate",
+        "lwgeom",
+        "purrr",
+        "readxl",
+        "rlang",
+        "sf",
+        "stars",
+        "stringr",
+        "tibble",
+        "tidyr",
+        "units"
+      ],
+      "Hash": "3220629ca96f6f22695290f20bf3f935"
     },
     "evaluate": {
       "Package": "evaluate",
@@ -1442,13 +1478,10 @@
     },
     "renv": {
       "Package": "renv",
-      "Version": "1.0.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "utils"
-      ],
-      "Hash": "41b847654f567341725473431dd0d5ab"
+      "Version": "1.0.11",
+      "OS_type": null,
+      "Repository": "RSPM",
+      "Source": "Repository"
     },
     "reticulate": {
       "Package": "reticulate",
@@ -1884,42 +1917,6 @@
         "withr"
       ],
       "Hash": "390f9315bc0025be03012054103d227c"
-    },
-    "HydroBOT": {
-      "Package": "HydroBOT",
-      "Version": "0.1.4",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "MDBAuth",
-      "RemoteRepo": "WERP_toolkit",
-      "RemoteRef": "master",
-      "RemoteSha": "4b6f805ceb20b4c649c2202903ca6bb14fe3824d",
-      "Requirements": [
-        "DiagrammeR",
-        "R",
-        "dplyr",
-        "forcats",
-        "foreach",
-        "ggplot2",
-        "glue",
-        "grDevices",
-        "lwgeom",
-        "paletteer",
-        "purrr",
-        "readr",
-        "reticulate",
-        "rlang",
-        "scales",
-        "sf",
-        "stringi",
-        "stringr",
-        "tibble",
-        "tidyr",
-        "tidyselect",
-        "yaml"
-      ],
-      "Hash": "01ebadade90afeb7db59be230cc4ced3"
     },
     "withr": {
       "Package": "withr",
