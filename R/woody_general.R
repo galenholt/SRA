@@ -122,6 +122,9 @@ woody_general <- function(out_dir, catchment,
 
   catchment_records <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_catchment.rds')))
 
+  # Restrict to INDIVIDUAL ANAEs with records
+  specific_anaes <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_anae_records.rds')))
+
   # the set of times.
   times <- stars::st_get_dimension_values(anae_inun$aggdata, 'time')
 
@@ -425,13 +428,17 @@ woody_general <- function(out_dir, catchment,
     dplyr::mutate(name_anae = grepl(veg_grep, ANAE_DESC, ignore.case = TRUE),
                   # option 2: by ala record
                   ala_anae = ANAE_DESC %in% ala_types,
-                  catchment = ValleyName %in% catchments)
+                  catchment = ValleyName %in% catchments,
+                  # option 3: The specific wetland with the record
+                  specific_anae = UID %in% unique(specific_anaes$UID))
 
   # clip the strictures
   anae_name_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$name_anae) |>
     setNames(paste0(names(yrstricts), '_anae_name'))
   anae_ala_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$ala_anae) |>
     setNames(paste0(names(yrstricts), '_anae_ala'))
+  specific_anae_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$specific_anae) |>
+    setNames(paste0(names(yrstricts), '_specific_anae'))
 
   # It's tempting to do the catchment clips post-catchment aggregation, but it's
   # more general to do it here and keeps things standard. It doesn't seem to be
@@ -443,6 +450,8 @@ woody_general <- function(out_dir, catchment,
     setNames(paste0(names(yrstricts), '_anae_name_catchment'))
   catchment_ala_stricts <- purrr::map(anae_ala_stricts, \(x) x * anaestricts$catchment) |>
     setNames(paste0(names(yrstricts), '_anae_ala_catchment'))
+  # I'm not making a catchment clip version of the records, since it's
+  # explicitly about exactly where the records are
 
   rlang::inform(glue::glue("ANAE clipped in {round(Sys.time() - starttime)} seconds."))
 
@@ -480,7 +489,8 @@ woody_general <- function(out_dir, catchment,
     return(t2)
   }
 
-  response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts,
+  response_list <- c(yrstricts,
+                     anae_name_stricts, anae_ala_stricts, specific_anae_stricts,
                      catchment_stricts, catchment_name_stricts, catchment_ala_stricts) |>
     purrr::map(\(x) super_aggforce(x, catchpoly, newname = 'area'))
   # response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>

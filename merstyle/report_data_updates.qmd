@@ -29,7 +29,6 @@ catchments <- eFlowEval::ltimNoNorth |>
 cleancatch <- catchments$name_clean
 ```
 
-
 ## 'Lateral connectivity'
 
 Here, we want the area of inundation in ANAE polygons assigned to Red Gum (lower) and Black Box (upper). That's already been calculated, and is in the rds files in `file.path(datOut, 'red_gum', 'anae_inun_anae_name_catchment')`
@@ -39,7 +38,6 @@ We will need to extract the total area of wetlands of each named type. We have i
 ```{r}
 allwets <- readRDS(file.path(datOut, 'ANAEcatchment', 'ANAEcatchment.rds'))
 ```
-
 
 ```{r}
 # veg_name <- 'red_gum'
@@ -90,7 +88,8 @@ bb <- readRDS(file.path(datOut, 'vegmapping','black_box_anae_records.rds'))
 # are the UIDs enough?
 all(unique(bb$UID) %in% allwets$UID)
 ```
-So, first we want all the ANAE polygons where there are records; the '_records.rds' files have hte records themselves, but have been joined to anaes, so we can select those UIDs. I might save a few useful things there too.
+
+So, first we want all the ANAE polygons where there are records; the '\_records.rds' files have hte records themselves, but have been joined to anaes, so we can select those UIDs. I might save a few useful things there too.
 
 Sort it out with black box
 
@@ -117,12 +116,10 @@ bb_all_wetlands_catchment <-
 
 Now, where are the adult favourabilities for *just those anaes*?
 
-I think everythign we save out might be the summaries. 
+I think everythign we save out might be the summaries.
 
-In woody_general, it looks like bare_stricts are raw, and yearstricts are year-aggregated but still in ANAEs.
+In woody_general, it looks like bare_stricts are raw, and yearstricts are year-aggregated but still in ANAEs. But we don't save them out. Luckily, when we changed the life cycle order, we didn't change any of the adult strictures.
 
 ```{r}
 ads <- readRDS(file.path(datOut, 'black_box', 'adult_area', 'Avoca_adult_area.rds'))
 ```
-
-
