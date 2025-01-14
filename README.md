@@ -103,6 +103,14 @@ sbatch any_R.sh run_r_hpc.R "MER_data_processing/anae_area_inundated.qmd"
 
 To start a master process in run_r_hpc that then fires off sub-slurms (presumably) in anae_area_inundated.qmd.
 
+For the veg3_*_responses.qmd, there's no chunking, and so it's faster/better to make them multicore (no list) and use 
+
+```
+sbatch big_R.sh run_r_hpc.R "merstyle/veg3_coolabah_responses.qmd"
+```
+
+If you get lots of errors about workers not returning values, try turning down memory and cores. It's unclear what the issue is, but I think we're hitting memory stomping issues.
+
 ### HPC instructions
 
 clone this to an HPC system. 
@@ -117,5 +125,3 @@ module load R/4.3`
 R
 renv::status()
 ```
-
-
