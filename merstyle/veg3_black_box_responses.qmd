@@ -20,7 +20,7 @@ I hit memory issues if I use all the workers (20 on my comp, 10 on Gandalf). Adj
 ```{r}
 if (parset == 'local') {
   # I have 20 cores, turning it down to not run out of memory
-  plan(multisession, workers = 10)
+  plan(multisession, workers = 2)
 }
 
 # These don't actuallyI hit memory issues if I use all the workers (20 on my comp, 10 on Gandalf) utilise two levels of parallelism. I have two options then- 

@@ -78,26 +78,56 @@ saveRDS(named_areas, file.path(datOut, 'report_updates', 'named_wetland_areas.rd
 
 ## 'Extent'
 
-Here, we want to get the ANAE polygons with ALA records for each species, as well as the adult favourability in those specific polygons.
+Here, we want to get the ANAE polygons with ALA records for each species, as well as the adult favourability in those specific polygons. I'm just going to do this bit manually.
 
 ```{r}
 bb <- readRDS(file.path(datOut, 'vegmapping','black_box_anae_records.rds'))
+lig <- readRDS(file.path(datOut, 'vegmapping','lignum_anae_records.rds'))
+cool <- readRDS(file.path(datOut, 'vegmapping','coolabah_anae_records.rds'))
+rg <- readRDS(file.path(datOut, 'vegmapping','red_gum_anae_records.rds'))
 ```
 
 ```{r}
 # are the UIDs enough?
 all(unique(bb$UID) %in% allwets$UID)
+all(unique(lig$UID) %in% allwets$UID)
+all(unique(cool$UID) %in% allwets$UID)
+all(unique(rg$UID) %in% allwets$UID)
 ```
 
 So, first we want all the ANAE polygons where there are records; the '\_records.rds' files have hte records themselves, but have been joined to anaes, so we can select those UIDs. I might save a few useful things there too.
 
-Sort it out with black box
+Just do it manually, even though it's dumb and copy-paste
 
 ```{r}
 bb_all_wetlands <- bb |> 
   st_drop_geometry() |> 
   summarise(n_records = n(), .by = c(UID)) |> 
   mutate(species = 'black_box') |> 
+  left_join(allwets, by = 'UID') |> 
+  st_as_sf() |> 
+  mutate(area = as.numeric(st_area(geometry)))
+
+lig_all_wetlands <- lig |> 
+  st_drop_geometry() |> 
+  summarise(n_records = n(), .by = c(UID)) |> 
+  mutate(species = 'lignum') |> 
+  left_join(allwets, by = 'UID') |> 
+  st_as_sf() |> 
+  mutate(area = as.numeric(st_area(geometry)))
+
+cool_all_wetlands <- cool |> 
+  st_drop_geometry() |> 
+  summarise(n_records = n(), .by = c(UID)) |> 
+  mutate(species = 'coolabah') |> 
+  left_join(allwets, by = 'UID') |> 
+  st_as_sf() |> 
+  mutate(area = as.numeric(st_area(geometry)))
+
+rg_all_wetlands <- rg |> 
+  st_drop_geometry() |> 
+  summarise(n_records = n(), .by = c(UID)) |> 
+  mutate(species = 'red_gum') |> 
   left_join(allwets, by = 'UID') |> 
   st_as_sf() |> 
   mutate(area = as.numeric(st_area(geometry)))
@@ -112,7 +142,48 @@ bb_all_wetlands_catchment <-
             .by = ValleyName) |> 
   left_join(eFlowEval::ltimNoNorth) |> 
   st_as_sf()
+
+lig_all_wetlands_catchment <- 
+  lig_all_wetlands |> 
+  st_drop_geometry() |> 
+  summarise(species = unique(species), 
+            area = sum(area), n_records = sum(n_records),
+            .by = ValleyName) |> 
+  left_join(eFlowEval::ltimNoNorth) |> 
+  st_as_sf()
+
+cool_all_wetlands_catchment <- 
+  cool_all_wetlands |> 
+  st_drop_geometry() |> 
+  summarise(species = unique(species), 
+            area = sum(area), n_records = sum(n_records),
+            .by = ValleyName) |> 
+  left_join(eFlowEval::ltimNoNorth) |> 
+  st_as_sf()
+
+rg_all_wetlands_catchment <- 
+  rg_all_wetlands |> 
+  st_drop_geometry() |> 
+  summarise(species = unique(species), 
+            area = sum(area), n_records = sum(n_records),
+            .by = ValleyName) |> 
+  left_join(eFlowEval::ltimNoNorth) |> 
+  st_as_sf()
+
+
 ```
+
+```{r}
+
+anaes_with_records <- dplyr::bind_rows(bb_all_wetlands_catchment, 
+                         lig_all_wetlands_catchment, 
+                         cool_all_wetlands_catchment, 
+                         rg_all_wetlands_catchment)
+saveRDS(anaes_with_records,
+        file.path(datOut, 'report_updates', 'anaes_with_records.rds'))
+```
+
+So that has the area of anaes that have an ala record for each species in each catchment.
 
 Now, where are the adult favourabilities for *just those anaes*?
 
@@ -120,6 +191,4 @@ I think everythign we save out might be the summaries.
 
 In woody_general, it looks like bare_stricts are raw, and yearstricts are year-aggregated but still in ANAEs. But we don't save them out. Luckily, when we changed the life cycle order, we didn't change any of the adult strictures.
 
-```{r}
-ads <- readRDS(file.path(datOut, 'black_box', 'adult_area', 'Avoca_adult_area.rds'))
-```
+I've now re-run with the ability to select only anaes that have ALA records, and saved them with the suffix 'specific_anae'.
