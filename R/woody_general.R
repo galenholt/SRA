@@ -380,7 +380,7 @@ woody_general <- function(out_dir, catchment,
 
   #### START MAKING FINAL DFs
 
-  response_list <- list()
+  # response_list <- list()
 
   # Aggregate to year -------------------------------------------------------
 
@@ -400,7 +400,7 @@ woody_general <- function(out_dir, catchment,
   # those with seasonality- in the extreme case, Coolabah only germinates in a
   # season not yet there in the last year of inundation data, and so gets set
   # (inappropriately) to 0 instead of NA since we haven't really assessed.
-  response_list$yrstricts <- purrr::map(
+  yrstricts <- purrr::map(
     tibble::lst(adult_area, germ_area, seedling_area, adult_germ_area,
                 adult_germ_seed_area, anae_inun = anae_inun$aggdata),
     \(x) tempaggregate(starObj = x, by = datebreaks,
@@ -445,22 +445,28 @@ woody_general <- function(out_dir, catchment,
                   specific_anae = UID %in% unique(specific_anaes$UID))
 
   # clip the strictures
-  response_list$anae_name_stricts <- purrr::map(response_list$yrstricts, \(x) x * anaestricts$name_anae) |>
+  anae_name_stricts <- purrr::map(yrstricts,
+                                                \(x) x * anaestricts$name_anae) |>
     setNames(paste0(names(yrstricts), '_anae_name'))
-  response_list$anae_ala_stricts <- purrr::map(response_list$yrstricts, \(x) x * anaestricts$ala_anae) |>
+  anae_ala_stricts <- purrr::map(yrstricts,
+                                               \(x) x * anaestricts$ala_anae) |>
     setNames(paste0(names(yrstricts), '_anae_ala'))
-  response_list$specific_anae_stricts <- purrr::map(response_list$yrstricts, \(x) x * anaestricts$specific_anae) |>
+  specific_anae_stricts <- purrr::map(yrstricts,
+                                                    \(x) x * anaestricts$specific_anae) |>
     setNames(paste0(names(yrstricts), '_specific_anae'))
 
   # It's tempting to do the catchment clips post-catchment aggregation, but it's
   # more general to do it here and keeps things standard. It doesn't seem to be
   # where speed bottlenecks are anyway
   # Do these for the raw data and for the two anae-limited datas
-  response_list$catchment_stricts <- purrr::map(response_list$yrstricts, \(x) x * anaestricts$catchment) |>
+  catchment_stricts <- purrr::map(yrstricts,
+                                                \(x) x * anaestricts$catchment) |>
     setNames(paste0(names(yrstricts), '_catchment'))
-  response_list$catchment_name_stricts <- purrr::map(response_list$anae_name_stricts, \(x) x * anaestricts$catchment) |>
+  catchment_name_stricts <- purrr::map(anae_name_stricts,
+                                                     \(x) x * anaestricts$catchment) |>
     setNames(paste0(names(yrstricts), '_anae_name_catchment'))
-  response_list$catchment_ala_stricts <- purrr::map(response_list$anae_ala_stricts, \(x) x * anaestricts$catchment) |>
+  catchment_ala_stricts <- purrr::map(anae_ala_stricts,
+                                                    \(x) x * anaestricts$catchment) |>
     setNames(paste0(names(yrstricts), '_anae_ala_catchment'))
   # I'm not making a catchment clip version of the records, since it's
   # explicitly about exactly where the records are
@@ -501,10 +507,10 @@ woody_general <- function(out_dir, catchment,
     return(t2)
   }
 
-  response_list <- response_list |>
+  response_list <- c(yrstricts,
+                     anae_name_stricts, anae_ala_stricts, specific_anae_stricts,
+                     catchment_stricts, catchment_name_stricts, catchment_ala_stricts) |>
     purrr::map(\(x) super_aggforce(x, catchpoly, newname = 'area'))
-  # response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
-  #   purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
 
   # check that nothing is all na
   naareas <- purrr::map_lgl(response_list, \(x) all(is.na(x$area)))
@@ -540,16 +546,16 @@ woody_general <- function(out_dir, catchment,
 # #
 # #
 # ggplot() +
-#   geom_line(data = response_list$anae_inun_anae_ala, mapping = aes(x = date, y = area), color = 'black') +
-#   geom_line(data = response_list$germ_area_anae_ala, mapping = aes(x = date, y = area), color = 'green') +
-#   geom_line(data = response_list$seedling_area_anae_ala, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = response_list$adult_germ_seed_area_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
-#   geom_line(data = response_list$adult_area_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
+#   geom_line(data = anae_inun_anae_ala, mapping = aes(x = date, y = area), color = 'black') +
+#   geom_line(data = germ_area_anae_ala, mapping = aes(x = date, y = area), color = 'green') +
+#   geom_line(data = seedling_area_anae_ala, mapping = aes(x = date, y = area), color = 'purple') +
+#   geom_line(data = adult_germ_seed_area_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
+#   geom_line(data = adult_area_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
 # #
 # #
 # ggplot() +
-#   geom_line(data = response_list$anae_inun, mapping = aes(x = date, y = area), color = 'black') +
-#   geom_line(data = response_list$germ_area, mapping = aes(x = date, y = area), color = 'green') +
-#   geom_line(data = response_list$seedling_area, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = response_list$adult_germ_seed_area, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
-#   geom_line(data = response_list$adult_area, mapping = aes(x = date, y = area), color = 'blue')
+#   geom_line(data = anae_inun, mapping = aes(x = date, y = area), color = 'black') +
+#   geom_line(data = germ_area, mapping = aes(x = date, y = area), color = 'green') +
+#   geom_line(data = seedling_area, mapping = aes(x = date, y = area), color = 'purple') +
+#   geom_line(data = adult_germ_seed_area, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
+#   geom_line(data = adult_area, mapping = aes(x = date, y = area), color = 'blue')
