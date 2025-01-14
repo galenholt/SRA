@@ -15,12 +15,15 @@ library(progressr)
 doFuture::registerDoFuture()
 ```
 
+I hit memory issues if I use all the workers (20 on my comp, 10 on Gandalf). Adjust Gandalf by adjusting big_R, I guess (though maybe I can add a workers = 2 here so we can leave Gandalf alone?). In reality, the fastest way to do it might be to run with all the cores as long as we can, then step down. But that gets tricky if the big chunks are in the middle. Basically works interactively by just re-running and the other n-1 finish before the big job dies, and then we can re-run it with one worker. This doesn't work well on the HPC, and is kind of dumb.
+
 ```{r}
 if (parset == 'local') {
-  plan(multisession)
+  # I have 20 cores, turning it down to not run out of memory
+  plan(multisession, workers = 10)
 }
 
-# These don't actually utilise two levels of parallelism. I have two options then- 
+# These don't actuallyI hit memory issues if I use all the workers (20 on my comp, 10 on Gandalf) utilise two levels of parallelism. I have two options then- 
 # change this to just multicore and call sbatch big_R.sh run_r_hpc.R "merstyle/veg3_black_box_responses.qmd"
 # Or drop the tasks per node to 1 and let it still node-parallel.
 # In the big scheme of things, it probably doesn't matter, though I'd get an extra core due to my limit throttling if I use the first.
