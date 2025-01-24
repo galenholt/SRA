@@ -1,0 +1,160 @@
+---
+title: "Comparer"
+format: html
+editor: visual
+execute: 
+  cache: true
+---
+
+```{r}
+#| include: false
+#| 
+
+#library(HydroBOT)
+devtools::load_all(path = file.path("~/Georgia/WERP_toolkit"))
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(patchwork)
+library(tidyr)
+library(CC2)
+library(lubridate)
+
+# get directories
+#source('directorySet.R') #run manually??
+```
+
+## Paths
+
+I'm going to set this up to dump data to the QAEL WERP share for now. Unfortunately, that calls itself something different for each of us.
+
+```{r}
+#| include: false
+qaelpath <- myhome
+#qaelpath <- path.expand(qaelpath)
+datDir <- file.path(qaelpath, "Deakin University/QAEL - MER/Model/dataBase")
+datOut <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out")
+project_dir <- file.path(datOut, 'werpstyle')
+hydro_dir <- file.path(project_dir, 'hydrographs')
+
+# Generated data
+# EWR outputs (will be created here in controller, read from here in aggregator)
+ewr_results <- file.path(project_dir, 'module_output', 'EWR_numeric_gauges')
+ewr_results <- file.path(project_dir, 'MANUAL')
+
+# outputs of aggregator. There may be multiple modules
+agg_results <- file.path(project_dir, 'aggregator_output_numeric_gauges')
+
+comp_results <- file.path(project_dir, 'comparer_output') 
+
+data_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Final_datasets_2025")
+```
+
+## Read in data
+
+```{r}
+
+#Hydrographs- just read in the ones we use
+# scenehydros <- read_hydro(hydro_dir, 
+#                           #scenariofilter = stringr::str_c(scenarios_to_plot, '_', scenarios_to_plot), 
+#                           long = TRUE, format = 'csv') 
+
+wtr_yr <- function(dates, start_month=7) {
+  # Convert dates into POSIXlt
+  dates.posix = as.POSIXlt(dates)
+  # Year offset
+  offset = ifelse(dates.posix$mon >= start_month - 1, 1, 0)
+  # Water year
+  adj.year = dates.posix$year + 1900 + offset
+  # Return the water year
+  adj.year
+}
+
+
+hydro_paths <- find_scenario_paths(hydro_dir, type = 'csv')
+
+# read_plus <- function(flnm) {
+#     readr::read_csv(flnm) |>
+#     dplyr::mutate(filename = flnm,
+#                   Date = time)
+# }
+
+read_plus_2 <- function(flnm) {
+    readr::read_csv(flnm) |>
+    dplyr::mutate(filename = flnm)|>
+    tidyr::pivot_longer(cols = c(-Date, -filename), names_to = "gauge", values_to = "value")
+}
+
+# #First one to make df
+# hydros <- do.call(rbind,
+#           lapply(hydro_paths[1], read_plus))
+# 
+# #then the rest
+# for (i in 2:23) {
+#   hydros_temp <- do.call(rbind,
+#           lapply(hydro_paths[i], read_plus))
+#   
+#   hydros <- rbind(hydros, hydros_temp)
+#   
+# }
+
+hydros2 <- do.call(rbind,
+          lapply(hydro_paths[24], read_plus_2))
+
+#then the rest
+for (i in 25:length(hydro_paths)) {
+  hydros_temp <- do.call(rbind,
+          lapply(hydro_paths[i], read_plus_2))
+  
+  hydros2 <- rbind(hydros2, hydros_temp)
+  
+}
+
+hydros2 <- hydros2|> 
+  tidyr::separate(gauge, into = c("gauge", "gauge_type"), sep = "_", remove = FALSE)
+
+Timeseries_gauge_hydro <- hydros2 |>
+  #Change  years into water years:
+  mutate(year = wtr_yr(Date))|>
+  #mutate(year = lubridate::year(Date))|>
+  select(year, value, gauge, gauge_type)|>
+  group_by(year, gauge, gauge_type)|>
+  filter(!is.na(value))|>
+  mutate(value = ifelse(value < 0, 0, value))|>
+  summarise(flow = ArithmeticMean(value))|>
+  filter(gauge_type %in% c(NA, "flow"))
+
+#join gauge geometry
+Timeseries_gauge_hydro <- gauge2geo(Timeseries_gauge_hydro, "C:/Users/Admin/Documents/Georgia/WERP_toolkit/data-raw/bom_gauge_locations/bom_gauge_data.csv")
+
+#join valley geometry by gauge geometry (and remove gauge geo)
+Timeseries_gauge_hydro <- Timeseries_gauge_hydro |>
+  st_join(cewo_valleys)|>
+  st_drop_geometry()|>
+  left_join(cewo_valleys)
+
+```
+
+```{r}
+#TIMESERIES 
+
+# VALLEY RESULTS!
+Timeseries_valley_hydro <- Timeseries_gauge_hydro |>
+  dplyr::select(year, flow, ValleyName, geometry)|>
+  dplyr::group_by(dplyr::across(c(-flow)))|>
+  dplyr::reframe(flow = mean(flow, na.rm = TRUE),
+                 n_gauges = n())
+
+# basin level
+Timeseries_basin_hydro <- Timeseries_valley_hydro |> 
+  ungroup() |>
+  dplyr::select(-ValleyName, -geometry)|>
+  dplyr::group_by(year)|>
+  dplyr::reframe(flow = mean(flow, na.rm = TRUE),
+                 n_gauges = sum(n_gauges))
+
+saveRDS(Timeseries_valley_hydro, file.path(data_path, "Timeseries_valley_hydro.rds"))
+saveRDS(Timeseries_basin_hydro, file.path(data_path, "Timeseries_basin_hydro.rds"))
+
+```
+

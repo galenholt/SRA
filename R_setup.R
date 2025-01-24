@@ -35,7 +35,7 @@ install.packages("devtools")
 
 
 #renv::install('git@github.com:MDBAuth/WERP_toolkit.git@Georgia_fast', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
-renv::install('git@github.com:MDBAuth/WERP_toolkit.git@galen_working', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
+renv::install('git@github.com:MDBAuth/HydroBOT.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 #renv::install('git@github.com:MDBAuth/WERP_toolkit.git', rebuild = TRUE, upgrade = 'always', git = 'external', prompt = FALSE)
 
 #CC2

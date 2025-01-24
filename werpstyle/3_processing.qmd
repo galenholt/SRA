@@ -20,7 +20,7 @@ library(tidyr)
 library(CC2)
 
 # get directories
-#source('directorySet.R')
+#source('directorySet.R') #run manually??
 ```
 
 ## Paths
@@ -46,7 +46,7 @@ agg_results <- file.path(project_dir, 'aggregator_output_numeric_gauges')
 
 comp_results <- file.path(project_dir, 'comparer_output') 
 
-data_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Final_datasets")
+data_path <- file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Final_datasets_2025")
 ```
 
 ## Read in agged data
@@ -98,70 +98,45 @@ Timeseries_gauge_EWRversions <- Timeseries_gauge_EWRversions |>
 ## For joining space data and climate categories
 
 ```{r}
-#Gauge points:
-gauges_df <- get_ewr_gauges()|>
-  #st_drop_geometry() |>
-  mutate(OWNER = case_when(owner == "NSW - NSW Department of Industry – Lands and Water" ~ "NSW",
-                           owner == "VIC - Department of Environment, Land, Water and Planning"~ "VIC",
-                           owner == "SA - Department of Environment, Water and Natural Resources"~ "SA",
-                           owner == "QLD - Department of Natural Resources, Mines and Energy"~ "QLD",
-                           owner == NA ~ NA))
 
-#gauges_df_sld <- st_join(gauges_df, sdl_units)
-gauges_df_valleys <- st_join(gauges_df, cewo_valleys)
+Valley_to_planningunit <- read.csv(file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "Valley_to_planningunit.csv"))
+
+```
 
 
-#MAYBE DELETE AFTER HERE:
+```{r}
+#This is how i connected planning units to valleys
+#Planning units are already connected to SWSDLName,
+#i has already connected SWSDLNam to valleys.
+#so joined planning units to valleys via SWSDLName. 
+#did have to manually determine (edit the csv) the valley for some planning units that didnt work this way.
 
-#Climate categorgy data:
-Climate_Categories <- read.csv(file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "Climate_Categories_Coloured_2023.csv"), check.names = FALSE)
+#Update to fix planning_unit issue:
+#To join planning units to LTWPShortName
+#this does not work because LTWPShortName contains "Warrego Paroo and Nebine" but these are separate valleys
 
-Climate_Categories <- Climate_Categories |>
-  pivot_longer(cols = `Barwon-Darling`:`Total MDB`, names_to = "Climate_category.data", values_to = "Climate_Category")
+# Climate_Category_to_polygons_EWR <- Climate_Category_to_polygons_EWR #|>
+  # dplyr::select(Climate_category.data, SWSDLName)|>
+  # filter(Climate_category.data != "")|>
+  # filter(SWSDLName != "")|>
+  # distinct(Climate_category.data, SWSDLName)
 
-Climate_Categories <- Climate_Categories |>
-  mutate(Climate_Category = factor(Climate_Category, levels = c("Very Dry", "Dry", "Moderate", "Wet", "Very Wet")))
+# Climate_Category_to_polygons_EWR <- Climate_Category_to_polygons_EWR |> 
+#    mutate(name_clean = stringr::str_remove_all(ValleyName, ' '))
+# 
+# planning_units1 <- planning_units |>
+#   sf::st_drop_geometry()
+# 
+# planning_unit_to_SWSDLName <- get_ewr_table() |>
+#   distinct(PlanningUnitName, SWSDLName) |>
+#   left_join(planning_units1, by = join_by(PlanningUnitName)) |>
+#   sf::st_drop_geometry()
+# 
+# Climate_Category_to_polygons_EWR <- Climate_Category_to_polygons_EWR |>
+#   full_join(planning_unit_to_SWSDLName, by = join_by(SWSDLName))|>
+#   sf::st_drop_geometry()
 
-# read in the mapping of sdls to the climate category areas:
-Climate_Category_to_polygons <- read.csv(file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "Climate_Category_to_polygons.csv"))|>
-  dplyr::select(Climate_category.data, SWSDLName)|>
-  
-  #Climate_Categories_sdl does not have categorys for SA, so should use 'Eastern Mt Lofty Ranges' for SA
-  dplyr::mutate(Climate_category_area = case_when(SWSDLName == "South Australian Murray" ~ "Lower Murray",
-                                                  SWSDLName == "Eastern Mount Lofty Ranges" ~ "Lower Murray",
-                                           SWSDLName == "South Australian Non-Prescribed Areas" ~ "Lower Murray",
-                                           SWSDLName == "Marne Saunders" ~ "Lower Murray",
-                                           .default = Climate_category.data))|>
-  filter(Climate_category_area != "")|>
-  filter(SWSDLName != "")|>
-  mutate(SWSDLName = case_when(SWSDLName == "Barwon-Darling Watercourse" ~ "Barwon–Darling Watercourse",
-                               SWSDLName == "Barwon Darling Watercourse" ~ "Barwon–Darling Watercourse",
-                               SWSDLName == "Macquarie-Castlereagh" ~ "Macquarie–Castlereagh",
-                               SWSDLName == "Macquarie Castlereagh" ~ "Macquarie–Castlereagh",
-                               SWSDLName == "Wimmera Mallee (Surface Water)" ~ "Wimmera–Mallee (Surface Water)",
-                               SWSDLName == "Wimmera–Mallee (Surface Water)" ~ "Wimmera–Mallee (Surface Water)",
-                               SWSDLName == "Condamine-Balonne" ~ "Condamine–Balonne",
-                               SWSDLName == "Condamine Balonne" ~ "Condamine–Balonne",
-                               .default = SWSDLName))
-
-# Join polygon data	
-Climate_Category_to_polygon_geometry <- left_join(Climate_Category_to_polygons, sdl_units, by = join_by(SWSDLName))
-  #Climate_Categories_sdl does not have categorys for SA, so should use 'Eastern Mt Lofty Ranges' for SA
-
-                                                    
-# meld polygons
-Climate_Category_geometry <- Climate_Category_to_polygon_geometry|>
-  group_by(Climate_category_area) |>
-  mutate(geometry = st_union(geometry),
-         SWSDLName_all = paste(unique(SWSDLName), collapse = ";"),
-         Climate_category.data = paste(unique(Climate_category.data), collapse = ""))
-
-# join polygons to climate category data:
-Climate_Categories_sdl <- left_join(Climate_Categories, Climate_Category_geometry, by = join_by(Climate_category.data)) |>
-  rename(year = `Start of water Year`)
-
-Climate_Categories_sdl
-
+#write.csv(Climate_Category_to_polygons_EWR, file.path(qaelpath, "Deakin University", "QAEL - SRA - SRA", "Valley_to_planningunitDONTOVERWRITE.csv"))
 
 
 ```
@@ -195,15 +170,21 @@ EWRS_df <- left_join(EWRS_df, List_EWRs, by = "ewr_code")
 ```{r}
 #TIME AGGREGATED (Tagg):
 ## agregate to EWR codes
-Tagg_gauge_EWR <- Tagg_gauge_EWRversions |>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code_timing)))|>
-  left_join(EWRS_df)|>
-  left_join(gauges_df_valleys, by = "gauge")
-
-## agregate to EWR groups
-Tagg_gauge_EWRgroups <- Tagg_gauge_EWR |>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
-  dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+# Tagg_gauge_EWR <- Tagg_gauge_EWRversions |>
+#   dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code_timing)))|>
+#   left_join(EWRS_df, by = join_by(ewr_code), relationship = "many-to-many")|>
+#   mutate(planning_unit_name = stringr::str_replace(planning_unit_name, pattern = "ï¿½", replacement = "at"))|>
+#   mutate(planning_unit_name = stringr::str_replace(planning_unit_name, pattern = "Upper and Mid Lachlan Floodplains inc. Bundaburra Creek, Lake Cowal and Jemalong Wyldes Plain floodplain", replacement = "Upper and Mid Lachlan Floodplains inc. Bundaburra Creek_Lake Cowal and Jemalong Wyldes Plain floodplain"))
+# 
+# Tagg_gauge_EWR_temp <- Tagg_gauge_EWR |>
+# #  left_join(gauges_df_valleys, by = "gauge")
+# #  Update to fix planning_unit issue:
+#    left_join(Valley_to_planningunit, by = join_by(planning_unit_name), relationship = "many-to-many")
+# 
+# ## aggregate to EWR groups
+# Tagg_gauge_EWRgroups <- Tagg_gauge_EWR |>
+#   dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
+#   dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
 
 ```
 
@@ -215,10 +196,12 @@ Tagg_gauge_EWRgroups <- Tagg_gauge_EWR |>
 Timeseries_gauge_EWR <- Timeseries_gauge_EWRversions |>
   dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code_timing)))|> #didnt work - other variables relating to code_timing
   #dplyr::group_by(year, ewr_code, scenario, gauge, planning_unit_name) |>
-  dplyr::summarise(ewr_achieved = max(ewr_achieved, na.rm = TRUE)) |> #USING MAX
-  left_join(EWRS_df, by = "ewr_code")
+  #dplyr::summarise(ewr_achieved = max(ewr_achieved, na.rm = TRUE)) |> #USING MAX
+  left_join(EWRS_df, by = "ewr_code", relationship = "many-to-many")|>
+  mutate(planning_unit_name = stringr::str_replace(planning_unit_name, pattern = "ï¿½", replacement = "at"))|>
+  mutate(planning_unit_name = stringr::str_replace(planning_unit_name, pattern = "Upper and Mid Lachlan Floodplains inc. Bundaburra Creek, Lake Cowal and Jemalong Wyldes Plain floodplain", replacement = "Upper and Mid Lachlan Floodplains inc. Bundaburra Creek_Lake Cowal and Jemalong Wyldes Plain floodplain"))
 
-Timeseries_gauge_EWR <- left_join(Timeseries_gauge_EWR, gauges_df_valleys, by = "gauge")
+Timeseries_gauge_EWR <- left_join(Timeseries_gauge_EWR, Valley_to_planningunit, by = "planning_unit_name", relationship = "many-to-many")
 
 #gauge_EWRS_timeseries <- st_join(gauge_EWRS_timeseries, Climate_Categories)
 
@@ -226,7 +209,27 @@ Timeseries_gauge_EWR <- left_join(Timeseries_gauge_EWR, gauges_df_valleys, by = 
 Timeseries_gauge_EWR <- Timeseries_gauge_EWR |>
   ungroup() |>
   st_drop_geometry() |>
-  select(-geometry, -planning_unit_name, -planningunitname, -ltwpshortname, -gaugetype, -site, -owner, -OWNER) 
+  select(-planning_unit_name, #-geometry, -planningunitname, -ltwpshortname, -gaugetype, -site, -owner, -OWNER,
+         -LTWP, -X, -Climate_category.data, -SWSDLName, -LTWPShortName, -SWWRPANAME, -PlanningUnitName, -PU_Region, -STATE,
+         -PU_Code, -Notes, -Check) 
+
+# # names(Timeseries_gauge_EWR)
+# "year"
+# "ewr_code"
+# "scenario"
+# "gauge"      
+#   ewr_code_timing !!!!!!!!!!!!!!!!!!
+# "ewr_achieved"
+# "ewr_group"
+# "Lateral_connectivity_above_BK"
+# "Lateral_connectivity_including_BK"
+# "Lateral_connectivity_including_SF" 
+# "Longitudinal_connectivity_CF"
+# "Longitudinal_connectivity_FD"
+# "ValleyName"  
+# "name_clean"
+
+
 
 # #add polygons; 
 # Timeseries_gauge_EWR <- Timeseries_gauge_EWR |>
@@ -242,151 +245,161 @@ Timeseries_gauge_EWR <- Timeseries_gauge_EWR |>
 ```
 
 ```{r}
-#TIMESERIES - GROUPED EWRS
+#doesnt get used for anything
+
+#TIMESERIES - GROUPED EWRS e.g. BF
 ##GAUGE level -  agregate to EWR groups
-Timeseries_gauge_EWRgroup <- Timeseries_gauge_EWR |>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
-  dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+# Timeseries_gauge_EWRgroup <- Timeseries_gauge_EWR |>
+#   select(-Lateral_connectivity_above_BK, -Lateral_connectivity_including_BK,
+#          -Lateral_connectivity_including_SF, -Longitudinal_connectivity_CF, -Longitudinal_connectivity_FD)|>
+#   dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
+#   dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+
+# "year"
+# "scenario"
+# "gauge"                
+# "ewr_achieved"
+# "ewr_group"
+# "ValleyName"  
+# "name_clean"
 ```
 
 ```{r}
 #TIMESERIES - GROUPED EWRS BY LONG and LATERAL cONNECTIVITY
-#(does lat or long connectivity happen at any gauge?)
-##GAUGE level -  agregate to EWR groups
-Timeseries_gauge_LATERALgroup <- Timeseries_gauge_EWR |>
+
+# VALLEY RESULTS!
+Timeseries_valley_LATERALgroup <- Timeseries_gauge_EWR |>
+  dplyr::mutate(ValleyName = ifelse(ValleyName == "Nebine", "Condamine Balonne", ValleyName),
+                name_clean = ifelse(name_clean == "Nebine", "CondamineBalonne", name_clean))|>
   dplyr::filter(Lateral_connectivity_including_SF == "Y")|>
-  dplyr::select(-Lateral_connectivity_including_SF, -Lateral_connectivity_above_BK, -Lateral_connectivity_including_BK, -Longitudinal_connectivity_CF, -Longitudinal_connectivity_FD, -Notes, -Check, -LTWP)|>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, - ewr_code, -ewr_group)))|>
-  dplyr::summarise(ewr_achieved = max(ewr_achieved, na.rm = TRUE))
+  dplyr::select(-gauge,
+                -Lateral_connectivity_including_SF, -Lateral_connectivity_above_BK, -Lateral_connectivity_including_BK,
+                -Longitudinal_connectivity_CF, -Longitudinal_connectivity_FD)|>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, - ewr_code, -ewr_group, -ewr_code_timing)))|>
+  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
+                 n_EWRs = n())
+
+#"year"         "scenario"    "ValleyName"   "name_clean"   "ewr_achieved" n_EWRs
 
 ##GAUGE level -  agregate to EWR groups
-Timeseries_gauge_LONGITUDINALgroup <- Timeseries_gauge_EWR |>
+Timeseries_valley_LONGITUDINALgroup <- Timeseries_gauge_EWR |>
+  dplyr::mutate(ValleyName = ifelse(ValleyName == "Nebine", "Condamine Balonne", ValleyName),
+                name_clean = ifelse(name_clean == "Nebine", "CondamineBalonne", name_clean))|>
   dplyr::filter(Longitudinal_connectivity_CF == "Y" | Longitudinal_connectivity_FD == "Y") |>
-  dplyr::select(-Longitudinal_connectivity_CF, -Longitudinal_connectivity_FD, -Lateral_connectivity_above_BK, -Lateral_connectivity_including_BK, -Lateral_connectivity_including_SF, -Notes, -Check, -LTWP)|>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, - ewr_code, -ewr_group)))|>
-  dplyr::summarise(ewr_achieved = max(ewr_achieved, na.rm = TRUE))
-
-# VALLEY RESULTS!
-Timeseries_ClimateCategoryArea_LATERALgroup <- Timeseries_gauge_LATERALgroup |> 
-  ungroup() |>
-  dplyr::select(-gauge)|>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved)))|>
+  dplyr::select(-gauge,
+                -Longitudinal_connectivity_CF, -Longitudinal_connectivity_FD, -Lateral_connectivity_above_BK,
+                -Lateral_connectivity_including_BK, -Lateral_connectivity_including_SF)|>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code, -ewr_group, -ewr_code_timing)))|>
   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
-                 n_gauges = n())
+                 n_EWRs = n())
 
-# VALLEY RESULTS!
-Timeseries_ClimateCategoryArea_LONGITUDINALgroup <- Timeseries_gauge_LONGITUDINALgroup |> 
-  ungroup() |>
-  dplyr::select(-gauge)|>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved)))|>
-  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
-                 n_gauges = n())
+#"year"         "scenario"   "ValleyName"   "name_clean"   "ewr_achieved" n_EWRs
 
 # basin level
-Timeseries_Basin_LATERALgroup <- Timeseries_ClimateCategoryArea_LATERALgroup |> 
+Timeseries_Basin_LATERALgroup <- Timeseries_valley_LATERALgroup |> 
   ungroup() |>
-  dplyr::select(-ValleyName, -ValleyID, -ValleyCode)|>
+  dplyr::select(-ValleyName, -name_clean)|>
   dplyr::group_by(year)|>
   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
-                 n_gauges = sum(n_gauges))
+                 n_EWRs = sum(n_EWRs))
 
 # basin level
-Timeseries_Basin_LONGITUDINALgroup <- Timeseries_ClimateCategoryArea_LONGITUDINALgroup |> 
+Timeseries_Basin_LONGITUDINALgroup <- Timeseries_valley_LONGITUDINALgroup |> 
   ungroup() |>
-  dplyr::select(-ValleyName, -ValleyID, -ValleyCode)|>
+  dplyr::select(-ValleyName, -name_clean)|>
   dplyr::group_by(year)|>
   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
-                 n_gauges = sum(n_gauges))
+                 n_EWRS = sum(n_EWRs))
 
 
-Timeseries_gauge_LATERALgroup <- left_join(Timeseries_gauge_LATERALgroup, gauges_df, by = join_by(gauge))
-Timeseries_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup |>
-  rename(geometry_gauge = geometry)
-Timeseries_gauge_LATERALgroup <- left_join(Timeseries_gauge_LATERALgroup, cewo_valleys, by = join_by(ValleyName))
-Timeseries_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup |>
-  rename(geometry_valley = geometry)
+# Timeseries_gauge_LATERALgroup <- left_join(Timeseries_gauge_LATERALgroup, gauges_df, by = join_by(gauge))
+# Timeseries_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup |>
+#   rename(geometry_gauge = geometry)
+# Timeseries_gauge_LATERALgroup <- left_join(Timeseries_gauge_LATERALgroup, cewo_valleys, by = join_by(ValleyName))
+# Timeseries_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup |>
+#   rename(geometry_valley = geometry)
 
-Timeseries_gauge_LONGITUDINALgroup <- left_join(Timeseries_gauge_LONGITUDINALgroup, gauges_df, by = join_by(gauge))
-Timeseries_gauge_LONGITUDINALgroup <- Timeseries_gauge_LONGITUDINALgroup |>
-  rename(geometry_gauge = geometry)
-Timeseries_gauge_LONGITUDINALgroup <- left_join(Timeseries_gauge_LONGITUDINALgroup, cewo_valleys, by = join_by(ValleyName))
-Timeseries_gauge_LONGITUDINALgroup <- Timeseries_gauge_LONGITUDINALgroup |>
-  rename(geometry_valley = geometry)
+# Timeseries_gauge_LONGITUDINALgroup <- left_join(Timeseries_gauge_LONGITUDINALgroup, gauges_df, by = join_by(gauge))
+# Timeseries_gauge_LONGITUDINALgroup <- Timeseries_gauge_LONGITUDINALgroup |>
+#   rename(geometry_gauge = geometry)
+# Timeseries_gauge_LONGITUDINALgroup <- left_join(Timeseries_gauge_LONGITUDINALgroup, cewo_valleys, by = join_by(ValleyName))
+# Timeseries_gauge_LONGITUDINALgroup <- Timeseries_gauge_LONGITUDINALgroup |>
+#   rename(geometry_valley = geometry)
 
 
-saveRDS(Timeseries_gauge_LATERALgroup, file.path(data_path, "Timeseries_gauge_LATERALconnectivity.rds"))
-saveRDS(Timeseries_gauge_LONGITUDINALgroup, file.path(data_path, "Timeseries_gauge_LONGITUDINALconnectivity.rds"))
+# saveRDS(Timeseries_gauge_LATERALgroup, file.path(data_path, "Timeseries_gauge_LATERALconnectivity.rds"))
+# saveRDS(Timeseries_gauge_LONGITUDINALgroup, file.path(data_path, "Timeseries_gauge_LONGITUDINALconnectivity.rds"))
 
-saveRDS(Timeseries_ClimateCategoryArea_LATERALgroup, file.path(data_path, "Timeseries_Valley_LATERALconnectivity.rds"))
-saveRDS(Timeseries_ClimateCategoryArea_LONGITUDINALgroup, file.path(data_path, "Timeseries_Valley_LONGITUDINALconnectivity.rds"))
+saveRDS(Timeseries_valley_LATERALgroup, file.path(data_path, "Timeseries_Valley_LATERALconnectivity.rds"))
+saveRDS(Timeseries_valley_LONGITUDINALgroup, file.path(data_path, "Timeseries_Valley_LONGITUDINALconnectivity.rds"))
 
 saveRDS(Timeseries_Basin_LATERALgroup, file.path(data_path, "Timeseries_Basin_LATERALconnectivity.rds"))
 saveRDS(Timeseries_Basin_LONGITUDINALgroup, file.path(data_path, "Timeseries_Basin_LONGITUDINALconnectivity.rds"))
 ```
 
 ```{r}
-# Time aggregation
-Tagg_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup|>
-  group_by(gauge)|>
-  reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
-          ewr_achieved_unweighted = weighted.mean(ewr_achieved))|>
-  left_join(gauges_df_valleys, by = "gauge")
-
-Tagg_gauge_ClimateCategories_LATERALgroup <- Timeseries_gauge_LATERALgroup|>
-  group_by(gauge, Climate_Category)|>
-  reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
-          ewr_achieved_unweighted = weighted.mean(ewr_achieved))|>
-  left_join(gauges_df_valleys, by = "gauge")
-
-Tagg_ClimateCategoryArea_LATERALgroup <- Timeseries_ClimateCategoryArea_LATERALgroup |>
-  group_by(Climate_category_area, geometry)|>
-  reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
-          ewr_achieved_unweighted = weighted.mean(ewr_achieved))
-
-Tagg_ClimateCategoryArea_ClimateCategories_LATERALgroup <- Timeseries_ClimateCategoryArea_LATERALgroup |>
-  group_by(Climate_category_area, Climate_Category, geometry)|>
-  reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
-          ewr_achieved_unweighted = weighted.mean(ewr_achieved))
-  
-Tagg_Basin_LATERALgroup <- Timeseries_Basin_LATERALgroup |>
-  group_by(Climate_category.data)|>
-  reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
-          ewr_achieved_unweighted = weighted.mean(ewr_achieved))
-Tagg_Basin_LATERALgroup <- bind_cols(Tagg_Basin_LATERALgroup, basin)
-
-Tagg_Basin_ClimateCategories_LATERALgroup <- Timeseries_Basin_LATERALgroup |>
-  group_by(Climate_category.data, Climate_Category)|>
-  reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
-          ewr_achieved_unweighted = weighted.mean(ewr_achieved))
-Tagg_Basin_ClimateCategories_LATERALgroup <- bind_cols(Tagg_Basin_ClimateCategories_LATERALgroup, basin)
+# # Time aggregation
+# Tagg_gauge_LATERALgroup <- Timeseries_gauge_LATERALgroup|>
+#   group_by(gauge)|>
+#   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
+#           ewr_achieved_unweighted = weighted.mean(ewr_achieved))|>
+#   left_join(gauges_df_valleys, by = "gauge")
+# 
+# Tagg_gauge_ClimateCategories_LATERALgroup <- Timeseries_gauge_LATERALgroup|>
+#   group_by(gauge, Climate_Category)|>
+#   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
+#           ewr_achieved_unweighted = weighted.mean(ewr_achieved))|>
+#   left_join(gauges_df_valleys, by = "gauge")
+# 
+# Tagg_ClimateCategoryArea_LATERALgroup <- Timeseries_ClimateCategoryArea_LATERALgroup |>
+#   group_by(Climate_category_area, geometry)|>
+#   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
+#           ewr_achieved_unweighted = weighted.mean(ewr_achieved))
+# 
+# Tagg_ClimateCategoryArea_ClimateCategories_LATERALgroup <- Timeseries_ClimateCategoryArea_LATERALgroup |>
+#   group_by(Climate_category_area, Climate_Category, geometry)|>
+#   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
+#           ewr_achieved_unweighted = weighted.mean(ewr_achieved))
+#   
+# Tagg_Basin_LATERALgroup <- Timeseries_Basin_LATERALgroup |>
+#   group_by(Climate_category.data)|>
+#   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
+#           ewr_achieved_unweighted = weighted.mean(ewr_achieved))
+# Tagg_Basin_LATERALgroup <- bind_cols(Tagg_Basin_LATERALgroup, basin)
+# 
+# Tagg_Basin_ClimateCategories_LATERALgroup <- Timeseries_Basin_LATERALgroup |>
+#   group_by(Climate_category.data, Climate_Category)|>
+#   reframe(ewr_achieved_weighted = weighted.mean(ewr_achieved, year),
+#           ewr_achieved_unweighted = weighted.mean(ewr_achieved))
+# Tagg_Basin_ClimateCategories_LATERALgroup <- bind_cols(Tagg_Basin_ClimateCategories_LATERALgroup, basin)
 
 
 
 ```
 
 ```{r}
-#individual EWR
-# Climate_category_area level
-Timeseries_ClimateCategoryArea_EWR <- Timeseries_gauge_EWR |> 
-  ungroup() |>
-  dplyr::select(-gauge, -SWSDLID, -SWSDLName, -StateID, -Climate_category.data)|>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved)))|>
-  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
-
-#EWR GROUP
-# SWSDLName level
-Timeseries_ClimateCategoryArea_EWRgroup <- Timeseries_ClimateCategoryArea_EWR |>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
-  dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+# #individual EWR
+# # Climate_category_area level
+# Timeseries_ClimateCategoryArea_EWR <- Timeseries_gauge_EWR |> 
+#   ungroup() |>
+#   dplyr::select(-gauge, -SWSDLID, -SWSDLName, -StateID, -Climate_category.data)|>
+#   dplyr::group_by(dplyr::across(c(-ewr_achieved)))|>
+#   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
+# 
+# #EWR GROUP
+# # SWSDLName level
+# Timeseries_ClimateCategoryArea_EWRgroup <- Timeseries_ClimateCategoryArea_EWR |>
+#   dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code)))|>
+#   dplyr::summarise(ewr_achieved = mean(ewr_achieved, na.rm = TRUE))
 ```
 
 ```{r}
 #Aggregating time
-Tagg_ClimateCategoryArea_EWRgroup <- Timeseries_ClimateCategoryArea_EWRgroup |> 
-  ungroup() |>
-  dplyr::group_by(dplyr::across(c( -ewr_achieved, -year)))|>
-  dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
-                 n_years = n())
+# Tagg_ClimateCategoryArea_EWRgroup <- Timeseries_ClimateCategoryArea_EWRgroup |> 
+#   ungroup() |>
+#   dplyr::group_by(dplyr::across(c( -ewr_achieved, -year)))|>
+#   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
+#                  n_years = n())
 ```
 
 ## CHECKING MAPS

@@ -8,7 +8,8 @@ editor: visual
 #| echo: false
 #| warning: false
 #| message: false
-library(werptoolkitr)
+#library(HydroBOT)
+devtools::install_github("galenholt/hydrogauge")
 library(hydrogauge)
 library(dplyr)
 library(ggplot2)
@@ -87,6 +88,8 @@ extract_safely <- function(safelist) {
   
   return(safelist)
 }
+
+temp <- extract_safely()
 
 check_dataframe_list <- function(dflist) {
   datarows <- purrr::map_int(dflist, 
