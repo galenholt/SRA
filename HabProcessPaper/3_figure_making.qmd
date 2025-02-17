@@ -41,35 +41,34 @@ unlink(file.path('HabProcessPaper', '2_data_cleaning.R'))
 
 The order these are easiest to build in is not necessarily the best presentation order.
 
-## Basin-scale bar graphs over time
+## Basin-scale boxplots over time
 
 ### Habitat alone
 
 ```{r}
-#| label: habitat-bar-function
-make_habitat_bar <- function(species) {
+#| label: habitat-box-function
+make_habitat_box <- function(species) {
   
-  hab_basin_bar <- all_data_basin |>
+    hab_basin_box <- all_data_basin |>
   filter((species == {{species}} | 
             is.na(species)) & 
            stage_name %in% anae_stages) |>
   sf::st_drop_geometry() |>
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = stage_name) |>
-  ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
-  geom_col() +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+  ggplot(aes(x = stage_name, y = (hectares + 1/10000), fill = stage_name)) +
+  geom_boxplot() +
+    # delete this later, useful to see how the data is distributed
+  # geom_point(position = position_jitter(width = 0.1), alpha = 0.5) +
   scale_fill_manual(values = stage_pal) +
+    scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = 'Mean log(area + 1)', fill = 'Model')
+  labs(y = 'hectares', fill = 'Model')
 
   
-  return(hab_basin_bar)
+  return(hab_basin_box)
 }
 
 # Individual per-species plots
-hab_basin_bar <- purrr::map(species, make_habitat_bar) |> 
+hab_basin_box <- purrr::map(species, make_habitat_box) |> 
   setNames(species)
 ```
 
@@ -91,40 +90,40 @@ ggsave_multi <- function(filename, plot = last_plot(), device, ...) {
 ### Process alone
 
 ```{r}
-#| label: process-bar-function
-make_process_bar <- function(species) {
+#| label: process-box-function
+make_process_box <- function(species) {
   
-  proc_basin_bar <- all_data_basin |>
+  
+  proc_basin_box <- all_data_basin |>
     filter((species == {{species}} |
-              is.na(species)) & 
+              is.na(species)) &
              stage_name %in% process_stages) |>
     sf::st_drop_geometry() |>
-    summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-              sd_area = sd(log10(area + 1), na.rm = TRUE),
-              is_independent_proc = unique(is_independent_proc),
-              .by = stage_name) |>
-    mutate(base_stage = case_when(
+      mutate(base_stage = case_when(
       stage_name == 'Adult' ~ 'Adult',
       stage_name %in% c('Germination', 'Regeneration') ~ 'Regeneration',
       stage_name %in% c('Seedling', 'Recruitment') ~ 'Recruitment'
       ),
       base_stage = factor(base_stage, levels = levels(stage_name))) |>
-    ggplot(aes(x = base_stage, y = mean_area, fill = stage_name, color = is_independent_proc)) +
-    geom_col(position = position_dodge()) +
-    geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
-                   position = position_dodge(width = 0.9)) +
+    ggplot(aes(x = base_stage, y = hectares + 1/10000,
+               fill = stage_name,
+               color = is_independent_proc)) +
+    geom_boxplot(position = position_dodge()) +
+    # geom_point(alpha = 0.5,
+    #                position = position_jitterdodge(jitter.width = 0.4)) +
     scale_fill_manual(values = stage_pal) +
+    scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
     scale_color_manual(values = c(sequential = 'black', independent = 'grey70')) +
     HydroBOT::theme_werp_toolkit() +
-    labs(y = 'Mean log(area + 1)', x = 'Step',
+    labs(y = 'hectares', x = 'Step',
          fill = 'Life stage', color = 'Stage type')
   
   
-  return(proc_basin_bar)
+  return(proc_basin_box)
 }
 
 # Individual per-species plots
-proc_basin_bar <- purrr::map(species, make_process_bar) |> 
+proc_basin_box <- purrr::map(species, make_process_box) |> 
   setNames(species)
 ```
 
@@ -134,30 +133,28 @@ Sequence through life cycle and then a habitat filter
 
 ```{r}
 #| label: interact-sequential-function
-make_interact_seq_bar <- function(species) {
+make_interact_seq_box <- function(species) {
   
- seq_proc_basin_bar <- all_data_basin |>
+   seq_proc_basin_box <- all_data_basin |>
   filter((species == {{species}} |
             is.na(species)) & 
            stage_name %in% sequential_stages) |>
   sf::st_drop_geometry() |>
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = stage_name) |>
-  ggplot(aes(x = stage_name, y = mean_area, fill = stage_name)) +
-  geom_col() +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area)) +
+    ggplot(aes(x = stage_name, y = hectares + 1/10000, fill = stage_name)) +
+  geom_boxplot() +
+  # geom_point(alpha = 0.5, position = position_dodge(width = 0.1)) +
   scale_fill_manual(values = stage_pal) +
+     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = 'Mean log(area + 1)',
+  labs(y = 'hectares',
        fill = 'Life stage')
 
   
-  return(seq_proc_basin_bar)
+  return(seq_proc_basin_box)
 }
 
 # Individual per-species plots
-interact_seq_basin_bar <- purrr::map(species, make_interact_seq_bar) |> 
+interact_seq_basin_box <- purrr::map(species, make_interact_seq_box) |> 
   setNames(species)
 ```
 
@@ -165,33 +162,31 @@ What is the effect of process occurring within each habitat type?
 
 ```{r}
 #| label: interact-sequential-hab-function
-make_interact_hab_bar <- function(species) {
+make_interact_hab_box <- function(species) {
   
-new_basin_bar_hab <- all_data_basin |>
+new_basin_box_hab <- all_data_basin |>
   filter((species == {{species}} | is.na(species)) &
            stage_name %in% c(sequential_hab, 'Recruitment') &
            !is.na(hab_type)) |>
   sf::st_drop_geometry() |>
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = c(stage_name, hab_type, model_type)) |>
   # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
-  ggplot(aes(x = hab_type, y = mean_area, fill = stage_name, color = model_type)) +
-  geom_col(position = 'dodge') +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
-                 position = position_dodge2(width = 0.9)) + # Why 0.9?
+  ggplot(aes(x = hab_type, y = hectares + 1/10000, fill = stage_name, color = model_type)) +
+  geom_boxplot(position = position_dodge()) +
+    # geom_point(alpha = 0.5,
+    #                position = position_jitterdodge(jitter.width = 0.4)) +
+       scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
   scale_fill_manual(values = stage_pal) +
   scale_color_manual(values = type_pal) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = 'Mean log(area + 1)',
+  labs(y = 'hectares',
        fill = 'Model', color = 'Model type')
 
   
-  return(new_basin_bar_hab)
+  return(new_basin_box_hab)
 }
 
 # Individual per-species plots
-interact_hab_basin_bar <- purrr::map(species, make_interact_hab_bar) |> 
+interact_hab_basin_box <- purrr::map(species, make_interact_hab_box) |> 
   setNames(species)
 ```
 
@@ -199,31 +194,30 @@ How much does habitat restrict each stage?
 
 ```{r}
 #| label: interact-sequential-proc-function
-make_interact_proc_bar <- function(species) {
-  
-new_basin_bar_proc <- all_data_basin |>
-  filter((species == {{species}} | is.na(species)) &
-           !is.na(proc_type)) |>
-  sf::st_drop_geometry() |>
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = c(stage_name, proc_type, model_type)) |>
-  ggplot(aes(x = proc_type, y = mean_area, fill = stage_name, color = model_type)) +
-  geom_col(position = 'dodge') +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
-                 position = position_dodge2(width = 0.9)) + # Why 0.9?
-  scale_fill_manual(values = stage_pal) +
-  scale_color_manual(values = type_pal) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = 'Mean log(area + 1)',
-       fill = 'Model', color = 'Model type')
+make_interact_proc_box <- function(species) {
 
   
-  return(new_basin_bar_proc)
+  new_basin_box_proc <- all_data_basin |>
+    filter((species == {{species}} | is.na(species)) &
+             !is.na(proc_type)) |>
+    sf::st_drop_geometry() |>
+    ggplot(aes(x = proc_type, y = hectares + 1/10000, fill = stage_name, color = model_type)) +
+    geom_boxplot(position = position_dodge()) +
+    # geom_point(alpha = 0.5,
+    #            position = position_jitterdodge(jitter.width = 0.4)) +
+    scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+    scale_fill_manual(values = stage_pal) +
+    scale_color_manual(values = type_pal) +
+    HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+    labs(y = 'hectares',
+         fill = 'Model', color = 'Model type')
+
+  
+  return(new_basin_box_proc)
 }
 
 # Individual per-species plots
-interact_proc_basin_bar <- purrr::map(species, make_interact_proc_bar) |> 
+interact_proc_basin_box <- purrr::map(species, make_interact_proc_box) |> 
   setNames(species)
 ```
 
@@ -233,156 +227,163 @@ Make the simplified versions that accentuate what we want for the ms.
 
 ```{r}
 #| label: interact-for-stacking
-make_interact_hab2proc_bar <- function(species) {
-  
-basin_bar_hab2proc <- all_data_basin |>
+make_interact_hab2proc_box <- function(species) {
+
+basin_box_hab2proc <- all_data_basin |>
   filter((species == {{species}} | is.na(species)) &
            stage_name %in% c(sequential_hab, 'Recruitment') &
            !is.na(hab_type)) |>
   sf::st_drop_geometry() |>
-  mutate(hab_comp = ifelse(grepl('Recruit', stage_name),
-                           'Recruitment', as.character(hab_type)),
-         hab_comp = factor(hab_comp, levels = levels(stage_name))) |>
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = c(stage_name, hab_type, model_type, hab_comp)) |>
-  # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
-  ggplot(aes(x = hab_type, y = mean_area, fill = hab_comp,
-             color = model_type,
-             alpha = model_type,
-             linetype = model_type)) +
-  geom_col(position = 'dodge') +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
-                 position = position_dodge2(width = 0.9)) + # Why 0.9?
-  scale_fill_manual(values = stage_pal) +
-  scale_color_manual(values = type_pal) +
-  scale_alpha_manual(values = alpha_type) +
-  scale_linetype_manual(values = line_type) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "Mean\nlog(area + 1)", fill = "Model",
-       color = "Model type", linetype = "Model type",
-       alpha = 'Model type')
+  mutate(hab_v_proc = ifelse(grepl('Recruit', stage_name),
+                           'Recruitment', 'None (habitat only)'),
+         hab_v_proc = factor(hab_v_proc, levels = c('None (habitat only)', 'Adult', 'Regeneration', 'Recruitment'))) |>
+    # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
+  ggplot(aes(x = hab_type, y = hectares + 1/10000, fill = hab_type,
+             color = hab_v_proc)) +
+    geom_boxplot(position = position_dodge(), show.legend = TRUE,
+                 size = 0.2, outlier.size = 0.2) +
+    # geom_point(alpha = 0.5,
+    #            position = position_jitterdodge(jitter.width = 0.4)) +
+    scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+  scale_fill_manual(values = wetland_type_pal) +
+  scale_color_manual(values = c(process_cols_seq,
+                                'None (habitat only)' = 'black'), drop = FALSE) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(), base_size = 10) +
+  labs(y = "Favorable area (ha)", fill = "Habitat model",
+       color = "Process model")
 
-  
-  return(basin_bar_hab2proc)
+
+  return(basin_box_hab2proc)
 }
 
-make_interact_proc2hab_bar <- function(species) {
-  
-basin_bar_proc2hab <- all_data_basin |>
+make_interact_proc2hab_box <- function(species) {
+
+basin_box_proc2hab <- all_data_basin |>
   filter((species == {{species}} | is.na(species)) &
            !is.na(proc_type) &
            !grepl('Germ|Seed', stage_name)) |>
-  mutate(hab_comp = ifelse(as.character(hab_type) == 'All wetland types',
-                           as.character(proc_type), as.character(hab_type)),
-         hab_comp = factor(hab_comp, levels = c(levels(proc_type), "Recorded wetland types","Named wetland types"))) |>
+  mutate(hab_v_proc = ifelse(is.na(proc_type), 'None (habitat only)', as.character(proc_type)),
+         hab_v_proc = factor(hab_v_proc, levels = c('None (habitat only)', levels(proc_type)))) |>
   sf::st_drop_geometry() |>
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = c(stage_name, proc_type, hab_comp, model_type)) |>
-  ggplot(aes(x = proc_type, y = mean_area,
-             fill = hab_comp,
-             color = model_type,
-             alpha = model_type,
-             linetype = model_type)) +
-  geom_col(position = 'dodge') +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
-                 position = position_dodge2(width = 0.9)) + # Why 0.9?
-  scale_fill_manual(values = stage_pal) +
-  scale_color_manual(values = type_pal) +
-  scale_alpha_manual(values = alpha_type) +
-  scale_linetype_manual(values = line_type) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "Mean\nlog(area + 1)", fill = "Model",
-       color = "Model type", linetype = "Model type",
-       alpha = 'Model type')
+    ggplot(aes(x = proc_type, y = hectares + 1/10000,
+               fill = hab_type,
+             color = hab_v_proc)) +
+    geom_boxplot(position = position_dodge(), show.legend = TRUE,
+                 size = 0.2, outlier.size = 0.2) +
+    # geom_point(alpha = 0.5,
+    #            position = position_jitterdodge(jitter.width = 0.4)) +
+    scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+  scale_fill_manual(values = wetland_type_pal) +
+  scale_color_manual(values = c(process_cols_seq,
+                                'None (habitat only)' = 'black'), drop = FALSE) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(), base_size = 10) +
+  labs(y = "Favorable area (ha)", fill = "Habitat model",
+       color = "Process model")
 
-  
-  return(basin_bar_proc2hab)
+
+  return(basin_box_proc2hab)
 }
 
+# Flip color and fill. It's maybe better for red gum but worse for everythign else.
+# make_interact_hab2proc_box <- function(species) {
+#   
+# basin_box_hab2proc <- all_data_basin |>
+#   filter((species == {{species}} | is.na(species)) &
+#            stage_name %in% c(sequential_hab, 'Recruitment') &
+#            !is.na(hab_type)) |>
+#   sf::st_drop_geometry() |>
+#   mutate(hab_v_proc = ifelse(grepl('Recruit', stage_name),
+#                            'Recruitment', 'None (habitat only)'),
+#          hab_v_proc = factor(hab_v_proc, levels = c('None (habitat only)', 'Adult', 'Regeneration', 'Recruitment'))) |>
+#     # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
+#   ggplot(aes(x = hab_type, y = hectares + 1/10000, fill = hab_v_proc,
+#              color = hab_type)) +
+#     geom_boxplot(position = position_dodge(), show.legend = TRUE,
+#                  size = 0.2, outlier.size = 0.2) +
+#     # geom_point(alpha = 0.5,
+#     #            position = position_jitterdodge(jitter.width = 0.4)) +
+#     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+#   scale_color_manual(values = wetland_type_pal) +
+#   scale_fill_manual(values = c(process_cols_seq,
+#                                 'None (habitat only)' = 'white'), drop = FALSE) +
+#   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(), base_size = 10) +
+#   labs(y = "Favorable area (ha)", color = "Habitat model",
+#        fill = "Process model")
+# 
+#   
+#   return(basin_box_hab2proc)
+# }
+# 
+# make_interact_proc2hab_box <- function(species) {
+#   
+# basin_box_proc2hab <- all_data_basin |>
+#   filter((species == {{species}} | is.na(species)) &
+#            !is.na(proc_type) &
+#            !grepl('Germ|Seed', stage_name)) |>
+#   mutate(hab_v_proc = ifelse(is.na(proc_type), 'None (habitat only)', as.character(proc_type)),
+#          hab_v_proc = factor(hab_v_proc, levels = c('None (habitat only)', levels(proc_type)))) |>
+#   sf::st_drop_geometry() |>
+#     ggplot(aes(x = proc_type, y = hectares + 1/10000, 
+#                color = hab_type,
+#              fill = hab_v_proc)) +
+#     geom_boxplot(position = position_dodge(), show.legend = TRUE,
+#                  size = 0.2, outlier.size = 0.2) +
+#     # geom_point(alpha = 0.5,
+#     #            position = position_jitterdodge(jitter.width = 0.4)) +
+#     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+#   scale_color_manual(values = wetland_type_pal) +
+#   scale_fill_manual(values = c(process_cols_seq,
+#                                 'None (habitat only)' = 'white'), drop = FALSE) +
+#   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(), base_size = 10) +
+#   labs(y = "Favorable area (ha)", color = "Habitat model",
+#        fill = "Process model")
+# 
+#   
+#   return(basin_box_proc2hab)
+# }
+
 # Individual per-species plots
-interact_basin_bar_hab2proc <- purrr::map(species, make_interact_hab2proc_bar) |> 
+interact_basin_box_hab2proc <- purrr::map(species, make_interact_hab2proc_box) |> 
   setNames(species)
-interact_basin_bar_proc2hab <- purrr::map(species, make_interact_proc2hab_bar) |> 
+interact_basin_box_proc2hab <- purrr::map(species, make_interact_proc2hab_box) |> 
   setNames(species)
 ```
 
-Make a legend for the barplot
-
 ```{r}
-#| label: make-bar-legend
-bar_legend_plot <- all_data_basin |> 
-  filter((species == 'red_gum' | is.na(species)) & 
-           stage_name %in% c(sequential_stages, anae_stages) &
-           !grepl('Germ|Seed', stage_name)) |>
-  sf::st_drop_geometry() |> 
-  mutate(stage_fake = ifelse(grepl(' and ', as.character(stage_name)), 
-                             as.character(hab_type),
-                             as.character(stage_name)),
-         stage_fake = factor(stage_fake, levels = levels(stage_name))) |> 
-  summarise(mean_area = mean(log10(area + 1), na.rm = TRUE),
-            sd_area = sd(log10(area + 1), na.rm = TRUE),
-            .by = c(stage_fake, proc_type, model_type)) |>
-ggplot(aes(x = proc_type, y = mean_area, 
-           fill = stage_fake, 
-           color = model_type, 
-           alpha = model_type,
-           linetype = model_type)) +
-  geom_col(position = 'dodge') +
-  geom_linerange(mapping = aes(ymin = mean_area-sd_area, ymax = mean_area + sd_area),
-                 position = position_dodge2(width = 0.9)) + # Why 0.9?
-    scale_fill_manual(values = stage_pal) +
-    scale_color_manual(values = type_pal) +
-  scale_alpha_manual(values = alpha_type) +
-  scale_linetype_manual(values = line_type) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "Mean\nlog(area + 1)", fill = "Model", 
-       color = "Model type", linetype = "Model type", 
-       alpha = 'Model type')
-
-barbottom <- bar_legend_plot + 
-  theme(legend.position = 'bottom', legend.title.position = 'top') +
-  guides(fill = guide_legend(nrow = 3), color = guide_legend(nrow = 3))
-
-
-bar_legend <- ggpubr::get_legend(bar_legend_plot)
-bar_bottom_legend <- ggpubr::get_legend(barbottom)
-```
-
-```{r}
-#| label: stacked-bar
+#| label: stacked-box
 
 # Save these out by default
-make_stacked_bars <- function(species, print = TRUE) {
+make_stacked_boxs <- function(species, print = TRUE) {
   
-  bar_layout_stack <- "
-AAA#C
-BBB#C
-"
-  compare_bar <- (interact_basin_bar_hab2proc[[species]] +
-                  scale_x_discrete(labels = \(x)
-                                   stringr::str_wrap(x, width = 100)) +
-                  theme(legend.position = 'none')) +
-  (interact_basin_bar_proc2hab[[species]] + scale_x_discrete(labels = \(x)
-                                        stringr::str_wrap(x, width = 100)) +
-     theme(legend.position = 'none'))  +
-  wrap_plots(ggpubr::as_ggplot(bar_legend), plot_spacer()) +
-  plot_layout(design = bar_layout_stack)
+  
+#   box_layout_stack <- "
+# AAA#C
+# BBB#C
+# "
+  compare_box <- (interact_basin_box_hab2proc[[species]] +
+                    theme(legend.position = 'none') +
+                  scale_x_discrete(labels = scales::label_wrap(14))) /
+  (interact_basin_box_proc2hab[[species]] + 
+     scale_x_discrete(labels = scales::label_wrap(14))) +
+     # theme(legend.position = 'none'))  +
+  # wrap_plots(ggpubr::as_ggplot(box_legend), plot_spacer()) +
+  # plot_layout(design = box_layout_stack)
+    plot_annotation(tag_levels = 'a') +
+    plot_layout(guides = 'collect')
 
 
   if (print) {
-    thispath <- file.path(barpath, paste0(species, '_bar'))
-    ggsave_multi(filename = thispath, plot = compare_bar, 
+    thispath <- file.path(boxpath, paste0(species, '_box'))
+    ggsave_multi(filename = thispath, plot = compare_box, 
                          device = c('png', 'pdf'),
-                         width = 12, height = 9, units = "cm")
+                         width = 14, height = 10, units = "cm")
   }
 
-  return(compare_bar)
+  return(compare_box)
 
 }
 
-all_stacked_bars <- purrr::map(species, make_stacked_bars) |> 
+all_stacked_boxs <- purrr::map(species, make_stacked_boxs) |> 
   setNames(species)
 ```
 
@@ -397,15 +398,16 @@ make_habitat_timeseries <- function(species) {
   hab_basin_ts <- all_data_basin |> 
   filter((species %in% {{species}} | is.na(species)) & 
            stage_name %in% anae_stages) |> 
-ggplot(aes(x = year, y = log10(area + 1), 
+ggplot(aes(x = year, y = hectares + 1/10000, 
            color = wetland_colour, shape = proc_shape)) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE, size =3)  +
-  scale_y_continuous() +
-    scale_color_manual(values = wetland_type_pal_line) +
+    scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+    scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
+  labs(y = "Favorable area (ha)", color = "Habitat model",
+       shape = "Process model")
   
   # Seems like a good idea, but the 'All wetlands' isn't duplicated over species.
   # if (length(species) > 1) {
@@ -430,15 +432,16 @@ hab_basin_ts <- purrr::map(species, make_habitat_timeseries) |>
 make_all_process_ts <- function(species) {
   proc_basin_ts <- all_data_basin |> 
     filter(species == {{species}} & stage_name %in% process_stages) |> 
-    ggplot(aes(x = year, y = log10(area + 1), color = stage_name,
+    ggplot(aes(x = year, y = hectares + 1/10000, color = stage_name,
            linetype = is_independent_proc, shape = model_type)) +
     geom_line(show.legend = TRUE) +
     geom_point(show.legend = TRUE, size =3) +
+        scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+
     scale_shape_manual(values = shape_type) +
-    scale_y_continuous() +
     scale_color_manual(values = stage_pal) +
     HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-    labs(y = "log(area + 1)", color = "Model",
+    labs(y = "Favorable area (ha)", color = "Model",
        linetype = "Stage type", shape = "Model type")
   
   return(proc_basin_ts)
@@ -458,15 +461,16 @@ make_seq_process_ts <- function(species) {
            # both process and sequential
            stage_name %in% process_stages &
            stage_name %in% sequential_stages) |> 
-    ggplot(aes(x = year, y = log10(area + 1), 
+    ggplot(aes(x = year, y = hectares + 1/10000, 
                color = hab_type, shape = stage_name), alpha = 1) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE, size =3)  +
-  scale_y_continuous() +
-  scale_color_manual(values = wetland_type_pal_line) +
+            scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+
+  scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
+  labs(y = "Favorable area (ha)", color = "Habitat model", shape = "Process model")
   
   return(proc_basin_seq_ts)
 }
@@ -487,15 +491,15 @@ make_named_process_interact_ts <- function(species) {
   inter_basin_named_ts <- all_data_basin |> 
   filter(species %in% {{species}} & 
            stage_name %in% c('Named wetland types', 'Recruitment and Named', 'Recruitment')) |> 
-ggplot(aes(x = year, y = log10(area + 1), 
+ggplot(aes(x = year, y = hectares + 1/10000, 
            color = wetland_colour , shape = proc_shape )) +
     geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE, size =3)  +
-  scale_y_continuous() +
-  scale_color_manual(values = wetland_type_pal_line) +
+            scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+  scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
+  labs(y = "Favorable area (ha)", color = "Habitat model", shape = "Process model")
   
   return(inter_basin_named_ts)
   
@@ -509,15 +513,15 @@ make_recorded_process_interact_ts <- function(species) {
   filter(species %in% {{species}} & 
            stage_name %in% c('Recorded wetland types', 
                              'Recruitment and Recorded', 'Recruitment')) |> 
-ggplot(aes(x = year, y = log10(area + 1),
+ggplot(aes(x = year, y = hectares + 1/10000,
            color = wetland_colour , shape = proc_shape )) +
   geom_line(show.legend = TRUE) +
   geom_point(show.legend = TRUE, size =3)  +
-  scale_color_manual(values = wetland_type_pal_line) +
+  scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
-  scale_y_continuous() +
+            scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "log(area + 1)", color = "Model", shape = "Model type")
+  labs(y = "Favorable area (ha)", color = "Habitat model", shape = "Process model")
   
   return(inter_basin_recorded_ts)
 }
@@ -545,9 +549,11 @@ recorded_venn_data <- function(species) {
              stage_name %in% c('Recorded wetland types',
                                'Recruitment and Recorded',
                                'Recruitment')) |> 
-    mutate(area = log10(area + 1)) |>
-    mutate(area = area/max(area, na.rm = TRUE),
-           ,
+    # need to think harder about these, but we're changin them anyway.
+    # can't use hectares, or we get some <1 and that gives - logs and that gives NaN for sqrt in the radius
+    mutate(logarea = log10(area + 1)) |>
+    mutate(proplogarea = logarea/max(logarea, na.rm = TRUE),
+        # mutate(proparea = (hectares+1)/max((hectares+1), na.rm = TRUE),
   
       proc_shape = case_when(
       stage == 'adult' ~ 'Adult',
@@ -565,9 +571,9 @@ recorded_venn_data <- function(species) {
       stage == 'seedling_name' ~ 'Seedling ',
       stage == 'regeneration_name' ~ 'Regeneration',
       stage == 'recruitment_name' ~ 'Recruitment',
-      stage == 'anae_name' ~ 'No process-based component',
-      stage == 'anae_ala' ~ 'No process-based component',
-      stage == 'wetland_inundation' ~ 'No process-based component',
+      stage == 'anae_name' ~ 'None (habitat only)',
+      stage == 'anae_ala' ~ 'None (habitat only)',
+      stage == 'wetland_inundation' ~ 'None (habitat only)',
       .default = stage_name
     ),
     
@@ -595,19 +601,19 @@ recorded_venn_data <- function(species) {
     proc_shape = factor(proc_shape,
                         levels = c('Adult', 'Germination', 'Seedling',
                                    'Regeneration', 'Recruitment',
-                                   'No process-based component'))) |> 
+                                   'None (habitat only)'))) |> 
     # need to do a funny flip-flop here to get overlap in its own column
     tidyr::pivot_wider(id_cols = date,
                        names_from = stage_name,
-                       values_from = area) |> 
+                       values_from = proplogarea) |> 
     tidyr::pivot_longer(cols = c(Recruitment, `Recorded wetland types`),
                         names_to = 'stage_name',
-                        values_to = 'area') |> 
+                        values_to = 'proplogarea') |> 
     rename(overlap = `Recruitment and Recorded`)
   
   # Now calculate the radii and centers we need to plot with geom_circle
   venncheck <- venncheck |> 
-    mutate(radius = sqrt(area/pi)) |> 
+    mutate(radius = sqrt(proplogarea/pi)) |> 
     mutate(d = galenR::find_d(unique(overlap),
                               radii = radius),
            .by = date) |> 
@@ -625,8 +631,10 @@ named_venn_data <- function(species) {
              stage_name %in% c('Named wetland types',
                                'Recruitment and Named',
                                'Recruitment')) |> 
-    mutate(area = log10(area + 1)) |>
-    mutate(area = area/max(area, na.rm = TRUE),
+    # need to think harder about these, but we're changin them anyway
+    mutate(logarea = log10(area + 1)) |>
+    mutate(proplogarea = logarea/max(logarea, na.rm = TRUE),
+        # mutate(proparea = (hectares+1)/max((hectares+1), na.rm = TRUE),
       proc_shape = case_when(
       stage == 'adult' ~ 'Adult',
       stage == 'germination' ~ 'Germination',
@@ -643,9 +651,9 @@ named_venn_data <- function(species) {
       stage == 'seedling_name' ~ 'Seedling ',
       stage == 'regeneration_name' ~ 'Regeneration',
       stage == 'recruitment_name' ~ 'Recruitment',
-      stage == 'anae_name' ~ 'No process-based component',
-      stage == 'anae_ala' ~ 'No process-based component',
-      stage == 'wetland_inundation' ~ 'No process-based component',
+      stage == 'anae_name' ~ 'None (habitat only)',
+      stage == 'anae_ala' ~ 'None (habitat only)',
+      stage == 'wetland_inundation' ~ 'None (habitat only)',
       .default = stage_name
     ),
       wetland_colour = case_when(
@@ -672,19 +680,19 @@ named_venn_data <- function(species) {
     proc_shape = factor(proc_shape,
                         levels = c('Adult', 'Germination', 'Seedling',
                                    'Regeneration', 'Recruitment',
-                                   'No process-based component'))) |> 
+                                   'None (habitat only)'))) |> 
     # need to do a funny flip-flop here to get overlap in its own column
     tidyr::pivot_wider(id_cols = date,
                        names_from = stage_name,
-                       values_from = area) |> 
+                       values_from = proplogarea) |> 
     tidyr::pivot_longer(cols = c(Recruitment, `Named wetland types`),
                         names_to = 'stage_name',
-                        values_to = 'area') |> 
+                        values_to = 'proplogarea') |> 
     rename(overlap = `Recruitment and Named`)
   
   # Now calculate the radii and centers we need to plot with geom_circle
   venncheck <- venncheck |> 
-    mutate(radius = sqrt(area/pi)) |> 
+    mutate(radius = sqrt(proplogarea/pi)) |> 
     mutate(d = galenR::find_d(unique(overlap),
                               radii = radius),
            .by = date) |> 
@@ -710,14 +718,16 @@ ts_legend_plot <- all_data_basin |>
   filter(is.na(is_independent_proc) | is_independent_proc == 'sequential') |>
   filter(!stage_name %in% c('Adult and Recorded', 'Regeneration and Recorded',
                             'Adult and Named', 'Regeneration and Named')) |>
-ggplot(aes(x = year, y = log10(area + 1), 
+ggplot(aes(x = year, y = hectares + 1/10000, 
            color = wetland_colour, shape = proc_shape)) +
   geom_line() +
-  scale_color_manual(values = wetland_type_pal_line) +
+              scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+
+  scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
 geom_point() +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
-  labs(y = "log(area + 1)", color = "Wetland type models", shape = "Process-based models")
+  labs(y = "hectares", color = "Wetland type models", shape = "Process-based models")
 
 # Some other legend orientations for testing
 ts_legend_plot_bottom <- ts_legend_plot + 
@@ -743,14 +753,18 @@ make_venn_plots <- function(venn_data) {
   ggforce::geom_circle(mapping = aes(x0 = year, y0 = centers, 
                             r = radius, 
                             fill = factor(stage_name)),
-              alpha = 0.7) + 
+              alpha = 0.5) + 
     
   ggforce::geom_circle(mapping = aes(x0 = year, y0 = centers, 
                             r = radius, 
                             color = factor(stage_name)),
               alpha = 1) + 
-   scale_fill_manual(values = fill_type_process) +
-   scale_colour_manual(values = colour_type_process) +
+   scale_fill_manual(values = c(wetland_type_pal,
+                                'Recruitment' = 
+                                  as.character(wetland_type_pal['All wetland types']))) +
+   scale_colour_manual(values = c(wetland_type_pal,
+                                'Recruitment' = 
+                                  as.character(wetland_type_pal['All wetland types']))) +
   coord_fixed() + 
   lims(x = c(1988, NA)) +
   HydroBOT::theme_werp_toolkit(axis.ticks.y = element_blank(),
@@ -783,13 +797,16 @@ ts_plot <-  topplot /
            axis.text.x = element_blank())) /
      (interact_recorded_basin_ts[[species]]  + 
         theme(legend.position = 'none',
-              axis.text.x = element_blank(),
-              plot.margin = unit(c(5,5,0,5), 'points'))) /
-  wrap_plots(vennplots_recorded[[species]] + 
-               theme(plot.margin = unit(c(0,5,5,5), 'points'))) /
+              # axis.text.x = element_blank(),
+              # plot.margin = unit(c(5,5,0,5), 'points')
+              )
+      ) /
+  # wrap_plots(vennplots_recorded[[species]] + 
+  #              theme(plot.margin = unit(c(0,5,5,5), 'points'))) /
   wrap_plots(ggpubr::as_ggplot(ts_legend_bottom)) + #ts_legend_bottom_notype
-  plot_layout(heights = c(5,5,5,1,3)) +
-  plot_annotation(tag_levels = list(c('a', 'b', 'c', 'd', 'e', '')))
+  # plot_layout(heights = c(5,5,5,1,3)) +
+    plot_layout(heights = c(4,4,4,3)) +
+  plot_annotation(tag_levels = list(c('a', 'b', 'c', 'd', '')))
 
   if (print) {
     thispath <- file.path(tspath, paste0(species, '_timeseries'))
@@ -805,6 +822,419 @@ ts_plot <-  topplot /
 all_stacked_ts <- purrr::map(species, make_stacked_fig) |> 
   setNames(species)
 ```
+
+### Venn replacement
+
+```{r}
+# just get some data
+stackers <- all_data_basin |> 
+    sf::st_drop_geometry() |> 
+    filter(species == 'red_gum' & 
+               stage_name %in% c('Named wetland types',
+                                 'Recruitment and Named',
+                                 'Recruitment'))
+```
+
+```{r}
+# If I use hectares + 1m2, it doesn't stack right because some are (-). Cols always start at 0, and so those with < 1 hectare go down..
+ggplot(stackers, aes(x = date, y = hectares + 1/10000, fill = stage_name)) +
+  geom_col() + scale_y_continuous(trans = 'log10')
+```
+
+```{r}
+# If I use m2, it works because now the smallest unit is 1, but then we're using m2
+ggplot(stackers, aes(x = date, y = area + 1, fill = stage_name)) + 
+  geom_col() + scale_y_continuous(trans = 'log10')
+```
+
+```{r}
+# If I use untransformed, it works but we can't see anything
+ggplot(stackers, aes(x = date, y = hectares, fill = stage_name)) + geom_col() + scale_y_continuous()
+```
+
+```{r}
+# If I use hectares + 1 it works, but won't matcht he other figs
+ggplot(stackers, aes(x = date, y = hectares + 1, fill = stage_name)) + geom_col() + scale_y_continuous(trans = 'log10')
+```
+
+The venns scaled to something though, so maybe that's the answer. If I scale to the total, and then divide it up? Or scale to the total there's ever been? Or the maximum possible (ie total wetland area)? Then that puts everything 0-1, and we can scale equivalently? The % total wetland area is what we drew on the whiteboard. But did we actually mean % *inundated* all wetlands?
+
+```{r}
+# We can scale to the inundation of all wetland types and the total wetland area and see which works better, I suppose.
+
+# all wetlands
+wetareabasin <- sum(diversity_anae_summary$total_area)
+
+# inundated wetlands
+inun_wetarea <- all_data_basin |> 
+  st_drop_geometry() |> 
+  filter(stage_name %in% c('All wetland types')) |> 
+  dplyr::select(year, wet_inun_area = area)
+
+# I also need to subtract the joint contribution- Named and Recruitment are independent, and so *include* the interactive bit.
+interact_part <- all_data_basin |> 
+  st_drop_geometry() |> 
+  filter(species == 'red_gum' & stage_name %in% c('Recruitment and Named')) |> 
+  dplyr::select(year, interact_part = area)
+
+
+stackers <- all_data_basin |> 
+    sf::st_drop_geometry() |> 
+    filter(species == 'red_gum' & 
+               stage_name %in% c('Named wetland types',
+                                 'Recruitment and Named',
+                                 'Recruitment')) |> 
+  left_join(inun_wetarea, by = 'year') |> 
+  left_join(interact_part, by = 'year') |> 
+  # Subtract off the bit that belongs to both so it's unique.
+    mutate(area = ifelse(stage_name == 'Recruitment and Named', 
+                         area, area-interact_part),
+           area = area + 1) |> # add a m2 to help the logs
+  mutate(all_wetarea = wetareabasin,
+         prop_all_wetlands = area/all_wetarea,
+         prop_inun_wetlands = area/wet_inun_area)
+```
+
+```{r}
+# we still can't see the small ones, so need to log
+ggplot(stackers, aes(x = year, y = prop_all_wetlands, fill = stage)) + 
+  geom_col() 
+ggplot(stackers, aes(x = year, y = prop_inun_wetlands, fill = stage)) + 
+  geom_col() 
+```
+
+```{r}
+# The log is a mess. It's unclear to me what is going on with the pink bars- why are they *smaller* now? Because they are LESS NEGATIVE. In fact, the ?geom_col says do not do this. 
+ggplot(stackers, aes(x = year, y = prop_all_wetlands, fill = stage)) + 
+  geom_col()  + scale_y_continuous(trans = 'log10')
+ggplot(stackers, aes(x = year, y = prop_inun_wetlands, fill = stage)) + 
+  geom_col() + scale_y_continuous(trans = 'log10')
+```
+
+```{r}
+# This just recapitulates the timeseries we already have, but on a different scale
+ggplot(stackers, aes(x = year, y = prop_all_wetlands, color = stage)) + 
+  geom_line()  + geom_point() + scale_y_continuous(trans = 'log10')
+ggplot(stackers, aes(x = year, y = prop_inun_wetlands, color = stage)) + 
+  geom_line()  + geom_point() + scale_y_continuous(trans = 'log10')
+```
+
+```{r}
+ggplot(stackers, aes(x = year, y = prop_all_wetlands, color = stage)) + 
+  geom_line()  + geom_point() + scale_y_continuous()
+ggplot(stackers, aes(x = year, y = prop_inun_wetlands, color = stage)) + 
+  geom_line()  + geom_point() + scale_y_continuous()
+```
+
+so, really, that just doesnt' work well. I think I'll move on for the moment and see if I can just explain it instead.
+
+### Trying again with fresh eyes
+
+Can we plot the overlap and non-overlap separately? Like the plots of area above, but only the unique parts? To do that, we need the same info we need for the overlap fig.
+
+### Overlap fig
+
+we want overlap vs % time conditions met. For each spp (and life stage?).
+
+Overlap is fine (it's the Recruitment and Named), but what is %time conditions met? All Recruitment? All Process? Both, independently? and overlap is given as % overlap, but again, % of what?
+
+```{r}
+separated_habproc <- all_data_basin |> 
+    sf::st_drop_geometry() |> 
+    filter(stage_name %in% c('Named wetland types',
+                             'Recorded wetland types',
+                             'Recruitment and Named',
+                             'Recruitment and Recorded',
+                             'Recruitment')) |> 
+  select(year, stage_name, species, hectares) |> 
+  tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
+  mutate(`Recruitment outside Named` = (Recruitment - `Recruitment and Named`),
+         `Named only` = (`Named wetland types`-Recruitment),
+         `Recruitment outside Recorded` = (Recruitment - 
+                                             `Recruitment and Recorded`),
+         `Recorded only` = (`Recorded wetland types`- Recruitment))
+
+```
+
+These are basically it. Are they helpful? Maybe in an appendix? Not going to make all of them until we think we actually want it.
+
+```{r}
+
+overlapcolors <- c(wetland_type_pal['Named wetland types'],
+                   wetland_type_pal['Recorded wetland types'],
+             'Named only' = "#8DA0CBFF",
+             'Recorded only' = "#FC8D62FF",
+             'Recruitment and Named' = "#8DA0CBFF",
+             'Recruitment and Recorded' = '#FC8D62FF',
+             'Recruitment' = '#66C2A5FF',
+             'Recruitment outside Named' = '#66C2A5FF',
+             'Recruitment outside Recorded' = '#66C2A5FF'
+             )
+
+
+
+make_named_overlap_ts <- function(species) {
+  
+  interact_named_basin_ts <- purrr::map(species, 
+                                      make_named_process_interact_ts) |> 
+  setNames(species)
+named_separated_ts <- separated_habproc |> 
+  tidyr::pivot_longer(cols = -c(year, species), 
+                      names_to = 'stage_name', 
+                      values_to = 'hectares') |>
+  filter(stage_name %in% c('Recruitment and Named',
+                           'Recruitment outside Named',
+                           'Named only',
+                           'Named wetland types',
+                           'Recruitment') &
+         species == {{species}}) |> 
+mutate(Type = case_when(stage_name %in% 
+                          c('Recruitment', 'Named wetland types') ~ 'Total',
+                          stage_name %in% 
+                          c('Recruitment outside Named', 'Named only',
+                            'Recruitment and Named') ~ 'Separate')) |> 
+  mutate(stage_name = factor(stage_name, 
+                             levels = c('Named wetland types', 'Recruitment',
+                                        'Named only', 'Recruitment outside Named',
+                                        'Recruitment and Named'))) |> 
+ggplot(aes(y = hectares, x = year, color = stage_name, 
+           shape = Type, linetype = Type)) + 
+  geom_point() + geom_line() +
+  scale_color_manual(values = overlapcolors) +
+  # scale_shape_manual(values = shape_type_process) +
+            scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "Favorable area (ha)", color = "Grouping",
+       linetype = 'Combination', shape = "Combination")
+
+return(named_separated_ts)
+}
+
+make_recorded_overlap_ts <- function(species) {
+  recorded_separated_ts <- separated_habproc |> 
+  tidyr::pivot_longer(cols = -c(year, species), 
+                      names_to = 'stage_name', 
+                      values_to = 'hectares') |>
+  filter(stage_name %in% c('Recruitment and Recorded',
+                           'Recruitment outside Recorded',
+                           'Recorded only',
+                           'Recorded wetland types',
+                           'Recruitment') &
+         species == {{species}}) |> 
+mutate(Type = case_when(stage_name %in% 
+                          c('Recruitment', 'Recorded wetland types') ~ 'Total',
+                          stage_name %in% 
+                          c('Recruitment outside Recorded', 'Recorded only',
+                            'Recruitment and Recorded') ~ 'Separate')) |> 
+  mutate(stage_name = factor(stage_name, 
+                             levels = c('Recorded wetland types', 'Recruitment',
+                                        'Recorded only',
+                                        'Recruitment outside Recorded',
+                                        'Recruitment and Recorded'))) |> 
+ggplot(aes(y = hectares, x = year, color = stage_name, 
+           shape = Type, linetype = Type)) + 
+  geom_point() + geom_line() +
+  scale_color_manual(values = overlapcolors) +
+  # scale_shape_manual(values = shape_type_process) +
+            scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  labs(y = "Favorable area (ha)", color = "Grouping", shape = "Combination",
+       linetype = "Combination")
+  
+  return(recorded_separated_ts)
+}
+
+overlap_named_basin_ts <- purrr::map(species, 
+                                      make_named_overlap_ts) |> 
+  setNames(species)
+
+overlap_recorded_basin_ts <- purrr::map(species, 
+                                      make_recorded_overlap_ts) |> 
+  setNames(species)
+```
+
+```{r}
+overlap_named_basin_ts['red_gum']
+```
+
+```{r}
+overlap_recorded_basin_ts['red_gum']
+```
+
+Print it out, I guess
+
+```{r}
+
+
+make_stack_overlap <- function(species) {
+  ts_plot <- overlap_named_basin_ts[[species]] / 
+    overlap_recorded_basin_ts[[species]] + 
+    plot_layout(guides = 'collect')
+  
+    thispath <- file.path(tspath, paste0(species, '_timeseries_overlap'))
+    ggsave_multi(filename = thispath, plot = ts_plot, 
+                         device = c('png', 'pdf'),
+                         width = 16, height = 16, units = "cm")
+}
+
+purrr::map(species, make_stack_overlap)
+
+```
+
+### Niche width?
+
+Get the niche width for that new figure
+
+```{r}
+
+# For some reason this is easier to break apart
+niche_width_recruit <- all_data_basin |> 
+    sf::st_drop_geometry() |> 
+    filter(stage_name %in% c('Recruitment',
+                             'Recruitment and Named',
+                             'Recruitment and Recorded')) |> 
+  select(year, stage_name, species, hectares) |> 
+  tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
+  summarise(niche_width = sum(Recruitment, na.rm = TRUE),
+            overlap_named = sum(`Recruitment and Named`, na.rm = TRUE),
+            overlap_recorded = sum(`Recruitment and Recorded`, na.rm = TRUE),
+            .by = species) |> 
+  mutate(stage_name = 'Recruitment')
+
+niche_width_regen <- all_data_basin |> 
+    sf::st_drop_geometry() |> 
+    filter(stage_name %in% c('Regeneration',
+                             'Regeneration and Named',
+                             'Regeneration and Recorded')) |> 
+  select(year, stage_name, species, hectares) |> 
+  tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
+  summarise(niche_width = sum(Regeneration, na.rm = TRUE),
+            overlap_named = sum(`Regeneration and Named`, na.rm = TRUE),
+            overlap_recorded = sum(`Regeneration and Recorded`, na.rm = TRUE),
+            .by = species) |> 
+  mutate(stage_name = 'Regeneration')
+  
+niche_width_adult <- all_data_basin |> 
+    sf::st_drop_geometry() |> 
+    filter(stage_name %in% c('Adult',
+                             'Adult and Named',
+                             'Adult and Recorded')) |> 
+  select(year, stage_name, species, hectares) |> 
+  tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
+  summarise(niche_width = sum(Adult, na.rm = TRUE),
+            overlap_named = sum(`Adult and Named`, na.rm = TRUE),
+            overlap_recorded = sum(`Adult and Recorded`, na.rm = TRUE),
+            .by = species) |> 
+  mutate(stage_name = 'Adult')
+
+niche_width <- bind_rows(niche_width_recruit, niche_width_regen, niche_width_adult) |> 
+  mutate(stage_name = factor(stage_name, levels = levels(all_data_basin$stage_name))) |> 
+  mutate(proportion_overlap_recorded = overlap_recorded/niche_width,
+         proportion_overlap_named = overlap_named/niche_width)
+  
+```
+
+That's a plot, but it sure isn't obviously helpful. We could make the values %, but it would just scale it, not add any information.
+
+what is this asking? whether species that have lots of success (across both wetland type and processes) have more wetlands that are both? What does that mean? I'm going to have to go read the comment and think more about this, because it's not making a ton of sense to me.
+
+```{r}
+ggplot(niche_width, 
+       aes(x = niche_width, y = overlap_named, color = species)) +
+  geom_point() +
+  facet_wrap('stage_name', scales = 'free')  +
+  scale_x_continuous(trans = 'log10') +
+  scale_y_continuous(trans = 'log10')
+```
+
+```{r}
+ggplot(niche_width, 
+       aes(x = niche_width, y = overlap_recorded, color = species)) +
+  geom_point() +
+  facet_wrap('stage_name', scales = 'free') +
+  scale_x_continuous(trans = 'log10') +
+  scale_y_continuous(trans = 'log10')
+```
+
+Those are kinda ok, but it would be good to put them on comparable scales so I could plot all the points on one graph. Does that mean calculating something other than a sum? logging? relativising (to what?)
+
+```{r}
+ggplot(niche_width, 
+       aes(x = niche_width, y = overlap_recorded, color = stage_name, shape = species, group = stage_name)) + geom_line() +
+  geom_point() +
+ scale_x_continuous(trans = 'log10') +
+  scale_y_continuous(trans = 'log10') +
+  scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit()
+```
+
+```{r}
+ggplot(niche_width, 
+       aes(x = niche_width, y = overlap_named, color = stage_name, shape = species, group = stage_name)) + geom_line() +
+  geom_point() +
+ scale_x_continuous(trans = 'log10') +
+  scale_y_continuous(trans = 'log10') +
+  scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit()
+```
+
+What are we really asking though? Is the overlap a consistent fraction of the 'niche width' might be a good way to look at it. but that's only one axis then.
+
+```{r}
+prop_record <- niche_width  |> 
+ggplot(aes(y = proportion_overlap_recorded, 
+           x = forcats::fct_reorder(species, proportion_overlap_recorded),
+           color = stage_name)) + 
+  geom_point()  +
+  geom_line(aes(group = stage_name)) +
+  scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit() +
+  labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
+
+prop_named <-  niche_width  |> 
+ggplot(aes(y = proportion_overlap_named, 
+           x = forcats::fct_reorder(species, proportion_overlap_recorded), # keep order the same
+           color = stage_name)) + 
+  geom_point()   +
+  geom_line(aes(group = stage_name)) +
+  scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit() +
+  labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
+
+prop_record + prop_named + 
+  plot_annotation(tag_levels = 'a') +
+  plot_layout(guides = 'collect')
+```
+
+Or does it make more sense to flip?
+
+```{r}
+prop_record_s <- niche_width  |> 
+ggplot(aes(y = proportion_overlap_recorded, 
+           x = stage_name,
+           color = species)) + 
+  geom_point()  +
+  geom_line(aes(group = species)) +
+  # scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit() +
+  labs(y = 'Overlap proportion', x = NULL, color = 'Species')
+
+prop_named_s <-  niche_width  |> 
+ggplot(aes(y = proportion_overlap_named, 
+           x = stage_name, 
+           color = species)) + 
+  geom_point()   +
+  geom_line(aes(group = species)) +
+#  scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit() +
+  labs(y = 'Overlap proportion', x = NULL, color = 'Species')
+
+prop_record_s + prop_named_s + 
+  plot_annotation(tag_levels = 'a') +
+  plot_layout(guides = 'collect')
+```
+
+I'm going to have to go look at the suggestion and figure out what addresses it.
 
 ## Maps
 
@@ -909,12 +1339,13 @@ make_habitat_map <- function(species) {
   
   hab_maps <- all_data_time |>
   filter(species == {{species}} & stage_name %in% anae_stages) |>
-  ggplot(aes(fill = log10(area + 1))) +
+  ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  labs(fill = "hectares")
 
   
   return(hab_maps)
@@ -935,12 +1366,13 @@ make_totalhabitat_map <- function(species) {
   
   hab_maps <- total_wetland_area |>
   filter(species == {{species}} & stage_name %in% anae_stages) |>
-  ggplot(aes(fill = log10(area + 1))) +
+  ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name, labeller = label_wrap_gen(18)) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  labs(fill = "hectares")
 
   
   return(hab_maps)
@@ -960,12 +1392,13 @@ make_process_indep_map <- function(species) {
   pi_maps <- all_data_time |>
   filter(species == {{species}} &
            stage_name %in% c('Adult', 'Germination', 'Seedling')) |>
-  ggplot(aes(fill = log10(area + 1))) +
+  ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  labs(fill = "hectares")
 
   
   return(pi_maps)
@@ -976,12 +1409,13 @@ make_process_seq_map <- function(species) {
   ps_maps <- all_data_time |>
   filter(species == {{species}} & 
            stage_name %in% c('Adult', 'Regeneration', 'Recruitment')) |>
-  ggplot(aes(fill = log10(area + 1))) +
+  ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  labs(fill = "hectares")
 
   
   return(ps_maps)
@@ -1024,13 +1458,15 @@ make_process_indepseq_map <- function(species) {
   
   bio_both_maps <-
     ggplot() +
-    geom_sf(data = adult_indep, aes(fill = log10(area + 1))) +
+    geom_sf(data = adult_indep, aes(fill = hectares + 1/10000)) +
     # geom_sf_text(data = label_data,
     #              aes(label = stage_name), nudge_x = 1, nudge_y = 1) +
-    scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+    scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', 
+                       labels = scales::label_log()) + # , limits = (c(0, 22))
     facet_grid(is_independent_proc~base_stage) +
     HydroBOT::theme_werp_toolkit() +
-    labs(fill = "log(area + 1)")
+    labs(fill = "hectares")
   
   
   
@@ -1054,12 +1490,14 @@ make_interact_alone_map <- function(species) {
 inter_maps <- all_data_time |>
   filter(species == {{species}} & stage_name %in%
            c('Recruitment and Named', 'Recruitment and Recorded')) |>
-  ggplot(aes(fill = log10(area + 1))) +
+  ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', 
+                       labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  labs(fill = "hectares")
 
   
   return(inter_maps)
@@ -1079,12 +1517,14 @@ make_interact_procseq_map <- function(species) {
 inter_seq_maps <- all_data_time |>
   filter(species == {{species}} & stage_name %in%
            sequential_stages) |>
-  ggplot(aes(fill = log10(area + 1))) +
+  ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', 
+                       labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  labs(fill = "hectares")
 
   
   return(inter_seq_maps)
@@ -1102,31 +1542,36 @@ Sequenced off habitat
 make_interact_habseq_map <- function(species) {
   
   # Change the names here from the standard set to make the comparison clearer
-habseqdata <- total_wetland_area |>
-  mutate(stage_name = ifelse(grepl('Recorded', stage_name),
-                             'Total Recorded', 'Total Named'),
-         stage_name = factor(stage_name,
-                             levels = c('Total Recorded', 'Total Named',
-                                        levels(all_data_time$stage_name)))) |>
-  bind_rows(all_data_time) |>
-  mutate(stage_name = case_when(stage_name == 'Recorded wetland types' ~ 'Recorded and inundated',
-                                stage_name == 'Named wetland types' ~ 'Named and inundated',
-                                .default = stage_name),
-         stage_name = factor(stage_name,
-                             levels = c('Total Recorded', 'Total Named',
-                                        'Recorded and inundated','Named and inundated',
-                                        levels(all_data_time$stage_name)))) |>
-  filter(species == {{species}} &
-           stage_name %in% c(sequential_hab, 'Total Recorded', 'Total Named',
-                             'Recorded and inundated','Named and inundated'))
-
-inter_habseq_maps <- habseqdata |>
-  ggplot(aes(fill = log10(area + 1))) +
-  geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
-  facet_wrap('stage_name', nrow = 3) +
-  HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(area + 1)")
+  habseqdata <- total_wetland_area |>
+    mutate(stage_name = ifelse(grepl('Recorded', stage_name),
+                               'Total Recorded', 'Total Named'),
+           stage_name = factor(stage_name,
+                               levels = c('Total Recorded', 'Total Named',
+                                          levels(all_data_time$stage_name)))) |>
+    bind_rows(all_data_time) |>
+    mutate(stage_name = case_when(stage_name == 'Recorded wetland types' ~
+                                    'Recorded and inundated',
+                                  stage_name == 'Named wetland types' ~ 
+                                    'Named and inundated',
+                                  .default = stage_name),
+           stage_name = factor(stage_name,
+                               levels = c('Total Recorded', 'Total Named',
+                                          'Recorded and inundated',
+                                          'Named and inundated',
+                                          levels(all_data_time$stage_name)))) |>
+    filter(species == {{species}} &
+             stage_name %in% c(sequential_hab, 'Total Recorded', 'Total Named',
+                               'Recorded and inundated','Named and inundated'))
+  
+  inter_habseq_maps <- habseqdata |>
+    ggplot(aes(fill = hectares + 1/10000)) +
+    geom_sf() +
+    scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', 
+                       labels = scales::label_log()) + # , limits = (c(0, 22))
+    facet_wrap('stage_name', nrow = 3) +
+    HydroBOT::theme_werp_toolkit() +
+    labs(fill = "hectares")
   
   return(inter_habseq_maps)
 }
@@ -1150,13 +1595,15 @@ make_interact2d_fig <- function(species, print = TRUE) {
            stage_name %in% c(sequential_hab, 'Recruitment')) |>
   mutate(stage_name = forcats::fct_drop(stage_name)) |>
   # filter(!is.na(species)) |> #
-  ggplot(aes(fill = log10(area + 1))) +
+  ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', 
+                       labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_wrap('stage_name', nrow = 2, drop = FALSE) +
   # facet_wrap('stage_name', ncol = 3) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = 'log(area + 1)')
+  labs(fill = 'Favorable\narea (ha)')
 
 
 

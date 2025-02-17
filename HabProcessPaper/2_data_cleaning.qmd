@@ -49,7 +49,7 @@ paperdatadir <- '' # was 'habprocesspaper/' when we used different data.
 
 figpath <- file.path(datOut, 'habprocesspaper', 'Figures', 'uncatchment')
 tspath <- file.path(figpath, 'timeseries')
-barpath <- file.path(figpath, 'bar')
+boxpath <- file.path(figpath, 'box')
 mappath <- file.path(figpath, 'map')
 
 if (!dir.exists(figpath)) {
@@ -60,8 +60,8 @@ if (!dir.exists(tspath)) {
   dir.create(tspath, recursive = TRUE)
 }
 
-if (!dir.exists(barpath)) {
-  dir.create(barpath, recursive = TRUE)
+if (!dir.exists(boxpath)) {
+  dir.create(boxpath, recursive = TRUE)
 }
 
 if (!dir.exists(mappath)) {
@@ -290,11 +290,13 @@ total_wetland_area <- foreach(s = species, .combine = bind_rows, .multicombine =
 }
 
 total_wetland_area <- total_wetland_area |> 
-  rename(area = total_area)
+  rename(area = total_area) |> 
+  mutate(hectares = area/10000)
 
 
 total_wetland_area_basin <- total_wetland_area |> 
-  summarise(area = sum(area), .by = c(species, stage))
+  summarise(area = sum(area), .by = c(species, stage)) |> 
+  mutate(hectares = area/10000)
 
 total_wetland_area <- total_wetland_area |> 
   left_join(valleys, by = 'ValleyName') |> 
@@ -438,7 +440,8 @@ all_data <- bind_rows(adult, germ, seed,
 
 # To make data line up, we need a numeric year sometimes
 all_data <- all_data |> 
-  mutate(year = lubridate::year(date))
+  mutate(year = lubridate::year(date)) |> 
+  mutate(hectares = area/10000)
 
 # Sum to the basin
 all_data_basin <- all_data |>
@@ -446,19 +449,22 @@ all_data_basin <- all_data |>
   summarise(area = sumna(area),
             .by = c(date, year, stage, species)) |>
   bind_cols(basin) |>
-  st_as_sf()
+  st_as_sf() |> 
+  mutate(hectares = area/10000)
 
 # average over time
 all_data_time <- all_data |>
   group_by(ValleyName, stage, species) |> 
   summarise(area = meanna(area)) |>
-  ungroup()
+  ungroup() |> 
+  mutate(hectares = area/10000)
 
 # sum to basin and average over time
 all_data_basin_time <- all_data_basin |>
   group_by(stage, species) |> 
  summarise(area = meanna(area)) |> 
-  ungroup()
+  ungroup() |> 
+  mutate(hectares = area/10000)
 
 rm(adult, germ, seed,
    adult_germ, adult_germ_seed,
@@ -604,9 +610,9 @@ clean_stages <- function(x) {
       stage == 'seedling_name' ~ 'Seedling ',
       stage == 'regeneration_name' ~ 'Regeneration',
       stage == 'recruitment_name' ~ 'Recruitment',
-      stage == 'anae_name' ~ 'No process-based component',
-      stage == 'anae_ala' ~ 'No process-based component',
-      stage == 'wetland_inundation' ~ 'No process-based component',
+      stage == 'anae_name' ~ 'None (habitat only)',
+      stage == 'anae_ala' ~ 'None (habitat only)',
+      stage == 'wetland_inundation' ~ 'None (habitat only)',
       .default = stage_name
     ),
     
@@ -634,7 +640,7 @@ clean_stages <- function(x) {
     proc_shape = factor(proc_shape,
                         levels = c('Adult', 'Germination', 'Seedling',
                                    'Regeneration', 'Recruitment',
-                                   'No process-based component'))
+                                   'None (habitat only)'))
     )
   
 }
@@ -677,6 +683,16 @@ process_cols <- HydroBOT::make_pal(process_stages,
 # that last one is just barely too purple
 process_cols[names(process_cols) == 'Recruitment'] <- '#527E87FF' # '#477173FF'
 
+
+process_cols_seq <- HydroBOT::make_pal(c('dummy1',
+                                         'Adult', 'dummy2', 'Regeneration', 'Recruitment'),
+                                       "lisa::GeorgiaOKeeffe")
+# nord::mountain_forms
+                                        # "calecopal::lupinus")
+                                       # "calecopal::sbchannel",
+                                       # direction = -1)
+
+
 combo_cols <- HydroBOT::make_pal(combo_stages, "rcartocolor::Safe")
 
 stage_pal <- c(anae_cols, process_cols, combo_cols)
@@ -685,12 +701,20 @@ class(stage_pal) <- 'colors'
 # probably need to change this
 type_pal <- HydroBOT::make_pal(c('Wetland type', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
 
-wetland_type_pal <- stats::setNames(c("white", "#872CA2FF", "#C0369DFF"),
-  c( "All wetland types", "Recorded wetland types",  "Named wetland types"))
-class(wetland_type_pal) <- 'colors'
+wetland_type_pal <- HydroBOT::make_pal(c( "All wetland types", 
+                                          "Recorded wetland types",
+                                          "Named wetland types"),
+                                        "RColorBrewer::Set2")
+                                       # "nbapalettes::cavaliers")
+                                       # "ggsci::default_nejm")
+                                       # "ltc::trio4")
+
+#   stats::setNames(c("white", "#872CA2FF", "#C0369DFF"),
+#   c( "All wetland types", "Recorded wetland types",  "Named wetland types"))
+# class(wetland_type_pal) <- 'colors'
 
 wetland_type_pal_line <- stats::setNames(c("black", "black", "#872CA2FF", "#C0369DFF"),
-  c('No process-based component',  "All wetland types", "Recorded wetland types",  "Named wetland types"))
+  c('None (habitat only)',  "All wetland types", "Recorded wetland types",  "Named wetland types"))
 class(wetland_type_pal_line) <- 'colors'
 
 # make a consistent set of shapes that allows patchworking
@@ -701,14 +725,14 @@ shape_type <- scales::shape_pal()(3) |>
 #shape_type_process <- c(15,17,16,1,1,1,1, 1)
 shape_type_process <- c(0,2,1,19,19,19,19,19)
 names(shape_type_process) <- c("Adult", "Regeneration", "Recruitment", 
-                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA)
+                   "Named wetland types", "Recorded wetland types", "All wetland types", 'None (habitat only)', NA)
 
 colour_type_process <- stats::setNames(c("black","black","black","#C0369DFF","#872CA2FF","white", "white", "white"), c("Adult", "Regeneration", "Recruitment", 
-                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA))
+                   "Named wetland types", "Recorded wetland types", "All wetland types", 'None (habitat only)', NA))
 class(colour_type_process) <- 'colors'
 
 fill_type_process <- stats::setNames(c("white", "white","white", "#C0369DFF","#872CA2FF","black", "black","black"), c("Adult", "Regeneration", "Recruitment", 
-                   "Named wetland types", "Recorded wetland types", "All wetland types", 'No process-based component', NA))
+                   "Named wetland types", "Recorded wetland types", "All wetland types", 'None (habitat only)', NA))
 class(fill_type_process) <- 'colors'
 
 

@@ -204,18 +204,18 @@ woody_general <- function(out_dir, catchment,
                                  align = 'right',
                                  na.rm = TRUE)
 
-  # and then we want to know if there was inundation 10 days ago. this is going
-  # to be a bit of a fudge due to the bimonthly inundation- we won't be able to
-  # get daily 10-day lookbacks. It's too strict to just look at the end of the
-  # two-month periods, so for each day, if it's within 10 days of a bimonth
-  # break, we'll ask about the preceding, otherwise, we'll ask about the
-  # current. This will overestimate (since this will also capture periods of
-  # inundation), but that seems better than the alternative. IE this isn't going
-  # to be about 10 days post-inundation, it's just whether there was maybe
-  # inundation nearby and soil moisture of > 10% for 10 days It seems like that
-  # will be too strict (e.g. 11 days will fail), but because inundation is
-  # bimonthly, there's almost no situation where that's actually an issue- the
-  # 11th day almost always has the same inundation as the 10th.
+  # and then we want to know if there was inundation 10 days ago. this is less
+  # than ideal due to the bimonthly inundation- we won't be able to get daily
+  # 10-day lookbacks. It's too strict to just look at the end of the two-month
+  # periods, so for each day, if it's within 10 days of a bimonth break, we'll
+  # ask about the preceding, otherwise, we'll ask about the current. This will
+  # overestimate (since this will also capture periods of inundation), but that
+  # seems better than the alternative. IE this isn't going to be about 10 days
+  # post-inundation, it's just whether there was maybe inundation nearby and
+  # soil moisture of > 10% for 10 days It seems like that will be too strict
+  # (e.g. 11 days will fail), but because inundation is bimonthly, there's
+  # almost no situation where that's actually an issue- the 11th day almost
+  # always has the same inundation as the 10th.
 
   # Strangely, the easiest way to do this is probably to expand the inundation to daily
   # We can do that by abusing unevenTimeMult by filling with 1, since it multiplies a coarse and fine stars by each other and returns the fine
@@ -320,8 +320,6 @@ woody_general <- function(out_dir, catchment,
 
   # I don't think we want to be precious about exactly how long ago germ needs
   # to have happened. The key is whether soil moisture has persisted.
-
-  # I don't think the way I was doing this made much sense. Or maybe just wasn't explained very well in my comment.
 
   # We have some germ window x days (e.g. 2 months) long. This has to
   # fit inside seedling_period_days, along with some minimum seedling period. IE we
