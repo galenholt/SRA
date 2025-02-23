@@ -72,21 +72,6 @@ hab_basin_box <- purrr::map(species, make_habitat_box) |>
   setNames(species)
 ```
 
-```{r}
-#| label: Function stolen from my scatch site
-#| include: false
-ggsave_multi <- function(filename, plot = last_plot(), device, ...) {
-
-  extnames <- lapply(device, \(x) paste0(filename, '.', x))
-  lapply(extnames, \(x) ggsave(
-    filename = x, plot = plot,
-    ...
-  ))
-  # similar to the ggsave return
-  return(invisible(unlist(extnames)))
-}
-```
-
 ### Process alone
 
 ```{r}
@@ -236,20 +221,25 @@ basin_box_hab2proc <- all_data_basin |>
   sf::st_drop_geometry() |>
   mutate(hab_v_proc = ifelse(grepl('Recruit', stage_name),
                            'Recruitment', 'None (habitat only)'),
-         hab_v_proc = factor(hab_v_proc, levels = c('None (habitat only)', 'Adult', 'Regeneration', 'Recruitment'))) |>
+         hab_v_proc = factor(hab_v_proc, 
+                             levels = c('None (habitat only)', 
+                                        'Adult', 'Regeneration', 'Recruitment'))) |>
+  mutate(fill_hab = ifelse(is.na(proc_type), 'dummy', as.character(hab_type)),
+         fill_hab = factor(fill_hab, levels = c('dummy', levels(hab_type)))) |> 
     # In this situation, recruitment alone *is* both- it's within all habitats- I think just note that though
-  ggplot(aes(x = hab_type, y = hectares + 1/10000, fill = hab_type,
+  ggplot(aes(x = hab_type, y = hectares + 1/10000, fill = fill_hab,
              color = hab_v_proc)) +
     geom_boxplot(position = position_dodge(), show.legend = TRUE,
-                 size = 0.2, outlier.size = 0.2) +
+                 size = 0.4, outlier.size = 0.4) +
     # geom_point(alpha = 0.5,
     #            position = position_jitterdodge(jitter.width = 0.4)) +
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
-  scale_fill_manual(values = wetland_type_pal) +
+  scale_fill_manual(values = wetland_type_pal_fill, guide = FALSE) +
   scale_color_manual(values = c(process_cols_seq,
-                                'None (habitat only)' = 'black'), drop = FALSE) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(), base_size = 10) +
-  labs(y = "Favorable area (ha)", fill = "Habitat model",
+                                'None (habitat only)' = 'black')) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(),
+                               axis.text = element_text(color = "black")) +
+  labs(y = "Favorable area (ha)",
        color = "Process model")
 
 
@@ -259,26 +249,28 @@ basin_box_hab2proc <- all_data_basin |>
 make_interact_proc2hab_box <- function(species) {
 
 basin_box_proc2hab <- all_data_basin |>
+    sf::st_drop_geometry() |>
   filter((species == {{species}} | is.na(species)) &
            !is.na(proc_type) &
            !grepl('Germ|Seed', stage_name)) |>
   mutate(hab_v_proc = ifelse(is.na(proc_type), 'None (habitat only)', as.character(proc_type)),
          hab_v_proc = factor(hab_v_proc, levels = c('None (habitat only)', levels(proc_type)))) |>
-  sf::st_drop_geometry() |>
+  mutate(fill_hab = ifelse(proc_type != 'Recruitment', 'dummy', as.character(hab_type)),
+         fill_hab = factor(fill_hab, levels = c('dummy', levels(hab_type)))) |>
     ggplot(aes(x = proc_type, y = hectares + 1/10000,
-               fill = hab_type,
-             color = hab_v_proc)) +
+               fill = fill_hab,
+             color = hab_type)) +
     geom_boxplot(position = position_dodge(), show.legend = TRUE,
-                 size = 0.2, outlier.size = 0.2) +
+                 size = 0.4, outlier.size = 0.4) +
     # geom_point(alpha = 0.5,
     #            position = position_jitterdodge(jitter.width = 0.4)) +
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
-  scale_fill_manual(values = wetland_type_pal) +
-  scale_color_manual(values = c(process_cols_seq,
-                                'None (habitat only)' = 'black'), drop = FALSE) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(), base_size = 10) +
+  scale_fill_manual(values = wetland_type_pal_fill) +
+  scale_color_manual(values = wetland_type_pal) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(),
+                               axis.text = element_text(color = "black")) +
   labs(y = "Favorable area (ha)", fill = "Habitat model",
-       color = "Process model")
+       color = "Habitat model")
 
 
   return(basin_box_proc2hab)
@@ -361,7 +353,6 @@ make_stacked_boxs <- function(species, print = TRUE) {
 # BBB#C
 # "
   compare_box <- (interact_basin_box_hab2proc[[species]] +
-                    theme(legend.position = 'none') +
                   scale_x_discrete(labels = scales::label_wrap(14))) /
   (interact_basin_box_proc2hab[[species]] + 
      scale_x_discrete(labels = scales::label_wrap(14))) +
@@ -374,9 +365,9 @@ make_stacked_boxs <- function(species, print = TRUE) {
 
   if (print) {
     thispath <- file.path(boxpath, paste0(species, '_box'))
-    ggsave_multi(filename = thispath, plot = compare_box, 
+    galenR::ggsave_multi(filename = thispath, plot = compare_box, 
                          device = c('png', 'pdf'),
-                         width = 14, height = 10, units = "cm")
+                         width = 16, height = 12, units = "cm")
   }
 
   return(compare_box)
@@ -385,6 +376,50 @@ make_stacked_boxs <- function(species, print = TRUE) {
 
 all_stacked_boxs <- purrr::map(species, make_stacked_boxs) |> 
   setNames(species)
+
+
+
+```
+
+Make a table of the means
+
+```{r}
+
+basin_table <- all_data_basin |>
+  st_drop_geometry() |> 
+  mutate(hab_v_proc = ifelse(is.na(proc_type), 'Habitat inundation', as.character(proc_type)),
+         hab_v_proc = factor(hab_v_proc, levels = c('Habitat inundation', levels(proc_type)))) |>
+  filter(!grepl('Germ|Seed', stage_name)) |>
+   
+  summarise(hectares = mean(hectares, na.rm = TRUE),
+            .by = c(stage_name, species, hab_v_proc, hab_type))
+```
+
+Tables are a mess in R --\> word, make them here and then copy over.
+
+```{r}
+# It is possible to have adult favourability *higher* than wetland_inundation, and adult_ala and adult_name higher than anae_ala and anae_name (which are both inundation areas), becuase the favourability does not rely on inundation, and certainly not in that year.  
+
+# it *should* always be less than the total area of wetlands or the named types, but that's not what this is looking at.
+
+
+areatab <- function(species1) {
+  artab <- basin_table |> 
+  filter(species == species1 | is.na(species)) |> # THe NA species is no process or habitat filters (i.e. Process = None, habitat = all wetland types) 
+  select(-stage_name, -species) |>
+  mutate(hectares = round(hectares, 2)) |> # Technically, this could be anything, since we're splitting polygons. And orig data is in meters.
+  tidyr::pivot_wider(names_from = hab_v_proc, values_from = hectares) |> 
+  select(' ' = hab_type, `Habitat inundation`, everything()) |> 
+  knitr::kable() |>
+  column_spec(1, bold = TRUE, border_right = TRUE) |> 
+  kable_styling()
+  
+  return(artab)
+}
+
+tablist <- purrr::map(species, areatab) |> 
+  setNames(species)
+tablist
 ```
 
 ## Basin-scale timeseries
@@ -422,6 +457,44 @@ ggplot(aes(x = year, y = hectares + 1/10000,
 hab_basin_ts <- purrr::map(species, make_habitat_timeseries) |> 
   setNames(species)
 
+```
+
+Calculate some fractions
+
+```{r}
+areatab <- total_wetland_area_basin |> 
+  filter(species == 'red_gum' | is.na(species)) |> 
+  select(-species, -area) |> 
+  tidyr::pivot_wider(names_from = stage, values_from = hectares) |> 
+  mutate(fracname = anae_name/anae_all, fracala = anae_ala/anae_all)
+areatab
+```
+
+```{r}
+
+  hab_basin_area_scaled_ts <- all_data_basin |> 
+    st_drop_geometry() |> 
+  filter((species %in% 'red_gum' | is.na(species)) & 
+           stage_name %in% anae_stages) |> 
+    select(year, hectares, stage_name) |> 
+    tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
+    mutate(area_all = areatab$anae_all,
+           area_name = areatab$anae_name,
+           area_ala = areatab$anae_ala) |> 
+    mutate(`All wetland types` = `All wetland types`/area_all,
+           `Named wetland types` = `Named wetland types`/area_name,
+           `Recorded wetland types` = `Recorded wetland types`/area_ala)
+  # 
+  # mutate(fracname_inun = `Named wetland types`/`All wetland types`,
+  #        fracala_inun = `Recorded wetland types`/`All wetland types`)
+hab_basin_area_scaled_ts |> 
+  select(year, contains('wetland')) |> 
+  tidyr::pivot_longer(cols = contains('wetland'), 
+                      names_to = 'Wetland type model', values_to = 'Fraction area\ninundated') |> 
+  ggplot(aes(x = year, y = `Fraction area\ninundated`, color = `Wetland type model`)) +
+  geom_point() + geom_line() +
+   scale_color_manual(values = wetland_type_pal) +
+  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank())
 ```
 
 ### Process alone
@@ -810,7 +883,7 @@ ts_plot <-  topplot /
 
   if (print) {
     thispath <- file.path(tspath, paste0(species, '_timeseries'))
-    ggsave_multi(filename = thispath, plot = ts_plot, 
+    galenR::ggsave_multi(filename = thispath, plot = ts_plot, 
                          device = c('png', 'pdf'),
                          width = 16, height = 22, units = "cm")
   }
@@ -1072,13 +1145,66 @@ make_stack_overlap <- function(species) {
     plot_layout(guides = 'collect')
   
     thispath <- file.path(tspath, paste0(species, '_timeseries_overlap'))
-    ggsave_multi(filename = thispath, plot = ts_plot, 
+    galenR::ggsave_multi(filename = thispath, plot = ts_plot, 
                          device = c('png', 'pdf'),
                          width = 16, height = 16, units = "cm")
 }
 
-purrr::map(species, make_stack_overlap)
+stack_overlap_ts <- purrr::map(species, make_stack_overlap)
 
+```
+
+Can I do that tabular?
+
+```{r}
+recorded_sep_ts <- separated_habproc |> 
+  select(species, year, `Recruitment outside Recorded`, `Recruitment and Recorded`,
+         `Recorded only`, Recruitment, `Recorded wetland types`)
+
+named_sep_ts <- separated_habproc |> 
+  select(species, year, `Recruitment outside Named`, `Recruitment and Named`, `Named only`,
+         `Named only`, Recruitment, `Named wetland types`)
+
+recorded_sep <- recorded_sep_ts |> 
+  summarise(across(matches('Recruit|Record'), \(x) mean(x, na.rm = TRUE)),
+            .by = .data$species) 
+
+
+
+named_sep <- named_sep_ts |> 
+  summarise(across(matches('Recruit|Named'), \(x) mean(x, na.rm = TRUE)),
+            .by = .data$species)
+
+# print those out
+recorded_sep |> 
+  mutate(across(matches('Recruit|Record'), \(x) round(x, 2))) |> 
+  flextable::flextable() |> 
+  flextable::save_as_docx(path = file.path(tspath, 'overall_separated_record.docx'))
+
+named_sep |> 
+    mutate(across(matches('Recruit|Record'), \(x) round(x, 2))) |> 
+  flextable::flextable() |> 
+  flextable::save_as_docx(path = file.path(tspath, 'overall_separated_named.docx'))
+```
+
+Save those out
+
+```{r}
+make_ts_separated_tab <- function(species1) {
+  recorded_sep_ts |> 
+      mutate(across(matches('Recruit|Record'), \(x) round(x, 2))) |> 
+    filter(species == {{species1}}) |> 
+    flextable::flextable() |> 
+  flextable::save_as_docx(path = file.path(tspath, paste0(species1, '_separated_record.docx')))
+  
+    named_sep_ts |> 
+        mutate(across(matches('Recruit|Record'), \(x) round(x, 2))) |> 
+    filter(species == {{species1}}) |> 
+    flextable::flextable() |> 
+  flextable::save_as_docx(path = file.path(tspath, paste0(species1, '_separated_named.docx')))
+}
+
+purrr::map(species, make_ts_separated_tab)
 ```
 
 ### Niche width?
@@ -1137,6 +1263,9 @@ niche_width <- bind_rows(niche_width_recruit, niche_width_regen, niche_width_adu
 That's a plot, but it sure isn't obviously helpful. We could make the values %, but it would just scale it, not add any information.
 
 what is this asking? whether species that have lots of success (across both wetland type and processes) have more wetlands that are both? What does that mean? I'm going to have to go read the comment and think more about this, because it's not making a ton of sense to me.
+
+The comment is: : Is model choice a greater concern for species with narrower environmental tolerances compared to those with broader tolerances? 
+
 
 ```{r}
 ggplot(niche_width, 
@@ -1236,6 +1365,102 @@ prop_record_s + prop_named_s +
 
 I'm going to have to go look at the suggestion and figure out what addresses it.
 
+I think maybe this is  actually better at getting at the question - does more environmental tolerance (niche width) mean that a greater proportion of the tolerated area is in both models (overlap)? IE does tolerance reduce the impact of model choice?
+
+Across stages, yes. Across species, not clear.
+
+```{r}
+prop_v_niche_record <- niche_width  |> 
+ggplot(aes(y = proportion_overlap_recorded, 
+           x = niche_width, color = stage_name, shape = species, group = stage_name)) + 
+  geom_point()  +
+  geom_line(aes(group = stage_name)) +
+  scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit() +
+  scale_x_continuous(trans = 'log10')
+  # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
+
+prop_v_niche_named <- niche_width  |> 
+ggplot(aes(y = proportion_overlap_named, 
+           x = niche_width, color = stage_name, shape = species, group = stage_name)) + 
+  geom_point()   +
+  geom_line(aes(group = stage_name)) +
+  scale_color_manual(values = process_cols_seq) +
+  HydroBOT::theme_werp_toolkit() +
+  scale_x_continuous(trans = 'log10')
+  # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
+
+prop_v_niche_record + prop_v_niche_named + 
+  plot_annotation(tag_levels = 'a') +
+  plot_layout(guides = 'collect')
+```
+How about a version where we look at recruitment across species for both recorded and named, and then another panel where we draw the lines across stages?
+
+
+```{r}
+# The above is good, but just isn't working very well with the legends. Can i do a better job witht hem?
+prop_v_niche_record_v_name <- niche_width  |> 
+  select(niche_width, stage_name, species, proportion_overlap_recorded, proportion_overlap_named) |> 
+  tidyr::pivot_longer(cols = starts_with('proportion'),
+                      names_to = 'hab_mod', values_to = 'overlap_proportion') |>
+  mutate(hab_mod = stringr::str_replace_all(hab_mod, 'proportion_overlap_', '')) |> 
+  mutate(hab_mod = stringr::str_to_sentence(hab_mod))  |> 
+  mutate(species = stringr::str_replace_all(species, '_', ' '),
+         species = stringr::str_to_sentence(species))|>
+  filter(stage_name == 'Recruitment') |> 
+ggplot(aes(y = overlap_proportion, 
+           x = niche_width, 
+           linetype = hab_mod,
+           shape = stage_name,
+           group = hab_mod)) + 
+  geom_point(aes(color = species)) +
+  geom_line(aes(group = hab_mod)) +
+  scale_shape_manual(values = c(16,17,15) |> 
+                       setNames(c('Adult', 'Regeneration', 'Recruitment')),
+                     guide = FALSE) +
+  scale_color_manual(values = spp_pal, guide = FALSE) +
+  HydroBOT::theme_werp_toolkit()  +
+  labs(y = 'Overlap proportion', x = 'Tolerance (process area)',
+       color = 'Species', shape = 'Process', linetype = 'Habitat')
+  # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
+
+prop_v_niche_stages <- niche_width  |> 
+    select(niche_width, stage_name, species, proportion_overlap_recorded, proportion_overlap_named) |> 
+    tidyr::pivot_longer(cols = starts_with('proportion'),
+                        names_to = 'hab_mod', values_to = 'overlap_proportion') |>
+    mutate(hab_mod = stringr::str_replace_all(hab_mod, 'proportion_overlap_', '')) |> 
+    mutate(hab_mod = stringr::str_to_sentence(hab_mod)) |> 
+  mutate(species = stringr::str_replace_all(species, '_', ' '),
+         species = stringr::str_to_sentence(species)) |> 
+    ggplot(aes(y = overlap_proportion, 
+               x = niche_width, 
+               shape = stage_name,
+               color = species,
+               linetype = hab_mod,
+               group = interaction(species, hab_mod))) + 
+    geom_point()   +
+    geom_line() +
+    HydroBOT::theme_werp_toolkit() +
+  scale_color_manual(values = spp_pal) +
+    scale_x_continuous(trans = 'log10') +
+  labs(y = 'Overlap proportion', x = 'Tolerance (process area)',
+       color = 'Species', shape = 'Process', linetype = 'Habitat')
+
+niche_panel <- prop_v_niche_record_v_name / 
+                  prop_v_niche_stages + 
+  plot_annotation(tag_levels = 'a') + plot_layout(guides = 'collect')
+
+niche_panel
+
+# this is overall, so I guess save it with the boxplots
+    galenR::ggsave_multi(filename = file.path(boxpath, 'tolerance'),
+                         plot = niche_panel,
+                         device = c('png', 'pdf'),
+                         width = 16, height = 12, units = "cm")
+
+```
+
+
 ## Maps
 
 ### Background- ala records
@@ -1279,6 +1504,8 @@ make_all_record_map <- function(species) {
     geom_sf(alpha = 0.3, mapping = aes(color = in_ala)) +
   facet_wrap("species_name") +
     scale_color_manual(values = c('burlywood', 'seagreen') ) +
+        scale_x_continuous(breaks = c(140, 150)) +
+    scale_y_continuous(breaks = c(-28, -32, -36)) +
   HydroBOT::theme_werp_toolkit(legend.position = 'none')
 
   
@@ -1287,7 +1514,13 @@ make_all_record_map <- function(species) {
 
 # Individual per-species plots
 all_records_map <- make_all_record_map(NULL)
+
+galenR::ggsave_multi(file.path(mappath, 'ala_records'), plot = all_records_map,
+             device = c('pdf', 'png'),
+                     width = 12, height = 12, units = 'cm')
 ```
+
+
 
 summed by catchment (the sum by type is done in making the tables)
 
@@ -1318,17 +1551,25 @@ ala_catch_maps <- catch_ala |>
   # filter(species == {{species}}) |>
   ggplot() +
   # geom_sf(data = basin, fill = 'azure') +
-  geom_sf(aes(fill = log10(n_records))) +
+  geom_sf(aes(fill = n_records)) +
   facet_wrap("species_name") +
-  scale_fill_viridis_c(option = 'mako') + # , limits = (c(0, 22))
+  scale_fill_viridis_c(option = 'mako', trans = 'log10',
+                       labels = scales::label_log()) + # , limits = (c(0, 22))
+      scale_x_continuous(breaks = c(140, 150)) +
+    scale_y_continuous(breaks = c(-28, -32, -36)) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "log(ALA records)")
+  labs(fill = "ALA records")
 
   return(ala_catch_maps)
 }
 
 # Individual per-species plots
 ala_catch_map <- make_ala_catch_map()
+
+galenR::ggsave_multi(file.path(mappath, 'ala_catchment'), plot = ala_catch_map,
+             device = c('pdf', 'png'),
+                     width = 12, height = 12, units = 'cm')
+
 ```
 
 ### Habitat alone
@@ -1366,13 +1607,16 @@ make_totalhabitat_map <- function(species) {
   
   hab_maps <- total_wetland_area |>
   filter(species == {{species}} & stage_name %in% anae_stages) |>
-  ggplot(aes(fill = hectares + 1/10000)) +
+  ggplot(aes(fill = hectares)) +
   geom_sf() +
   scale_fill_viridis_c(option = 'mako',
-                       trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
+                       trans = 'log10', 
+                       labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name, labeller = label_wrap_gen(18)) +
+    scale_x_continuous(breaks = c(140, 150)) +
+    scale_y_continuous(breaks = c(-28, -32, -36)) +
   HydroBOT::theme_werp_toolkit() +
-  labs(fill = "hectares")
+  labs(fill = "Area (ha)")
 
   
   return(hab_maps)
@@ -1382,6 +1626,26 @@ make_totalhabitat_map <- function(species) {
 totalhab_basin_map <- purrr::map(species, make_totalhabitat_map) |> 
   setNames(species)
 ```
+
+Make that plot; previously in the 'Appendces' qmd
+```{r}
+totalhab_maps <- purrr::imap(totalhab_basin_map, \(x, i)
+                             x + ggtitle(stringr::str_replace(i, '_', ' ') |> 
+                                           stringr::str_to_sentence())) |>
+  wrap_plots() + 
+  plot_layout(guides = 'collect') & 
+  # make common limits
+  scale_fill_viridis_c(option = 'mako', 
+                       trans = 'log10', , 
+                       labels = scales::label_log(),
+                       limits = c(1, 10^7)) &
+  theme(legend.position = 'bottom')
+
+galenR::ggsave_multi(file.path(mappath, 'wetland_area'), plot = totalhab_maps,
+             device = c('pdf', 'png'),
+                     width = 16, height = 12, units = 'cm')
+```
+
 
 ### Process alone
 
@@ -1594,25 +1858,32 @@ make_interact2d_fig <- function(species, print = TRUE) {
             is.na(species)) &
            stage_name %in% c(sequential_hab, 'Recruitment')) |>
   mutate(stage_name = forcats::fct_drop(stage_name)) |>
+    mutate(model_type = as.character(model_type),
+           model_type = stringr::str_remove_all(model_type, ' within\nwetland type')) |> 
   # filter(!is.na(species)) |> #
   ggplot(aes(fill = hectares + 1/10000)) +
   geom_sf() +
   scale_fill_viridis_c(option = 'mako',
                        trans = 'log10', 
                        labels = scales::label_log()) + # , limits = (c(0, 22))
-  facet_wrap('stage_name', nrow = 2, drop = FALSE) +
+    facet_grid(model_type ~ hab_type) +
+  # facet_wrap('stage_name', nrow = 2, drop = FALSE) +
   # facet_wrap('stage_name', ncol = 3) +
-  HydroBOT::theme_werp_toolkit() +
+    # Deal with overlapping x-labels
+    # panel.spacing = unit(1, "lines")
+    scale_x_continuous(breaks = c(140, 150)) +
+    scale_y_continuous(breaks = c(-28, -32, -36)) +
+  HydroBOT::theme_werp_toolkit() + 
   labs(fill = 'Favorable\narea (ha)')
 
 
 
   if (print) {
     thispath <- file.path(mappath, paste0(species, '_map'))
-    ggsave_multi(filename = thispath, 
+    galenR::ggsave_multi(filename = thispath, 
                          plot = inter_matrix_maps, 
                          device = c('png', 'pdf'),
-                         width = 16, height = 9, units = "cm")
+                         width = 16, height = 10, units = "cm")
   }
 
   return(inter_matrix_maps)
@@ -1623,14 +1894,171 @@ all_interactmap <- purrr::map(species, make_interact2d_fig) |>
   setNames(species)
 ```
 
+This gives the numbers we need for some comparisons in the paper text
+
+```{r}
+
+# a basin-wide comparison
+percbasin <- all_data_time |> 
+  st_drop_geometry() |> 
+  filter(species == 'red_gum' | is.na(species)) |> 
+  summarise(hectares = sum(hectares, na.rm = TRUE), .by = stage_name)
+
+# Get the reduction % of area from all wetlands to named
+(percbasin$hectares[percbasin$stage_name == 'All wetland types'] - 
+    percbasin$hectares[percbasin$stage_name == 'Named wetland types']) /
+  percbasin$hectares[percbasin$stage_name == 'All wetland types']
+
+# This is useful but I really just want a table.
+catchtable <- all_data_time |> 
+    st_drop_geometry() |> 
+  mutate(hab_v_proc = ifelse(is.na(proc_type), 'Habitat inundation', as.character(proc_type)),
+         hab_v_proc = factor(hab_v_proc, levels = c('Habitat inundation', levels(proc_type)))) |>
+  filter((species == 'red_gum' | is.na(species)) &
+           stage_name %in% c(sequential_hab, 'Recruitment')) |> 
+  select(ValleyName, stage_name, hectares)
+  
+catchtable <- catchtable |> 
+  tidyr::pivot_wider(id_cols = ValleyName, names_from = stage_name, values_from = hectares)
+  
+# calculate the % loss in each catchment from all to named for a line in the paper
+catchtable |> mutate(`Recorded loss` = (`All wetland types`- `Recorded wetland types`) / 
+                       `All wetland types`,
+  `Named loss` = (`All wetland types`- `Named wetland types`) / 
+    `All wetland types`) |> 
+  select(ValleyName, `Recorded loss`, `Named loss`) |> 
+  arrange(`Named loss`) |> 
+  mutate(`Recorded loss` = round(`Recorded loss`, 2),
+         `Named loss` = round(`Named loss`, 2)) |> 
+  flextable::flextable() |> 
+  flextable::save_as_docx(path = file.path(mappath, 'habitat_loss_table.docx'))
+
+# calculate the % comparison of area from recruitment vs habitat inundation in all wetland types (or maybe all the different types?)
+
+catchtable |> mutate(`Recruitment in All` = `Recruitment` / 
+                       `All wetland types`,
+                     `Recruitment in Recorded` = `Recruitment and Recorded` / 
+                       `Recorded wetland types`,
+                     `Recruitment in Named` = `Recruitment and Named` / 
+                       `Named wetland types`) |> 
+  select(ValleyName, `Recruitment in All`, `Recruitment in Recorded`, `Recruitment in Named`) |> 
+  arrange(`Recruitment in All`) |> 
+  mutate(across(where(is.numeric), \(x) round(x, 6))) |> 
+  flextable::flextable()# |> 
+  flextable::save_as_docx(path = file.path(mappath, 'recruitment_prop_table.docx'))
+
+# dramatically restricted the favourable area to a small number of catchments in the southern Basin
+catchtable |> 
+  select(ValleyName, `Recruitment and Named`) |> 
+  mutate(`Recruitment and Named` = round(`Recruitment and Named`, 4))
+```
+
+```{r}
+# coolabah had nearly no area favourable for recruitment and these did not overlap with recorded or named wetland types
+
+all_data_time |> 
+  filter(species == 'coolabah' & stage_name == 'Recruitment')
+```
+
+```{r}
+# another quick calc
+ getperc <- all_data_time |>
+  st_drop_geometry() |> 
+    filter((species == 'red_gum' | 
+                is.na(species)) &
+               stage_name %in% c(sequential_hab, 'Recruitment')) |>
+  filter(grepl('Conda|Barwon', ValleyName))# |> 
+  #View()
+```
+
 ## ANAEs
 
 ```{r}
+#| eval: false
+# takes a long time, don't run if not necessary
 ANAEs <- readRDS(file.path(datOut,"anae_simplify", "all_anae_simplify.rds"))
 
+# 
+# plot_ananes <- ggplot(ANAEs[1:250,])+
+#     geom_sf()
+# plot_ananes
+# ggsave(plot = plot_ananes, file.path(mappath, "anaes.pdf"), device = "pdf")
+```
 
-plot_ananes <- ggplot(ANAEs[1:250,])+
-    geom_sf()
-plot_ananes
-ggsave(plot = plot_ananes, file.path(mappath, "anaes.pdf"), device = "pdf")
+Complete ANAES
+
+```{r}
+#| eval: false
+# takes a long time, don't run if not necessary
+anaes <- readRDS(file.path(datOut, 'anae_simplify', 'all_anae_simplify.rds'))
+anaes <- anaes |> mutate(loghectares = log10(as.numeric(area)+1)/10000)
+```
+
+```{r}
+#| eval: false
+# takes a long time, don't run if not necessary
+with_legend <- ggplot() +
+  geom_sf(data = basin, fill = 'black') + 
+  geom_sf(data = anaes, mapping = aes(fill = loghectares, color = loghectares)) +
+  scale_color_viridis_c(option = 'mako') +
+  scale_fill_viridis_c(option = 'mako') +
+  theme_werp_toolkit()
+```
+
+```{r}
+#| eval: false
+# takes a long time, don't run if not necessary
+with_color <- ggplot() +
+  geom_sf(data = basin, fill = 'black') + 
+  geom_sf(data = anaes, mapping = aes(fill = loghectares, color = loghectares)) +
+  scale_color_viridis_c(option = 'mako') +
+  scale_fill_viridis_c(option = 'mako') +
+  theme_void() +
+  theme(legend.position = 'none')
+```
+
+```{r}
+#| eval: false
+# takes a long time, don't run if not necessary
+without_color <- ggplot() +
+  geom_sf(data = basin, fill = 'black') + 
+  geom_sf(data = anaes, mapping = aes(fill = loghectares), color = NA) +
+  # scale_color_viridis_c(option = 'mako') +
+  scale_fill_viridis_c(option = 'mako') +
+  theme_void() +
+  theme(legend.position = 'none')
+```
+
+```{r}
+#| eval: false
+# takes a long time, don't run if not necessary
+    thispath <- file.path(mappath, paste0('all_anaes'))
+    galenR::ggsave_multi(filename = thispath, plot = without_color, 
+                         device = c('png', 'pdf'),
+                         width = 16, height = 22, units = "cm")
+```
+
+## Valleys
+
+```{r}
+
+vcols <- HydroBOT::make_pal(HydroBOT::cewo_valleys$ValleyName, 'grDevices::Purple-Yellow')
+
+
+cvlabel <- ggplot(data = HydroBOT::cewo_valleys) + 
+  geom_sf(mapping = aes(fill = ValleyName)) +
+  ggrepel::geom_text_repel(mapping = aes(label = ValleyName, geometry = geometry), 
+                           stat = 'sf_coordinates', force = 0.2) +
+  # geom_sf_text(mapping = aes(label = ValleyName)) + 
+  HydroBOT::theme_werp_toolkit(legend.position = 'none') +
+  scale_fill_manual(values = vcols)
+
+cvlabel
+```
+
+```{r}
+thispath <- file.path(mappath, paste0('labeled_catchments'))
+    galenR::ggsave_multi(filename = thispath, plot = cvlabel, 
+                         device = c('png', 'pdf'),
+                         width = 16, height = 22, units = "cm")
 ```

@@ -71,11 +71,13 @@ ggplot() +
   geom_sf(data = HydroBOT::basin, fill = 'azure') +
   geom_sf(data = anaes, fill = 'grey20', color = NA,
           linewidth = 0.1, stroke = 0.1) +
+      scale_x_continuous(breaks = c(140, 145, 150)) +
   HydroBOT::theme_werp_toolkit()
 
 anae_map
 
-ggsave_multi(file.path(appath, 'anaes'), plot = anae_map, device = c('pdf', 'png'),
+galenR::ggsave_multi(file.path(mappath, 'anaes'), 
+                     plot = anae_map, device = c('pdf', 'png'),
                      width = 8, height = 8, units = 'cm')
 ```
 
@@ -90,7 +92,7 @@ ala_records_map
 #| fig-cap: ALA records for each species that intersect with ANAE wetlands (green) or do not (brown). The vast majority of ALA records in the Murray-Darling Basin do fall within ANAE wetlands for these species.
 all_records_map
 
-ggsave_multi(file.path(appath, 'ala_records'), plot = all_records_map,
+ggsave_multi(file.path(mappath, 'ala_records'), plot = all_records_map,
              device = c('pdf', 'png'),
                      width = 12, height = 12, units = 'cm')
 ```
@@ -107,7 +109,7 @@ allrecords |>
 #| label: fig-ala-catch
 #| fig-cap: Number of ALA records falling within ANAE wetlands in each catchment for each species. Grey catchments have no ALA records for that species.
 
-ggsave_multi(file.path(appath, 'ala_catchment'), plot = ala_catch_map,
+ggsave_multi(file.path(mappath, 'ala_catchment'), plot = ala_catch_map,
              device = c('pdf', 'png'),
                      width = 12, height = 12, units = 'cm')
 ```
@@ -205,7 +207,7 @@ totalhab_maps <- purrr::imap(totalhab_basin_map, \(x, i)
   scale_fill_viridis_c(option = 'mako', limits = c(0,10.2)) &
   theme(legend.position = 'bottom')
 
-ggsave_multi(file.path(appath, 'wetland_area'), plot = totalhab_maps,
+galenR::ggsave_multi(file.path(mappath, 'wetland_area'), plot = totalhab_maps,
              device = c('pdf', 'png'),
                      width = 16, height = 12, units = 'cm')
 ```

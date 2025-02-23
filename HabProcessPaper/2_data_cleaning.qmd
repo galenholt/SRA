@@ -276,18 +276,26 @@ typearea <- diversity_anae_summary |>
 total_wetland_area <- foreach(s = species, .combine = bind_rows, .multicombine = TRUE) %do% {
   alaarea <- typearea |> 
     # set area of non-matching types to 0, then sum over the catchment
-    mutate(total_area = ifelse(ANAE_DESC %in% type_list[[s]]$alatype, total_area, 0)) |> 
+    mutate(total_area = ifelse(ANAE_DESC %in% type_list[[s]]$alatype, 
+                               total_area, 0)) |> 
     summarise(total_area = sum(total_area), .by = name_clean) |> 
     mutate(species = s, stage = 'anae_ala')
   
   namearea <- typearea |> 
-    mutate(total_area = ifelse(ANAE_DESC %in% type_list[[s]]$nametype, total_area, 0)) |> 
+    mutate(total_area = ifelse(ANAE_DESC %in% 
+                                 type_list[[s]]$nametype, total_area, 0)) |> 
     summarise(total_area = sum(total_area), .by = name_clean) |> 
     mutate(species = s, stage = 'anae_name')
   
   bind_rows(alaarea, namearea) |> 
     rename(ValleyName = name_clean)
 }
+
+  total_wetland_area <- bind_rows(total_wetland_area,
+                                  typearea |> 
+                                    summarise(total_area = sum(total_area),
+                                              .by = name_clean) |>
+                                    mutate(species = NA, stage = 'anae_all'))
 
 total_wetland_area <- total_wetland_area |> 
   rename(area = total_area) |> 
@@ -587,11 +595,11 @@ clean_stages <- function(x) {
                                  .default = NA
              ),
            model_type = case_when(
-             stage_name %in% anae_stages ~ 'Wetland type',
+             stage_name %in% anae_stages ~ 'Habitat',
                                   stage_name %in% process_stages ~ "Process",
                                   stage_name %in% combo_stages ~ "Process within\nwetland type", 
                                   .default = NA),
-           model_type = factor(model_type, levels = c('Wetland type', 'Process', 'Process within\nwetland type')),
+           model_type = factor(model_type, levels = c('Habitat', 'Process', 'Process within\nwetland type')),
            proc_type = factor(proc_type, levels = c('Adult', 'Germination', 'Seedling', 'Regeneration', 'Recruitment')),
   
       proc_shape = case_when(
@@ -684,9 +692,18 @@ process_cols <- HydroBOT::make_pal(process_stages,
 process_cols[names(process_cols) == 'Recruitment'] <- '#527E87FF' # '#477173FF'
 
 
-process_cols_seq <- HydroBOT::make_pal(c('dummy1',
-                                         'Adult', 'dummy2', 'Regeneration', 'Recruitment'),
-                                       "lisa::GeorgiaOKeeffe")
+# process_cols_seq <- HydroBOT::make_pal(c('dummy1',
+#                                          'Adult', 'dummy2', 'Regeneration', 'Recruitment'),
+#                                        "lisa::GeorgiaOKeeffe")
+
+# process_cols_seq <- HydroBOT::make_pal(c('1', '2', '3',
+#                                          'Adult', 'Regeneration', 'Recruitment'),
+#                                        "RColorBrewer::Dark2")
+
+process_cols_seq <- HydroBOT::make_pal(c('Adult','Regeneration', 'Recruitment'),
+                                       "ltc::trio4", direction = -1)
+
+#"lisa::GeorgiaOKeeffe"
 # nord::mountain_forms
                                         # "calecopal::lupinus")
                                        # "calecopal::sbchannel",
@@ -699,12 +716,17 @@ stage_pal <- c(anae_cols, process_cols, combo_cols)
 class(stage_pal) <- 'colors'
 
 # probably need to change this
-type_pal <- HydroBOT::make_pal(c('Wetland type', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
+type_pal <- HydroBOT::make_pal(c('Habitat', 'Process', 'Process within\nwetland type'), "trekcolors::starfleet")
 
 wetland_type_pal <- HydroBOT::make_pal(c( "All wetland types", 
                                           "Recorded wetland types",
                                           "Named wetland types"),
                                         "RColorBrewer::Set2")
+
+wetland_type_pal_fill <- HydroBOT::make_pal(c( "All wetland types", 
+                                          "Recorded wetland types",
+                                          "Named wetland types"),
+                                        "RColorBrewer::Pastel2")
                                        # "nbapalettes::cavaliers")
                                        # "ggsci::default_nejm")
                                        # "ltc::trio4")
@@ -741,4 +763,8 @@ alpha_type <- c('Wetland type' = 1, 'Process' = 1, 'Process within\nwetland type
 
 # make an alpha scale for that too
 line_type <- c('Wetland type' = 'solid', 'Process' = 'solid', 'Process within\nwetland type' = 'dashed')
+
+
+# a palette for the species
+spp_pal <- c('black', 'firebrick', '#4A7169FF', '#9386A6FF') |> setNames(c('Black box', 'Red gum', 'Coolabah', 'Lignum'))
 ```
