@@ -439,7 +439,7 @@ ggplot(aes(x = year, y = hectares + 1/10000,
   geom_point(show.legend = TRUE, size =3)  +
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
     scale_color_manual(values = wetland_type_pal) +
-  scale_shape_manual(values = shape_type_process) +
+  scale_shape_manual(values = shape_type_process, guide = FALSE) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Habitat model",
        shape = "Process model")
@@ -540,7 +540,7 @@ make_seq_process_ts <- function(species) {
   geom_point(show.legend = TRUE, size =3)  +
             scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
 
-  scale_color_manual(values = wetland_type_pal) +
+  scale_color_manual(values = wetland_type_pal, guide = FALSE) +
   scale_shape_manual(values = shape_type_process) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Habitat model", shape = "Process model")
@@ -861,25 +861,37 @@ unique(venndata_recorded$red_gum$stage_name)
 # Save these out by default
 make_stacked_fig <- function(species, print = TRUE) {
   
-  topplot <- (hab_basin_ts[[species]] + theme(legend.position = 'none')) + 
-    (seq_proc_basin_ts[[species]] + theme(legend.position = 'none'))
+  topplot <- (hab_basin_ts[[species]] + 
+                theme(legend.position = 'bottom', 
+                      legend.title.position = 'top', 
+                      legend.direction = 'vertical',
+             legend.title = element_blank()) +
+               ggtitle('Habitat-based')) + 
+    (seq_proc_basin_ts[[species]] + 
+       theme(legend.position = 'bottom', 
+                      legend.title.position = 'top', 
+                      legend.direction = 'vertical',
+             legend.title = element_blank()) +
+               ggtitle('Process-based'))
 
 ts_plot <-  topplot /
   (interact_named_basin_ts[[species]] + 
      theme(legend.position = 'none',
-           axis.text.x = element_blank())) /
+           axis.text.x = element_blank()) +
+               ggtitle('Combined models: recruitment and named')) /
      (interact_recorded_basin_ts[[species]]  + 
         theme(legend.position = 'none',
               # axis.text.x = element_blank(),
               # plot.margin = unit(c(5,5,0,5), 'points')
-              )
-      ) /
+              ) +
+               ggtitle('Combined models: recruitment and recorded')
+      ) + # /
   # wrap_plots(vennplots_recorded[[species]] + 
   #              theme(plot.margin = unit(c(0,5,5,5), 'points'))) /
-  wrap_plots(ggpubr::as_ggplot(ts_legend_bottom)) + #ts_legend_bottom_notype
+  # wrap_plots(ggpubr::as_ggplot(ts_legend_bottom)) + #ts_legend_bottom_notype
   # plot_layout(heights = c(5,5,5,1,3)) +
-    plot_layout(heights = c(4,4,4,3)) +
-  plot_annotation(tag_levels = list(c('a', 'b', 'c', 'd', '')))
+    plot_layout(heights = c(4,4,4)) +
+  plot_annotation(tag_levels = list(c('a', 'b', 'c', 'd')))
 
   if (print) {
     thispath <- file.path(tspath, paste0(species, '_timeseries'))
@@ -1264,8 +1276,7 @@ That's a plot, but it sure isn't obviously helpful. We could make the values %, 
 
 what is this asking? whether species that have lots of success (across both wetland type and processes) have more wetlands that are both? What does that mean? I'm going to have to go read the comment and think more about this, because it's not making a ton of sense to me.
 
-The comment is: : Is model choice a greater concern for species with narrower environmental tolerances compared to those with broader tolerances? 
-
+The comment is: : Is model choice a greater concern for species with narrower environmental tolerances compared to those with broader tolerances?
 
 ```{r}
 ggplot(niche_width, 
@@ -1365,7 +1376,7 @@ prop_record_s + prop_named_s +
 
 I'm going to have to go look at the suggestion and figure out what addresses it.
 
-I think maybe this is  actually better at getting at the question - does more environmental tolerance (niche width) mean that a greater proportion of the tolerated area is in both models (overlap)? IE does tolerance reduce the impact of model choice?
+I think maybe this is actually better at getting at the question - does more environmental tolerance (niche width) mean that a greater proportion of the tolerated area is in both models (overlap)? IE does tolerance reduce the impact of model choice?
 
 Across stages, yes. Across species, not clear.
 
@@ -1394,8 +1405,8 @@ prop_v_niche_record + prop_v_niche_named +
   plot_annotation(tag_levels = 'a') +
   plot_layout(guides = 'collect')
 ```
-How about a version where we look at recruitment across species for both recorded and named, and then another panel where we draw the lines across stages?
 
+How about a version where we look at recruitment across species for both recorded and named, and then another panel where we draw the lines across stages?
 
 ```{r}
 # The above is good, but just isn't working very well with the legends. Can i do a better job witht hem?
@@ -1460,7 +1471,6 @@ niche_panel
 
 ```
 
-
 ## Maps
 
 ### Background- ala records
@@ -1519,8 +1529,6 @@ galenR::ggsave_multi(file.path(mappath, 'ala_records'), plot = all_records_map,
              device = c('pdf', 'png'),
                      width = 12, height = 12, units = 'cm')
 ```
-
-
 
 summed by catchment (the sum by type is done in making the tables)
 
@@ -1628,6 +1636,7 @@ totalhab_basin_map <- purrr::map(species, make_totalhabitat_map) |>
 ```
 
 Make that plot; previously in the 'Appendces' qmd
+
 ```{r}
 totalhab_maps <- purrr::imap(totalhab_basin_map, \(x, i)
                              x + ggtitle(stringr::str_replace(i, '_', ' ') |> 
@@ -1645,7 +1654,6 @@ galenR::ggsave_multi(file.path(mappath, 'wetland_area'), plot = totalhab_maps,
              device = c('pdf', 'png'),
                      width = 16, height = 12, units = 'cm')
 ```
-
 
 ### Process alone
 
@@ -1971,6 +1979,18 @@ all_data_time |>
   #View()
 ```
 
+Make a table for red gum
+
+```{r}
+catchtable |>
+  select(ValleyName,
+         `All wetland types`, `Recorded wetland types`, `Named wetland types`,
+         `Recruitment`, `Recruitment and Recorded`, `Recruitment and Named`) |> 
+    mutate(across(where(is.numeric), \(x) round(x, 2))) |> 
+  flextable::flextable() |> 
+  flextable::save_as_docx(path = file.path(mappath, 'red_gum_catchments.docx'))
+```
+
 ## ANAEs
 
 ```{r}
@@ -2042,12 +2062,16 @@ without_color <- ggplot() +
 
 ```{r}
 
-vcols <- HydroBOT::make_pal(HydroBOT::cewo_valleys$ValleyName, 'grDevices::Purple-Yellow')
+vcols <- HydroBOT::make_pal(c('dummy1', 'dummy2', 'dummy3', 
+                              HydroBOT::cewo_valleys$ValleyName),
+                            # 'grDevices::GnBu')
+                            'grDevices::Purple-Yellow')
 
 
 cvlabel <- ggplot(data = HydroBOT::cewo_valleys) + 
   geom_sf(mapping = aes(fill = ValleyName)) +
-  ggrepel::geom_text_repel(mapping = aes(label = ValleyName, geometry = geometry), 
+  # geom_sf_text(mapping = aes(label = ValleyName)) +
+  ggrepel::geom_text_repel(mapping = aes(label = ValleyName, geometry = geometry),
                            stat = 'sf_coordinates', force = 0.2) +
   # geom_sf_text(mapping = aes(label = ValleyName)) + 
   HydroBOT::theme_werp_toolkit(legend.position = 'none') +
@@ -2061,4 +2085,89 @@ thispath <- file.path(mappath, paste0('labeled_catchments'))
     galenR::ggsave_multi(filename = thispath, plot = cvlabel, 
                          device = c('png', 'pdf'),
                          width = 16, height = 22, units = "cm")
+```
+
+## An illustrative data figure
+
+Try Chowilla. Which is not itself a ramsar, but contains the
+
+```         
+Riverland Wetland Complex
+```
+
+```{r}
+ramchow <- filter(eFlowEval::ramsarBoundsMDB, 
+                        grepl('Riverland', Wetland))
+       
+ggplot() + 
+  geom_sf(data = HydroBOT::cewo_valleys) + 
+  geom_sf(data = ramchow, 
+          aes(fill = Wetland))
+```
+
+Getting the raw data is a pain; it's aggregated to catchment on read-in. So we need to go back to the raw otuputs for the lower murray and crop
+
+Start with inundation, get it to work. Then which others do I want?
+
+```{r}
+#| eval: false
+inun_chow <- readRDS(file.path(datOut, 'red_gum', 'anae_inun', 'LowerMurray_anae_inun.rds'))
+```
+
+That's already aggregated. I'll have to go all the way back to the original, which I've left on the server. Bring over only the ones we need for the paper. Ah, but we don't save out the ANAEs themselves except for the inundation. So I'd have to re-run everything. We could, but I don't think it's worth it.
+
+```{r}
+inun_chow <- readRDS(file.path(datOut, 
+                               'habprocesspaper',
+                               'individual_anaes',
+                               'LowerMurray_areaInun05cm.rds'))
+```
+
+Get the right anaes
+
+```{r}
+inter_chow <- st_intersection(inun_chow[[2]], ramchow)
+polyindices <- which(inun_chow[[2]]$UID %in% inter_chow$UID)
+
+inun_chow2 <- inun_chow[[1]][,polyindices,]
+```
+
+That's not yearly. Will need to aggregate. Get that from woody_general.R
+
+```{r}
+availdates <- stars::st_get_dimension_values(inun_chow2, which = 'time')
+# To return, let's aggregate up to water year
+  # availdates <- stars::st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
+  startyear <- lubridate::year(min(availdates))-1
+  endyear <- lubridate::year(max(availdates)) + 1
+  # we want to cut at June 30, and so need to make sure the 07-01 go into the next step.
+  datebreaks <- startyear:endyear
+  datebreaks <- paste0(as.character(datebreaks), '0701') |> 
+    lubridate::ymd() |> as.POSIXct()
+  
+  yrchow <- tempaggregate(starObj = inun_chow2, by = datebreaks,
+                       FUN = mean, na.rm = FALSE) |>
+      aperm(c('geometry', 'time'))
+```
+
+Get the relevant anaes and make it an sf
+
+```{r}
+ yrchow <- yrchow |> 
+  st_as_sf() |> 
+  tidyr::pivot_longer(cols = -geometry, 
+                      names_to = 'date', values_to = 'area') |> 
+  mutate(date = lubridate::ymd(date), 
+         hectares = area/10000)
+
+```
+
+```{r}
+ggplot(filter(yrchow, date %in% c(yrchow$date[1:4])), 
+       aes(fill = hectares)) + 
+  geom_sf(color = NA) + 
+  facet_wrap('date') +
+  paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
+                                    trans = 'log10', 
+                                    labels = scales::label_log())
 ```
