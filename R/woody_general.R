@@ -24,6 +24,7 @@
 #' @param adult_maxflood How long (in months) is too much inundation for adults to survive? This ends up being used as ceiling(adult_maxflood/2) to get the bimonth, so if you want a round-down, make sure it's an even number.
 #' @param adult_floodinterval the maximum (in months) interval between floods before adults die/lose condition
 #' @param a_month months in which inundation 'counts' for adults
+#' @param save_anaes logical, save out the anaes themselves, in addition to the catchment aggregations
 #'
 #' @return
 #' @export
@@ -38,7 +39,8 @@ woody_general <- function(out_dir, catchment,
                           too_long_inun,
                           adult_maxflood,
                           adult_floodinterval,
-                          a_month) {
+                          a_month,
+                          save_anaes = FALSE) {
 
   starttime <- Sys.time()
   # some tweaks to handle conditionals on the inputs, e.g. grep formats, catchment info
@@ -425,7 +427,7 @@ woody_general <- function(out_dir, catchment,
     dplyr::pull() |>
     unique() # Should be, but ensure
 
-  # make a catchment restriction too. Say there needs to be > 10 records to beleive it
+  # make a catchment restriction too. Say there needs to be > 10 records to believe it
   catchments <- catchment_records |>
     dplyr::filter(n_records > 10) |>
     dplyr::select(ValleyName) |>
@@ -471,6 +473,27 @@ woody_general <- function(out_dir, catchment,
 
   rlang::inform(glue::glue("ANAE clipped in {round(Sys.time() - starttime)} seconds."))
 
+
+  # Save out yearly at anae scale, but only if requested
+
+  if (save_anaes) {
+    saveRDS(yrstricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'process_all_wetlands.rds'))
+    saveRDS(anae_name_stricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'process_named_wetlands.rds'))
+    saveRDS(anae_ala_stricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'process_ala_wetlands.rds'))
+    # save the filter too. Really, could save just he yrstricts and this, and re-filter the others
+    saveRDS(anaestricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'type_filters.rds'))
+    # a specific set for the paper
+    saveRDS(list(inundation = yrstricts$anae_inun,
+                 recruitment = yrstricts$adult_germ_seed_area,
+                 regeneration = yrstricts$adult_germ_area,
+                 named = anae_name_stricts$anae_inun_anae_name,
+                 recorded = anae_ala_stricts$anae_inun_anae_ala,
+                 recruit_and_named = anae_name_stricts$adult_germ_seed_area_anae_name,
+                 recruit_and_recorded = anae_ala_stricts$adult_germ_seed_area_anae_ala,
+                 regen_and_named = anae_name_stricts$adult_germ_area_anae_name,
+                 regen_and_recorded = anae_ala_stricts$adult_germ_area_anae_ala),
+            file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'compare_for_paper.rds'))
+  }
 
   # make catchment scale ----------------------------------------------------
 

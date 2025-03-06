@@ -240,7 +240,7 @@ basin_box_hab2proc <- all_data_basin |>
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(),
                                axis.text = element_text(color = "black")) +
   labs(y = "Favorable area (ha)",
-       color = "Process model")
+       color = "Process-based model")
 
 
   return(basin_box_hab2proc)
@@ -269,8 +269,8 @@ basin_box_proc2hab <- all_data_basin |>
   scale_color_manual(values = wetland_type_pal) +
   HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(),
                                axis.text = element_text(color = "black")) +
-  labs(y = "Favorable area (ha)", fill = "Habitat model",
-       color = "Habitat model")
+  labs(y = "Favorable area (ha)", fill = "Habitat-based model",
+       color = "Habitat-based model")
 
 
   return(basin_box_proc2hab)
@@ -359,8 +359,8 @@ make_stacked_boxs <- function(species, print = TRUE) {
      # theme(legend.position = 'none'))  +
   # wrap_plots(ggpubr::as_ggplot(box_legend), plot_spacer()) +
   # plot_layout(design = box_layout_stack)
-    plot_annotation(tag_levels = 'a') +
-    plot_layout(guides = 'collect')
+    plot_annotation(tag_levels = 'a') # +
+  #  plot_layout(guides = 'collect')
 
 
   if (print) {
@@ -1430,8 +1430,9 @@ ggplot(aes(y = overlap_proportion,
                        setNames(c('Adult', 'Regeneration', 'Recruitment')),
                      guide = FALSE) +
   scale_color_manual(values = spp_pal, guide = FALSE) +
+    scale_x_continuous(trans = 'log10', labels = scales::label_log()) +
   HydroBOT::theme_werp_toolkit()  +
-  labs(y = 'Overlap proportion', x = 'Tolerance (process area)',
+  labs(y = 'Overlap proportion', x = 'Tolerance (process area in ha)',
        color = 'Species', shape = 'Process', linetype = 'Habitat')
   # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
@@ -1453,8 +1454,8 @@ prop_v_niche_stages <- niche_width  |>
     geom_line() +
     HydroBOT::theme_werp_toolkit() +
   scale_color_manual(values = spp_pal) +
-    scale_x_continuous(trans = 'log10') +
-  labs(y = 'Overlap proportion', x = 'Tolerance (process area)',
+    scale_x_continuous(trans = 'log10', labels = scales::label_log()) +
+  labs(y = 'Overlap proportion', x = 'Tolerance (process area in ha)',
        color = 'Species', shape = 'Process', linetype = 'Habitat')
 
 niche_panel <- prop_v_niche_record_v_name / 
@@ -2114,60 +2115,239 @@ Start with inundation, get it to work. Then which others do I want?
 inun_chow <- readRDS(file.path(datOut, 'red_gum', 'anae_inun', 'LowerMurray_anae_inun.rds'))
 ```
 
-That's already aggregated. I'll have to go all the way back to the original, which I've left on the server. Bring over only the ones we need for the paper. Ah, but we don't save out the ANAEs themselves except for the inundation. So I'd have to re-run everything. We could, but I don't think it's worth it.
+That's already aggregated. I'll have to go all the way back to the original, which I've left on the server. Bring over only the ones we need for the paper. Ah, but we don't save out the ANAEs themselves except for the inundation. So I'd have to re-run everything.
+
+Code to re-run, but breaking in in the middle and not doing everything
 
 ```{r}
-inun_chow <- readRDS(file.path(datOut, 
-                               'habprocesspaper',
-                               'individual_anaes',
-                               'LowerMurray_areaInun05cm.rds'))
+#| eval: false
+red_gum(out_dir = datOut, 
+        catchment = 'LowerMurray', 
+        save_anaes = TRUE)
+```
+
+REad that in
+
+```{r}
+type_filters <- readRDS(file.path(datOut, 'red_gum',
+                                  'all_anaes',
+                                  'LowerMurray',
+                                  'type_filters.rds'))
+anae_results <- readRDS(file.path(datOut, 'red_gum',
+                                  'all_anaes',
+                                  'LowerMurray',
+                                  'compare_for_paper.rds'))
+```
+
+```{r}
+# inun_chow <- readRDS(file.path(datOut, 
+#                                'habprocesspaper',
+#                                'individual_anaes',
+#                                'LowerMurray_areaInun05cm.rds'))
 ```
 
 Get the right anaes
 
 ```{r}
-inter_chow <- st_intersection(inun_chow[[2]], ramchow)
-polyindices <- which(inun_chow[[2]]$UID %in% inter_chow$UID)
+# Do this like the other filters
+inter_chow <- st_intersection(type_filters, ramchow)
+type_filters <- type_filters |> 
+  mutate(in_chowilla = UID %in% inter_chow$UID)
 
-inun_chow2 <- inun_chow[[1]][,polyindices,]
-```
+# but we also actually want to just cut the stars
+polyindices <- which(type_filters$UID %in% inter_chow$UID)
 
-That's not yearly. Will need to aggregate. Get that from woody_general.R
-
-```{r}
-availdates <- stars::st_get_dimension_values(inun_chow2, which = 'time')
-# To return, let's aggregate up to water year
-  # availdates <- stars::st_get_dimension_values(soilmoist_polys$aggdata, which = 'time')
-  startyear <- lubridate::year(min(availdates))-1
-  endyear <- lubridate::year(max(availdates)) + 1
-  # we want to cut at June 30, and so need to make sure the 07-01 go into the next step.
-  datebreaks <- startyear:endyear
-  datebreaks <- paste0(as.character(datebreaks), '0701') |> 
-    lubridate::ymd() |> as.POSIXct()
-  
-  yrchow <- tempaggregate(starObj = inun_chow2, by = datebreaks,
-                       FUN = mean, na.rm = FALSE) |>
-      aperm(c('geometry', 'time'))
-```
-
-Get the relevant anaes and make it an sf
-
-```{r}
- yrchow <- yrchow |> 
-  st_as_sf() |> 
-  tidyr::pivot_longer(cols = -geometry, 
-                      names_to = 'date', values_to = 'area') |> 
-  mutate(date = lubridate::ymd(date), 
-         hectares = area/10000)
+chowanae <- purrr::map(anae_results, \(x) x[,polyindices,])
 
 ```
 
+Make each of those an sf
+
 ```{r}
-ggplot(filter(yrchow, date %in% c(yrchow$date[1:4])), 
+chowsf <- chowanae |> purrr::map(\(x) x |> 
+                                   st_as_sf() |> 
+                                   tidyr::pivot_longer(cols = -geometry, 
+                                                       names_to = 'date', 
+                                                       values_to = 'area') |> 
+                                   mutate(date = lubridate::ymd(date), 
+                                          hectares = area/10000))
+```
+
+```{r}
+ggplot(filter(chowsf$inundation, date %in% c(chowsf$inundation$date[32:37])), 
        aes(fill = hectares)) + 
   geom_sf(color = NA) + 
   facet_wrap('date') +
   paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
                                     trans = 'log10', 
                                     labels = scales::label_log())
+```
+
+But we don't actually find any recruitment in chowilla, so will need to look around
+
+```{r}
+ggplot(filter(chowsf$recruitment, date %in% c(chowsf$inundation$date[32:37])), 
+       aes(fill = hectares)) + 
+  geom_sf(color = NA) + 
+  facet_wrap('date') +
+  paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
+                                    trans = 'log10', 
+                                    labels = scales::label_log())
+```
+
+What about regen. this is just illustrative, so no neeed really to use recruitment per se.
+
+```{r}
+ggplot(filter(chowsf$regeneration, date %in% c(chowsf$inundation$date[32:37])), 
+       aes(fill = hectares)) + 
+  geom_sf(color = NA) + 
+  facet_wrap('date') +
+  paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
+                                    trans = 'log10', 
+                                    labels = scales::label_log())
+```
+
+Habitat
+
+```{r}
+ggplot(filter(chowsf$named, date %in% c(chowsf$inundation$date[32:37])), 
+       aes(fill = hectares)) + 
+  geom_sf(color = NA) + 
+  facet_wrap('date') +
+  paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
+                                    trans = 'log10', 
+                                    labels = scales::label_log())
+```
+
+combined
+
+```{r}
+ggplot(filter(chowsf$regen_and_named, date %in% c(chowsf$inundation$date[32:37])), 
+       aes(fill = hectares)) + 
+  geom_sf(color = NA) + 
+  facet_wrap('date') +
+  paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
+                                    trans = 'log10', 
+                                    labels = scales::label_log())
+
+```
+
+Make the plot
+
+First, join the datasets we want so we can facet. That will make the legend easier. Presuming we don't actually want different color palettes.
+
+```{r}
+chowsf <- purrr::imap(chowsf, \(x,y) x |> mutate(model = y))
+```
+
+```{r}
+chowstack <- bind_rows(chowsf$inundation, 
+                       chowsf$regeneration, 
+                       chowsf$named, 
+                       chowsf$regen_and_named)
+```
+
+```{r}
+chowillus <- chowstack |> 
+  filter(date %in% c(chowsf$inundation$date[35])) |> 
+  mutate(model = case_when(model == 'inundation' ~ 'Inundation',
+                           model == 'named' ~ 'Habitat model',
+                           model == 'regeneration' ~'Process model',
+                           model == 'regen_and_named' ~'Combined model'),
+         model = factor(model, levels = c('Inundation', 'Habitat model', 'Process model', 'Combined model'))) |> 
+  ggplot(aes(fill = hectares)) + 
+  geom_sf(color = NA) + 
+  facet_grid(.~ model)  +
+  scale_fill_viridis_c(option = 'mako',
+                       trans = 'log10', 
+                       labels = scales::label_log())+
+  # paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
+  #                                   trans = 'log10', 
+  #                                   labels = scales::label_log()) +
+  scale_x_continuous(breaks = c(140.8, 141)) +
+  scale_y_continuous(breaks = c(-34.2, -34.1, -34, -33.9)) +
+  HydroBOT::theme_werp_toolkit(legend.position = 'bottom') + 
+  labs(fill = 'Favorable\narea (ha)')
+
+chowillus
+```
+
+```{r}
+    galenR::ggsave_multi(filename = file.path(mappath, 'riverland_illustration'), 
+                         plot = chowillus, 
+                         device = c('png', 'pdf'),
+                         width = 18, height = 8, units = "cm")
+```
+
+Do I need to situate that?
+
+```{r}
+riverland_loc <- ggplot(data = HydroBOT::basin) + # |> filter(ValleyName == 'Lower Murray')
+  geom_sf(fill = 'azure') +
+  # geom_sf(data = st_intersection(HydroBOT::basin_rivers, HydroBOT::cewo_valleys |> 
+  #                                  filter(ValleyName == 'Lower Murray')), 
+  #         color = 'skyblue') +
+  geom_sf(data = ramchow, fill = 'firebrick', color = 'firebrick') +
+  ggrepel::geom_text_repel(data = ramchow, 
+                           mapping = aes(label = stringr::str_wrap(Wetland, 12), geometry = geometry),
+                           stat = 'sf_coordinates',
+                           nudge_x = 3, nudge_y = 1) +
+      scale_x_continuous(breaks = c(140, 145, 150)) +
+  HydroBOT::theme_werp_toolkit(axis.title = element_blank())
+
+riverland_loc
+
+    galenR::ggsave_multi(filename = file.path(mappath, 'riverland_location'), 
+                         plot = riverland_loc, 
+                         device = c('png', 'pdf'),
+                     width = 8, height = 8, units = 'cm')
+```
+
+## Looking for recruitment- not much
+
+```{r}
+max(chowsf$recruitment$hectares, na.rm = TRUE)
+```
+
+Is there any recruitment anywhere? must be
+
+```{r}
+anae_results$recruitment[[1]] |> max(na.rm = TRUE)
+
+```
+
+```{r}
+yeartotals <- anae_results$recruitment[[1]] |> colSums()
+yeartotals
+st_get_dimension_values(anae_results$recruitment, 'time')
+```
+
+```{r}
+ggplot() +
+  geom_stars(data = anae_results$recruitment[,,37],
+             mapping = aes(fill = log10(areamoist_10_30_from_sm_pct)))
+```
+
+OK, so where are those? would be nice to use a ramsar
+
+```{r}
+ramsar_lm <- st_crop(ramsarBoundsMDB, 
+                     filter(ltimNoNorth, ValleyName == 'Lower Murray'))
+```
+
+This is not helping.
+
+```{r}
+ggplot() +
+  geom_stars(data = log10(anae_results$recruitment[,,37]), color = NA) +
+  geom_sf(data = ramsar_lm, mapping = aes(color = Wetland), fill = NA)
+```
+
+Are there any years with multiple ANAES filled? can I find them this way?
+
+index 17 is 2, all others are just one. Maybe I should use regeneration. Or find a better spot.
+
+```{r}
+spacetotals <- anae_results$recruitment[,,41][[1]] |> rowSums()
+which(spacetotals > 0)
 ```
