@@ -106,6 +106,8 @@ R
 renv::status()
 ```
 
+## References
+
 <div id="refs" class="references csl-bib-body hanging-indent"
 entry-spacing="0">
 
