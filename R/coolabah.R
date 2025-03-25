@@ -2,7 +2,8 @@ coolabah <- function(out_dir,
                    catchment,
                    thischunk,
                    nchunks = 1,
-                   whichcrs = 3577) {
+                   whichcrs = 3577,
+                   save_anaes = FALSE) {
 
   # arguments ---------------------------------------------------------------
   source('R/woody_general.R')
@@ -55,7 +56,8 @@ coolabah <- function(out_dir,
                                  too_long_inun = too_long_inun,
                                  adult_maxflood = adult_maxflood,
                                  adult_floodinterval = adult_floodinterval,
-                                 a_month = a_month)
+                                 a_month = a_month,
+                                 save_anaes = save_anaes)
 
 
   return(response_list)

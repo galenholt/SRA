@@ -70,11 +70,14 @@ basinmap <- ggplot() +
   ggrepel::geom_text_repel(data = cities, mapping = aes(label = name, geometry = geometry),
                            stat = 'sf_coordinates',
                            min.segment.length = 0,
-                           nudge_x = ifelse(cities$name == "Melbourne", 550000, 450000),
-                           nudge_y = ifelse(cities$name == "Melbourne", -100000, 0)) +
+                           nudge_x = ifelse(cities$name == "Melbourne",
+                                            550000, 450000),
+                           nudge_y = ifelse(cities$name == "Melbourne",
+                                            -100000, 0)) +
   # geom_sf_text(data = cities, mapping = aes(label = name)) +
   # geom_sf_text(data = ltimNoNorth, mapping = aes(label = ValleyName)) +
   colorspace::scale_fill_discrete_qualitative(palette = 'Harmonic') +
+  coord_sf(ylim = c(-4400000,-1140000), expand = FALSE) +
   theme_bw() +
   theme(legend.position = 'none', axis.title = element_blank())
   # coord_sf(crs = st_crs(ltimNoNorth))

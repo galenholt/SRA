@@ -24,6 +24,7 @@
 #' @param adult_maxflood How long (in months) is too much inundation for adults to survive? This ends up being used as ceiling(adult_maxflood/2) to get the bimonth, so if you want a round-down, make sure it's an even number.
 #' @param adult_floodinterval the maximum (in months) interval between floods before adults die/lose condition
 #' @param a_month months in which inundation 'counts' for adults
+#' @param save_anaes logical, save out the anaes themselves, in addition to the catchment aggregations
 #'
 #' @return
 #' @export
@@ -38,7 +39,8 @@ woody_general <- function(out_dir, catchment,
                           too_long_inun,
                           adult_maxflood,
                           adult_floodinterval,
-                          a_month) {
+                          a_month,
+                          save_anaes = FALSE) {
 
   starttime <- Sys.time()
   # some tweaks to handle conditionals on the inputs, e.g. grep formats, catchment info
@@ -122,6 +124,9 @@ woody_general <- function(out_dir, catchment,
 
   catchment_records <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_catchment.rds')))
 
+  # Restrict to INDIVIDUAL ANAEs with records
+  specific_anaes <- readRDS(file.path(out_dir, 'vegmapping', paste0(veg_name, '_anae_records.rds')))
+
   # the set of times.
   times <- stars::st_get_dimension_values(anae_inun$aggdata, 'time')
 
@@ -179,7 +184,7 @@ woody_general <- function(out_dir, catchment,
   adult_area <- inun_adult_all-inun_adult_inter
   adult_area[[1]][adult_area[[1]] < 0] <- 0
 
-  rm(inun_adult_inter, inun_adult_all, adult_inun_season)
+  rm(inun_adult_inter, inun_adult_all, adult_inun_season, inun_adult_long)
 
   rlang::inform(glue::glue("Adults done in {round(Sys.time() - starttime)} seconds."))
 
@@ -201,18 +206,18 @@ woody_general <- function(out_dir, catchment,
                                  align = 'right',
                                  na.rm = TRUE)
 
-  # and then we want to know if there was inundation 10 days ago. this is going
-  # to be a bit of a fudge due to the bimonthly inundation- we won't be able to
-  # get daily 10-day lookbacks. It's too strict to just look at the end of the
-  # two-month periods, so for each day, if it's within 10 days of a bimonth
-  # break, we'll ask about the preceding, otherwise, we'll ask about the
-  # current. This will overestimate (since this will also capture periods of
-  # inundation), but that seems better than the alternative. IE this isn't going
-  # to be about 10 days post-inundation, it's just whether there was maybe
-  # inundation nearby and soil moisture of > 10% for 10 days It seems like that
-  # will be too strict (e.g. 11 days will fail), but because inundation is
-  # bimonthly, there's almost no situation where that's actually an issue- the
-  # 11th day almost always has the same inundation as the 10th.
+  # and then we want to know if there was inundation 10 days ago. this is less
+  # than ideal due to the bimonthly inundation- we won't be able to get daily
+  # 10-day lookbacks. It's too strict to just look at the end of the two-month
+  # periods, so for each day, if it's within 10 days of a bimonth break, we'll
+  # ask about the preceding, otherwise, we'll ask about the current. This will
+  # overestimate (since this will also capture periods of inundation), but that
+  # seems better than the alternative. IE this isn't going to be about 10 days
+  # post-inundation, it's just whether there was maybe inundation nearby and
+  # soil moisture of > 10% for 10 days It seems like that will be too strict
+  # (e.g. 11 days will fail), but because inundation is bimonthly, there's
+  # almost no situation where that's actually an issue- the 11th day almost
+  # always has the same inundation as the 10th.
 
   # Strangely, the easiest way to do this is probably to expand the inundation to daily
   # We can do that by abusing unevenTimeMult by filling with 1, since it multiplies a coarse and fine stars by each other and returns the fine
@@ -232,7 +237,7 @@ woody_general <- function(out_dir, catchment,
   shift_inun <- daily_inun[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
   shift_inun <- cbind(shift_inun, daily_inun[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
 
-  # rm(daily_inun)
+  rm(daily_inun, germ_inun_season)
 
   germ_area <- soilmoist_germdays
   germ_area[[1]] <- pmin(shift_inun, soilmoist_germdays[[1]])
@@ -247,12 +252,12 @@ woody_general <- function(out_dir, catchment,
   shift_adult <- daily_adult[[1]][, -1:-(days_germmoist + 1)] # shift the time-cols over
   shift_adult <- cbind(shift_adult, daily_adult[[1]][, 1:(days_germmoist + 1)]*NA) # put the same number of NA cols at the end so we can multiply the matrices
 
-  # rm(daily_adult)
+  rm(daily_adult)
 
   adult_germ_area <- germ_area
   adult_germ_area[[1]] <- pmin(shift_adult, germ_area[[1]])
 
-  # rm(soilmoist_germdays, shift_inun, shift_adult)
+  rm(soilmoist_germdays, shift_inun, shift_adult)
 
   rlang::inform(glue::glue("Germination done in {round(Sys.time() - starttime)} seconds."))
 
@@ -292,7 +297,6 @@ woody_general <- function(out_dir, catchment,
                                 rolln = too_long_inun,
                                 align = 'right',
                                 na.rm = TRUE)
-
   # Then the min of that over the seedling period gives us the area that never
   # got inundated too much while seedling establishing
   notflood_seedling <- timeRoll(area_not_too_long,
@@ -300,6 +304,8 @@ woody_general <- function(out_dir, catchment,
                                 rolln = seedling_period_bimonth,
                                 align = 'right',
                                 na.rm = TRUE)
+
+  rm(area_not_inundated, area_not_too_long)
 
   # now we want the area that had enough moisture and not too much inundation over the seedling period.
   # again, abuse unevenTimeMult
@@ -312,12 +318,10 @@ woody_general <- function(out_dir, catchment,
   seedling_area <- soilmoist_seedling
   seedling_area[[1]] <- pmin(soilmoist_seedling[[1]], daily_not_area[[1]], na.rm = TRUE)
 
-  rm(soilmoist_seedling, daily_not_area)
+  rm(soilmoist_seedling, daily_not_area, notflood_seedling)
 
   # I don't think we want to be precious about exactly how long ago germ needs
   # to have happened. The key is whether soil moisture has persisted.
-
-  # I don't think the way I was doing this made much sense. Or maybe just wasn't explained very well in my comment.
 
   # We have some germ window x days (e.g. 2 months) long. This has to
   # fit inside seedling_period_days, along with some minimum seedling period. IE we
@@ -367,10 +371,16 @@ woody_general <- function(out_dir, catchment,
   # I think the best way to do this is to make them a list, and then use purrr. Otherwise it's a TON of copy-paste
 
   # the anae_inun stuff is done elsewhere, but good to not have to go hunting
-  bare_stricts <- tibble::lst(adult_area, germ_area, seedling_area, adult_germ_area, adult_germ_seed_area, anae_inun = anae_inun$aggdata)
+  # bare stricts is 10.5Gb for BarwonDarling, for reference
+  # Don't do all this memory thrash, just make the list on the fly?
+  # bare_stricts <- tibble::lst(adult_area, germ_area, seedling_area, adult_germ_area, adult_germ_seed_area, anae_inun = anae_inun$aggdata)
 
-  rm(adult_area, germ_area, seedling_area,
-     adult_germ_area, adult_germ_seed_area, anae_inun)
+  # rm(adult_area, germ_area, seedling_area,
+  #    adult_germ_area, adult_germ_seed_area, anae_inun)
+
+  #### START MAKING FINAL DFs
+
+  # response_list <- list()
 
   # Aggregate to year -------------------------------------------------------
 
@@ -390,19 +400,24 @@ woody_general <- function(out_dir, catchment,
   # those with seasonality- in the extreme case, Coolabah only germinates in a
   # season not yet there in the last year of inundation data, and so gets set
   # (inappropriately) to 0 instead of NA since we haven't really assessed.
-  yrstricts <- purrr::map(bare_stricts, \(x)
-                          tempaggregate(starObj = x, by = datebreaks,
-                                        FUN = mean, na.rm = FALSE) |>
-                            aperm(c('geometry', 'time')))
+  yrstricts <- purrr::map(
+    tibble::lst(adult_area, germ_area, seedling_area, adult_germ_area,
+                adult_germ_seed_area, anae_inun = anae_inun$aggdata),
+    \(x) tempaggregate(starObj = x, by = datebreaks,
+                       FUN = mean, na.rm = FALSE) |>
+      aperm(c('geometry', 'time'))
+    )
 
-  rm(bare_stricts)
+  rm(adult_area, germ_area, seedling_area,
+     adult_germ_area, adult_germ_seed_area, anae_inun)
+
+  # rm(bare_stricts)
 
   rlang::inform(glue::glue("Year agg done in {round(Sys.time() - starttime)} seconds."))
 
   # ANAE types --------------------------------------------------------------
 
   # Option 1: it has the name 'red gum'- can just do this in a mutate
-
 
   # Option 2: it's an anae type with records from ALA
   # Let's say it needs to have at least 0.5% of the records to be appreciable.
@@ -412,7 +427,7 @@ woody_general <- function(out_dir, catchment,
     dplyr::pull() |>
     unique() # Should be, but ensure
 
-  # make a catchment restriction too. Say there needs to be > 10 records to beleive it
+  # make a catchment restriction too. Say there needs to be > 10 records to believe it
   catchments <- catchment_records |>
     dplyr::filter(n_records > 10) |>
     dplyr::select(ValleyName) |>
@@ -425,27 +440,61 @@ woody_general <- function(out_dir, catchment,
     dplyr::mutate(name_anae = grepl(veg_grep, ANAE_DESC, ignore.case = TRUE),
                   # option 2: by ala record
                   ala_anae = ANAE_DESC %in% ala_types,
-                  catchment = ValleyName %in% catchments)
+                  catchment = ValleyName %in% catchments,
+                  # option 3: The specific wetland with the record
+                  specific_anae = UID %in% unique(specific_anaes$UID))
 
   # clip the strictures
-  anae_name_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$name_anae) |>
+  anae_name_stricts <- purrr::map(yrstricts,
+                                                \(x) x * anaestricts$name_anae) |>
     setNames(paste0(names(yrstricts), '_anae_name'))
-  anae_ala_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$ala_anae) |>
+  anae_ala_stricts <- purrr::map(yrstricts,
+                                               \(x) x * anaestricts$ala_anae) |>
     setNames(paste0(names(yrstricts), '_anae_ala'))
+  specific_anae_stricts <- purrr::map(yrstricts,
+                                                    \(x) x * anaestricts$specific_anae) |>
+    setNames(paste0(names(yrstricts), '_specific_anae'))
 
   # It's tempting to do the catchment clips post-catchment aggregation, but it's
   # more general to do it here and keeps things standard. It doesn't seem to be
   # where speed bottlenecks are anyway
   # Do these for the raw data and for the two anae-limited datas
-  catchment_stricts <- purrr::map(yrstricts, \(x) x * anaestricts$catchment) |>
+  catchment_stricts <- purrr::map(yrstricts,
+                                                \(x) x * anaestricts$catchment) |>
     setNames(paste0(names(yrstricts), '_catchment'))
-  catchment_name_stricts <- purrr::map(anae_name_stricts, \(x) x * anaestricts$catchment) |>
+  catchment_name_stricts <- purrr::map(anae_name_stricts,
+                                                     \(x) x * anaestricts$catchment) |>
     setNames(paste0(names(yrstricts), '_anae_name_catchment'))
-  catchment_ala_stricts <- purrr::map(anae_ala_stricts, \(x) x * anaestricts$catchment) |>
+  catchment_ala_stricts <- purrr::map(anae_ala_stricts,
+                                                    \(x) x * anaestricts$catchment) |>
     setNames(paste0(names(yrstricts), '_anae_ala_catchment'))
+  # I'm not making a catchment clip version of the records, since it's
+  # explicitly about exactly where the records are
 
   rlang::inform(glue::glue("ANAE clipped in {round(Sys.time() - starttime)} seconds."))
 
+
+  # Save out yearly at anae scale, but only if requested
+
+  if (save_anaes) {
+    saveRDS(yrstricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'process_all_wetlands.rds'))
+    saveRDS(anae_name_stricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'process_named_wetlands.rds'))
+    saveRDS(anae_ala_stricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'process_ala_wetlands.rds'))
+    # save the filter too. Really, could save just he yrstricts and this, and re-filter the others
+    saveRDS(anaestricts, file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'type_filters.rds'))
+    # a specific set for the paper
+    saveRDS(list(inundation = yrstricts$anae_inun,
+                 recruitment = yrstricts$adult_germ_seed_area,
+                 regeneration = yrstricts$adult_germ_area,
+                 named = anae_name_stricts$anae_inun_anae_name,
+                 recorded = anae_ala_stricts$anae_inun_anae_ala,
+                 recruit_and_named = anae_name_stricts$adult_germ_seed_area_anae_name,
+                 recruit_and_recorded = anae_ala_stricts$adult_germ_seed_area_anae_ala,
+                 regen_and_named = anae_name_stricts$adult_germ_area_anae_name,
+                 regen_and_recorded = anae_ala_stricts$adult_germ_area_anae_ala),
+            file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'compare_for_paper.rds'))
+    return(NULL)
+  }
 
   # make catchment scale ----------------------------------------------------
 
@@ -480,11 +529,10 @@ woody_general <- function(out_dir, catchment,
     return(t2)
   }
 
-  response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts,
+  response_list <- c(yrstricts,
+                     anae_name_stricts, anae_ala_stricts, specific_anae_stricts,
                      catchment_stricts, catchment_name_stricts, catchment_ala_stricts) |>
     purrr::map(\(x) super_aggforce(x, catchpoly, newname = 'area'))
-  # response_list <- c(yrstricts, anae_name_stricts, anae_ala_stricts) |>
-  #   purrr::map(\(x) sf_and_aggforce(x, catchpoly, newname = 'area', funlist = sumna))
 
   # check that nothing is all na
   naareas <- purrr::map_lgl(response_list, \(x) all(is.na(x$area)))
@@ -520,16 +568,16 @@ woody_general <- function(out_dir, catchment,
 # #
 # #
 # ggplot() +
-#   geom_line(data = response_list$anae_inun_anae_ala, mapping = aes(x = date, y = area), color = 'black') +
-#   geom_line(data = response_list$germ_area_anae_ala, mapping = aes(x = date, y = area), color = 'green') +
-#   geom_line(data = response_list$seedling_area_anae_ala, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = response_list$adult_germ_seed_area_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
-#   geom_line(data = response_list$adult_area_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
+#   geom_line(data = anae_inun_anae_ala, mapping = aes(x = date, y = area), color = 'black') +
+#   geom_line(data = germ_area_anae_ala, mapping = aes(x = date, y = area), color = 'green') +
+#   geom_line(data = seedling_area_anae_ala, mapping = aes(x = date, y = area), color = 'purple') +
+#   geom_line(data = adult_germ_seed_area_anae_ala, mapping = aes(x = date, y = area), color = 'red') +
+#   geom_line(data = adult_area_anae_ala, mapping = aes(x = date, y = area), color = 'blue')
 # #
 # #
 # ggplot() +
-#   geom_line(data = response_list$anae_inun, mapping = aes(x = date, y = area), color = 'black') +
-#   geom_line(data = response_list$germ_area, mapping = aes(x = date, y = area), color = 'green') +
-#   geom_line(data = response_list$seedling_area, mapping = aes(x = date, y = area), color = 'purple') +
-#   geom_line(data = response_list$adult_germ_seed_area, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
-#   geom_line(data = response_list$adult_area, mapping = aes(x = date, y = area), color = 'blue')
+#   geom_line(data = anae_inun, mapping = aes(x = date, y = area), color = 'black') +
+#   geom_line(data = germ_area, mapping = aes(x = date, y = area), color = 'green') +
+#   geom_line(data = seedling_area, mapping = aes(x = date, y = area), color = 'purple') +
+#   geom_line(data = adult_germ_seed_area, mapping = aes(x = date, y = area), color = 'red', linetype = 'dashed') +
+#   geom_line(data = adult_area, mapping = aes(x = date, y = area), color = 'blue')
