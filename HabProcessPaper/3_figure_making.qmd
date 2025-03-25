@@ -1,8 +1,7 @@
 ---
-title: "Red gum analyses"
+title: "Figures and analyses for method matters"
 editor: visual
 echo: false
-# setting fig-width: 7 and fig-height: 5 are the defaults, changing here to be more standard ms sizes
 format:
   html:
     embed-resources: true
@@ -17,7 +16,7 @@ format:
     prefer-html: true
     fig-width: 9
     fig-height: 6
-    reference-doc: ../default_word_template.docx
+    reference-doc: default_word_template.docx
 bibliography: references.bib
 ---
 
@@ -852,120 +851,11 @@ all_stacked_ts <- purrr::map(species, make_stacked_fig) |>
   setNames(species)
 ```
 
-### Venn replacement
-
-```{r}
-# just get some data
-stackers <- all_data_basin |> 
-    sf::st_drop_geometry() |> 
-    filter(species == 'red_gum' & 
-               stage_name %in% c('Named wetland types',
-                                 'Recruitment and Named',
-                                 'Recruitment'))
-```
-
-```{r}
-# If I use hectares + 1m2, it doesn't stack right because some are (-). Cols always start at 0, and so those with < 1 hectare go down..
-ggplot(stackers, aes(x = date, y = hectares + 1/10000, fill = stage_name)) +
-  geom_col() + scale_y_continuous(trans = 'log10')
-```
-
-```{r}
-# If I use m2, it works because now the smallest unit is 1, but then we're using m2
-ggplot(stackers, aes(x = date, y = area + 1, fill = stage_name)) + 
-  geom_col() + scale_y_continuous(trans = 'log10')
-```
-
-```{r}
-# If I use untransformed, it works but we can't see anything
-ggplot(stackers, aes(x = date, y = hectares, fill = stage_name)) + geom_col() + scale_y_continuous()
-```
-
-```{r}
-# If I use hectares + 1 it works, but won't matcht he other figs
-ggplot(stackers, aes(x = date, y = hectares + 1, fill = stage_name)) + geom_col() + scale_y_continuous(trans = 'log10')
-```
-
-The venns scaled to something though, so maybe that's the answer. If I scale to the total, and then divide it up? Or scale to the total there's ever been? Or the maximum possible (ie total wetland area)? Then that puts everything 0-1, and we can scale equivalently? The % total wetland area is what we drew on the whiteboard. But did we actually mean % *inundated* all wetlands?
-
-```{r}
-# We can scale to the inundation of all wetland types and the total wetland area and see which works better, I suppose.
-
-# all wetlands
-wetareabasin <- sum(diversity_anae_summary$total_area)
-
-# inundated wetlands
-inun_wetarea <- all_data_basin |> 
-  st_drop_geometry() |> 
-  filter(stage_name %in% c('All wetland types')) |> 
-  dplyr::select(year, wet_inun_area = area)
-
-# I also need to subtract the joint contribution- Named and Recruitment are independent, and so *include* the interactive bit.
-interact_part <- all_data_basin |> 
-  st_drop_geometry() |> 
-  filter(species == 'red_gum' & stage_name %in% c('Recruitment and Named')) |> 
-  dplyr::select(year, interact_part = area)
-
-
-stackers <- all_data_basin |> 
-    sf::st_drop_geometry() |> 
-    filter(species == 'red_gum' & 
-               stage_name %in% c('Named wetland types',
-                                 'Recruitment and Named',
-                                 'Recruitment')) |> 
-  left_join(inun_wetarea, by = 'year') |> 
-  left_join(interact_part, by = 'year') |> 
-  # Subtract off the bit that belongs to both so it's unique.
-    mutate(area = ifelse(stage_name == 'Recruitment and Named', 
-                         area, area-interact_part),
-           area = area + 1) |> # add a m2 to help the logs
-  mutate(all_wetarea = wetareabasin,
-         prop_all_wetlands = area/all_wetarea,
-         prop_inun_wetlands = area/wet_inun_area)
-```
-
-```{r}
-# we still can't see the small ones, so need to log
-ggplot(stackers, aes(x = year, y = prop_all_wetlands, fill = stage)) + 
-  geom_col() 
-ggplot(stackers, aes(x = year, y = prop_inun_wetlands, fill = stage)) + 
-  geom_col() 
-```
-
-```{r}
-# The log is a mess. It's unclear to me what is going on with the pink bars- why are they *smaller* now? Because they are LESS NEGATIVE. In fact, the ?geom_col says do not do this. 
-ggplot(stackers, aes(x = year, y = prop_all_wetlands, fill = stage)) + 
-  geom_col()  + scale_y_continuous(trans = 'log10')
-ggplot(stackers, aes(x = year, y = prop_inun_wetlands, fill = stage)) + 
-  geom_col() + scale_y_continuous(trans = 'log10')
-```
-
-```{r}
-# This just recapitulates the timeseries we already have, but on a different scale
-ggplot(stackers, aes(x = year, y = prop_all_wetlands, color = stage)) + 
-  geom_line()  + geom_point() + scale_y_continuous(trans = 'log10')
-ggplot(stackers, aes(x = year, y = prop_inun_wetlands, color = stage)) + 
-  geom_line()  + geom_point() + scale_y_continuous(trans = 'log10')
-```
-
-```{r}
-ggplot(stackers, aes(x = year, y = prop_all_wetlands, color = stage)) + 
-  geom_line()  + geom_point() + scale_y_continuous()
-ggplot(stackers, aes(x = year, y = prop_inun_wetlands, color = stage)) + 
-  geom_line()  + geom_point() + scale_y_continuous()
-```
-
-so, really, that just doesnt' work well. I think I'll move on for the moment and see if I can just explain it instead.
-
-### Trying again with fresh eyes
-
-Can we plot the overlap and non-overlap separately? Like the plots of area above, but only the unique parts? To do that, we need the same info we need for the overlap fig.
-
 ### Overlap fig
 
-we want overlap vs % time conditions met. For each spp (and life stage?).
+we want overlap vs % time conditions met. For each spp and life stage.
 
-Overlap is fine (it's the Recruitment and Named), but what is %time conditions met? All Recruitment? All Process? Both, independently? and overlap is given as % overlap, but again, % of what?
+Overlap is fine (it's the Recruitment and Named), but then we need the separate parts.
 
 ```{r}
 separated_habproc <- all_data_basin |> 
@@ -985,7 +875,7 @@ separated_habproc <- all_data_basin |>
 
 ```
 
-These are basically it. Are they helpful? Maybe in an appendix? Not going to make all of them until we think we actually want it.
+These are basically it, though they aren't particularly informative vs. what's in the paper.
 
 ```{r}
 
@@ -1090,7 +980,7 @@ overlap_named_basin_ts['red_gum']
 overlap_recorded_basin_ts['red_gum']
 ```
 
-Print it out, I guess
+Print it out
 
 ```{r}
 
@@ -1110,7 +1000,7 @@ stack_overlap_ts <- purrr::map(species, make_stack_overlap)
 
 ```
 
-Can I do that tabular?
+Tabular is actually better in a lot of ways.
 
 ```{r}
 recorded_sep_ts <- separated_habproc |> 
@@ -1175,88 +1065,64 @@ make_ts_separated_tab <- function(species1) {
 purrr::map(species, make_ts_separated_tab)
 ```
 
-### Niche width?
+### Tolerance
 
-Get the niche width for that new figure
+Get the tolerance and proportion of tolerance for the new figure
 
 ```{r}
 
 # For some reason this is easier to break apart
-niche_width_recruit <- all_data_basin |> 
+tolerance_width_recruit <- all_data_basin |> 
     sf::st_drop_geometry() |> 
     filter(stage_name %in% c('Recruitment',
                              'Recruitment and Named',
                              'Recruitment and Recorded')) |> 
   select(year, stage_name, species, hectares) |> 
   tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
-  summarise(niche_width = sum(Recruitment, na.rm = TRUE),
+  summarise(tolerance_width = sum(Recruitment, na.rm = TRUE),
             overlap_named = sum(`Recruitment and Named`, na.rm = TRUE),
             overlap_recorded = sum(`Recruitment and Recorded`, na.rm = TRUE),
             .by = species) |> 
   mutate(stage_name = 'Recruitment')
 
-niche_width_regen <- all_data_basin |> 
+tolerance_width_regen <- all_data_basin |> 
     sf::st_drop_geometry() |> 
     filter(stage_name %in% c('Regeneration',
                              'Regeneration and Named',
                              'Regeneration and Recorded')) |> 
   select(year, stage_name, species, hectares) |> 
   tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
-  summarise(niche_width = sum(Regeneration, na.rm = TRUE),
+  summarise(tolerance_width = sum(Regeneration, na.rm = TRUE),
             overlap_named = sum(`Regeneration and Named`, na.rm = TRUE),
             overlap_recorded = sum(`Regeneration and Recorded`, na.rm = TRUE),
             .by = species) |> 
   mutate(stage_name = 'Regeneration')
   
-niche_width_adult <- all_data_basin |> 
+tolerance_width_adult <- all_data_basin |> 
     sf::st_drop_geometry() |> 
     filter(stage_name %in% c('Adult',
                              'Adult and Named',
                              'Adult and Recorded')) |> 
   select(year, stage_name, species, hectares) |> 
   tidyr::pivot_wider(names_from = stage_name, values_from = hectares) |> 
-  summarise(niche_width = sum(Adult, na.rm = TRUE),
+  summarise(tolerance_width = sum(Adult, na.rm = TRUE),
             overlap_named = sum(`Adult and Named`, na.rm = TRUE),
             overlap_recorded = sum(`Adult and Recorded`, na.rm = TRUE),
             .by = species) |> 
   mutate(stage_name = 'Adult')
 
-niche_width <- bind_rows(niche_width_recruit, niche_width_regen, niche_width_adult) |> 
+tolerance_width <- bind_rows(tolerance_width_recruit, tolerance_width_regen, tolerance_width_adult) |> 
   mutate(stage_name = factor(stage_name, levels = levels(all_data_basin$stage_name))) |> 
-  mutate(proportion_overlap_recorded = overlap_recorded/niche_width,
-         proportion_overlap_named = overlap_named/niche_width)
+  mutate(proportion_overlap_recorded = overlap_recorded/tolerance_width,
+         proportion_overlap_named = overlap_named/tolerance_width)
   
 ```
 
-That's a plot, but it sure isn't obviously helpful. We could make the values %, but it would just scale it, not add any information.
-
-what is this asking? whether species that have lots of success (across both wetland type and processes) have more wetlands that are both? What does that mean? I'm going to have to go read the comment and think more about this, because it's not making a ton of sense to me.
-
-The comment is: : Is model choice a greater concern for species with narrower environmental tolerances compared to those with broader tolerances?
+Most of the naive plots here kind of dance around the issue. Like this one, which doesn't look at the proportion.
 
 ```{r}
-ggplot(niche_width, 
-       aes(x = niche_width, y = overlap_named, color = species)) +
-  geom_point() +
-  facet_wrap('stage_name', scales = 'free')  +
-  scale_x_continuous(trans = 'log10') +
-  scale_y_continuous(trans = 'log10')
-```
-
-```{r}
-ggplot(niche_width, 
-       aes(x = niche_width, y = overlap_recorded, color = species)) +
-  geom_point() +
-  facet_wrap('stage_name', scales = 'free') +
-  scale_x_continuous(trans = 'log10') +
-  scale_y_continuous(trans = 'log10')
-```
-
-Those are kinda ok, but it would be good to put them on comparable scales so I could plot all the points on one graph. Does that mean calculating something other than a sum? logging? relativising (to what?)
-
-```{r}
-ggplot(niche_width, 
-       aes(x = niche_width, y = overlap_recorded, color = stage_name, shape = species, group = stage_name)) + geom_line() +
+ggplot(tolerance_width, 
+       aes(x = tolerance_width, y = overlap_recorded, color = stage_name, shape = species, group = stage_name)) + geom_line() +
   geom_point() +
  scale_x_continuous(trans = 'log10') +
   scale_y_continuous(trans = 'log10') +
@@ -1265,8 +1131,8 @@ ggplot(niche_width,
 ```
 
 ```{r}
-ggplot(niche_width, 
-       aes(x = niche_width, y = overlap_named, color = stage_name, shape = species, group = stage_name)) + geom_line() +
+ggplot(tolerance_width, 
+       aes(x = tolerance_width, y = overlap_named, color = stage_name, shape = species, group = stage_name)) + geom_line() +
   geom_point() +
  scale_x_continuous(trans = 'log10') +
   scale_y_continuous(trans = 'log10') +
@@ -1274,10 +1140,10 @@ ggplot(niche_width,
   HydroBOT::theme_werp_toolkit()
 ```
 
-What are we really asking though? Is the overlap a consistent fraction of the 'niche width' might be a good way to look at it. but that's only one axis then.
+What we really want is whether the overlap is a consistent fraction of the 'tolerance'. That's only one axis and it captures the main issue that we'd expect both to go up together.
 
 ```{r}
-prop_record <- niche_width  |> 
+prop_record <- tolerance_width  |> 
 ggplot(aes(y = proportion_overlap_recorded, 
            x = forcats::fct_reorder(species, proportion_overlap_recorded),
            color = stage_name)) + 
@@ -1287,7 +1153,7 @@ ggplot(aes(y = proportion_overlap_recorded,
   HydroBOT::theme_werp_toolkit() +
   labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
-prop_named <-  niche_width  |> 
+prop_named <-  tolerance_width  |> 
 ggplot(aes(y = proportion_overlap_named, 
            x = forcats::fct_reorder(species, proportion_overlap_recorded), # keep order the same
            color = stage_name)) + 
@@ -1302,10 +1168,10 @@ prop_record + prop_named +
   plot_layout(guides = 'collect')
 ```
 
-Or does it make more sense to flip?
+Does it make more sense to flip?
 
 ```{r}
-prop_record_s <- niche_width  |> 
+prop_record_s <- tolerance_width  |> 
 ggplot(aes(y = proportion_overlap_recorded, 
            x = stage_name,
            color = species)) + 
@@ -1315,7 +1181,7 @@ ggplot(aes(y = proportion_overlap_recorded,
   HydroBOT::theme_werp_toolkit() +
   labs(y = 'Overlap proportion', x = NULL, color = 'Species')
 
-prop_named_s <-  niche_width  |> 
+prop_named_s <-  tolerance_width  |> 
 ggplot(aes(y = proportion_overlap_named, 
            x = stage_name, 
            color = species)) + 
@@ -1330,16 +1196,14 @@ prop_record_s + prop_named_s +
   plot_layout(guides = 'collect')
 ```
 
-I'm going to have to go look at the suggestion and figure out what addresses it.
-
-I think maybe this is actually better at getting at the question - does more environmental tolerance (niche width) mean that a greater proportion of the tolerated area is in both models (overlap)? IE does tolerance reduce the impact of model choice?
+This is better - does more environmental tolerance (tolerance) mean that a greater proportion of the tolerated area is in both models (overlap)? IE does tolerance reduce the impact of model choice?
 
 Across stages, yes. Across species, not clear.
 
 ```{r}
-prop_v_niche_record <- niche_width  |> 
+prop_v_tolerance_record <- tolerance_width  |> 
 ggplot(aes(y = proportion_overlap_recorded, 
-           x = niche_width, color = stage_name, shape = species, group = stage_name)) + 
+           x = tolerance_width, color = stage_name, shape = species, group = stage_name)) + 
   geom_point()  +
   geom_line(aes(group = stage_name)) +
   scale_color_manual(values = process_cols_seq) +
@@ -1347,9 +1211,9 @@ ggplot(aes(y = proportion_overlap_recorded,
   scale_x_continuous(trans = 'log10')
   # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
-prop_v_niche_named <- niche_width  |> 
+prop_v_tolerance_named <- tolerance_width  |> 
 ggplot(aes(y = proportion_overlap_named, 
-           x = niche_width, color = stage_name, shape = species, group = stage_name)) + 
+           x = tolerance_width, color = stage_name, shape = species, group = stage_name)) + 
   geom_point()   +
   geom_line(aes(group = stage_name)) +
   scale_color_manual(values = process_cols_seq) +
@@ -1357,7 +1221,7 @@ ggplot(aes(y = proportion_overlap_named,
   scale_x_continuous(trans = 'log10')
   # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
-prop_v_niche_record + prop_v_niche_named + 
+prop_v_tolerance_record + prop_v_tolerance_named + 
   plot_annotation(tag_levels = 'a') +
   plot_layout(guides = 'collect')
 ```
@@ -1366,8 +1230,8 @@ How about a version where we look at recruitment across species for both recorde
 
 ```{r}
 # The above is good, but just isn't working very well with the legends. Can i do a better job witht hem?
-prop_v_niche_record_v_name <- niche_width  |> 
-  select(niche_width, stage_name, species, proportion_overlap_recorded, proportion_overlap_named) |> 
+prop_v_tolerance_record_v_name <- tolerance_width  |> 
+  select(tolerance_width, stage_name, species, proportion_overlap_recorded, proportion_overlap_named) |> 
   tidyr::pivot_longer(cols = starts_with('proportion'),
                       names_to = 'hab_mod', values_to = 'overlap_proportion') |>
   mutate(hab_mod = stringr::str_replace_all(hab_mod, 'proportion_overlap_', '')) |> 
@@ -1376,7 +1240,7 @@ prop_v_niche_record_v_name <- niche_width  |>
          species = stringr::str_to_sentence(species))|>
   filter(stage_name == 'Recruitment') |> 
 ggplot(aes(y = overlap_proportion, 
-           x = niche_width, 
+           x = tolerance_width, 
            linetype = hab_mod,
            shape = stage_name,
            group = hab_mod)) + 
@@ -1392,8 +1256,8 @@ ggplot(aes(y = overlap_proportion,
        color = 'Species', shape = 'Process', linetype = 'Habitat')
   # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
-prop_v_niche_stages <- niche_width  |> 
-    select(niche_width, stage_name, species, proportion_overlap_recorded, proportion_overlap_named) |> 
+prop_v_tolerance_stages <- tolerance_width  |> 
+    select(tolerance_width, stage_name, species, proportion_overlap_recorded, proportion_overlap_named) |> 
     tidyr::pivot_longer(cols = starts_with('proportion'),
                         names_to = 'hab_mod', values_to = 'overlap_proportion') |>
     mutate(hab_mod = stringr::str_replace_all(hab_mod, 'proportion_overlap_', '')) |> 
@@ -1401,7 +1265,7 @@ prop_v_niche_stages <- niche_width  |>
   mutate(species = stringr::str_replace_all(species, '_', ' '),
          species = stringr::str_to_sentence(species)) |> 
     ggplot(aes(y = overlap_proportion, 
-               x = niche_width, 
+               x = tolerance_width, 
                shape = stage_name,
                color = species,
                linetype = hab_mod,
@@ -1414,15 +1278,15 @@ prop_v_niche_stages <- niche_width  |>
   labs(y = 'Overlap proportion', x = 'Tolerance (process area in ha)',
        color = 'Species', shape = 'Process', linetype = 'Habitat')
 
-niche_panel <- prop_v_niche_record_v_name / 
-                  prop_v_niche_stages + 
+tolerance_panel <- prop_v_tolerance_record_v_name / 
+                  prop_v_tolerance_stages + 
   plot_annotation(tag_levels = 'a') + plot_layout(guides = 'collect')
 
-niche_panel
+tolerance_panel
 
 # this is overall, so I guess save it with the boxplots
     galenR::ggsave_multi(filename = file.path(boxpath, 'tolerance'),
-                         plot = niche_panel,
+                         plot = tolerance_panel,
                          device = c('png', 'pdf'),
                          width = 16, height = 12, units = "cm")
 
@@ -1676,14 +1540,6 @@ make_process_indepseq_map <- function(species) {
     base_stage = factor(base_stage, levels = levels(stage_name))) |>
     filter(species == {{species}} &
              base_stage %in% c('Adult', 'Regeneration', 'Recruitment'))
-  
-  # I was trying to label panels with their specific name, but it didn't work well
-  # label_data <- adult_indep |>
-  #   filter(species == 'red_gum' &
-  #            base_stage %in% c('Adult', 'Regeneration', 'Recruitment')) |>
-  #   filter(ValleyName == 'Warrego') |>
-  #   reframe(stage_name = unique(stage_name), .by = geometry) |>
-  #   st_as_sf()
   
   bio_both_maps <-
     ggplot() +
@@ -2062,7 +1918,7 @@ ggplot() +
           aes(fill = Wetland))
 ```
 
-Getting the raw data is a pain; it's aggregated to catchment on read-in. So we need to go back to the raw outputs for the lower murray and crop
+We need to go back to the raw outputs for the lower murray and crop
 
 Start with inundation, get it to work. Then which others do I want?
 
@@ -2071,9 +1927,7 @@ Start with inundation, get it to work. Then which others do I want?
 inun_chow <- readRDS(file.path(datOut, 'red_gum', 'anae_inun', 'LowerMurray_anae_inun.rds'))
 ```
 
-That's already aggregated. I'll have to go all the way back to the original, which I've left on the server. Bring over only the ones we need for the paper. Ah, but we don't save out the ANAEs themselves except for the inundation. So I'll have to re-run everything.
-
-Code to re-run. This is fine, but easiest to just set a breakpoint in the middle and finish re-doing everything.
+Code to re-run to get the data that was previously only saved post-aggregation. This is fine, but easiest to just set a breakpoint in the middle and finish re-doing everything.
 
 ```{r}
 #| eval: false
@@ -2093,13 +1947,6 @@ anae_results <- readRDS(file.path(datOut, 'red_gum',
                                   'all_anaes',
                                   'LowerMurray',
                                   'compare_for_paper.rds'))
-```
-
-```{r}
-# inun_chow <- readRDS(file.path(datOut, 
-#                                'habprocesspaper',
-#                                'individual_anaes',
-#                                'LowerMurray_areaInun05cm.rds'))
 ```
 
 Get the right anaes
@@ -2139,19 +1986,7 @@ ggplot(filter(chowsf$inundation, date %in% c(chowsf$inundation$date[32:37])),
                                     labels = scales::label_log())
 ```
 
-But we don't actually find any recruitment in chowilla, so will need to look around
-
-```{r}
-ggplot(filter(chowsf$recruitment, date %in% c(chowsf$inundation$date[32:37])), 
-       aes(fill = hectares)) + 
-  geom_sf(color = NA) + 
-  facet_wrap('date') +
-  paletteer::scale_fill_paletteer_c(palette = 'ggthemes::Blue-Green Sequential',
-                                    trans = 'log10', 
-                                    labels = scales::label_log())
-```
-
-What about regen. this is just illustrative, so no neeed really to use recruitment per se.
+But we don't actually find any recruitment in chowilla, so will need use regeneration. This is just illustrative, so no need really to use a particular life stage, and recruitment is always so low it's hard to find any good examples.
 
 ```{r}
 ggplot(filter(chowsf$regeneration, date %in% c(chowsf$inundation$date[32:37])), 
@@ -2235,7 +2070,7 @@ chowillus
                          width = 18, height = 8, units = "cm")
 ```
 
-Do I need to situate that?
+Situate that
 
 ```{r}
 riverland_loc <- ggplot(data = HydroBOT::basin) + # |> filter(ValleyName == 'Lower Murray')
