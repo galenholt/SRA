@@ -1,0 +1,58 @@
+---
+title: "Macquarie illustration"
+format: html
+editor: visual
+---
+
+Rebecca wants and illustration like the Riverland one but for all species in the Macquarie.
+
+```{r}
+library(eFlowEval)
+library(sf)
+source('directorySet.R')
+
+library(dplyr)
+library(ggplot2)
+library(foreach) # needed internally for some funs
+library(patchwork)
+library(kableExtra)
+```
+
+```{r}
+species <- c('black_box', 'red_gum', 'coolabah', 'lignum')
+species_names <- species |> 
+  stringr::str_replace('_', ' ') |> 
+  stringr::str_to_sentence()
+
+valleys <- ltimNoNorth |> 
+  select(-ValleyID, -ValleyCode) |> 
+  mutate(name_orig = ValleyName,
+         ValleyName = stringr::str_remove_all(ValleyName, ' '))
+```
+
+```{r}
+
+purrr::map(species, \(x) dir.create(file.path(datOut, x, 'all_anaes', 'Macquarie'),
+                                    recursive = TRUE))
+
+for (x in species) {
+  source(file.path('R', paste0(x, '.R')))
+}
+```
+
+```{r}
+
+red_gum(out_dir = datOut, catchment = 'Macquarie', save_anaes = TRUE)
+```
+
+```{r}
+lignum(out_dir = datOut, catchment = 'Macquarie', save_anaes = TRUE)
+```
+
+```{r}
+coolabah(out_dir = datOut, catchment = 'Macquarie', save_anaes = TRUE)
+```
+
+```{r}
+black_box(out_dir = datOut, catchment = 'Macquarie', save_anaes = TRUE)
+```

@@ -493,6 +493,7 @@ woody_general <- function(out_dir, catchment,
                  regen_and_named = anae_name_stricts$adult_germ_area_anae_name,
                  regen_and_recorded = anae_ala_stricts$adult_germ_area_anae_ala),
             file = file.path(out_dir, veg_name, 'all_anaes', catchment, 'compare_for_paper.rds'))
+    return(NULL)
   }
 
   # make catchment scale ----------------------------------------------------
