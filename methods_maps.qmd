@@ -17,7 +17,7 @@ ggplot() +
   geom_sf(data = HydroBOT::basin, fill = 'black') +
   geom_sf(data = anaes, fill = 'lightskyblue2', color = NA,
           linewidth = 0.1, stroke = 0.1) +
-  HydroBOT::theme_werp_toolkit()
+  galenR::theme_clean()
 ```
 
 The models for the werptstyle models (in other parts of SRA) were built largely on the EWR tool.
@@ -28,5 +28,5 @@ ggplot() +
   geom_sf(data = HydroBOT::basin, fill = 'black') +
   geom_sf(data = HydroBOT::basin_rivers, color = 'dodgerblue') +
   geom_sf(data = ewrgauges, color = 'goldenrod') +
-  HydroBOT::theme_werp_toolkit()
+  galenR::theme_clean()
 ```

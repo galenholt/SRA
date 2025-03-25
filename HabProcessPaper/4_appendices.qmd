@@ -72,7 +72,7 @@ ggplot() +
   geom_sf(data = anaes, fill = 'grey20', color = NA,
           linewidth = 0.1, stroke = 0.1) +
       scale_x_continuous(breaks = c(140, 145, 150)) +
-  HydroBOT::theme_werp_toolkit()
+  galenR::theme_clean()
 
 anae_map
 

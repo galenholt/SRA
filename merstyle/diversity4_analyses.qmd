@@ -375,7 +375,7 @@ ggplot(shannon_area_prepost, aes(fill = diversity_shannon_area)) +
   geom_sf() +
   facet_wrap('timeperiod') +
   scale_fill_viridis_c(option = 'magma') +
-  HydroBOT::theme_werp_toolkit() + 
+  galenR::theme_clean() + 
   labs(fill = "Shannon diversity")
 ```
 

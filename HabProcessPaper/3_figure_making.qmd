@@ -59,7 +59,7 @@ make_habitat_box <- function(species) {
   # geom_point(position = position_jitter(width = 0.1), alpha = 0.5) +
   scale_fill_manual(values = stage_pal) +
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = 'hectares', fill = 'Model')
 
   
@@ -98,7 +98,7 @@ make_process_box <- function(species) {
     scale_fill_manual(values = stage_pal) +
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
     scale_color_manual(values = c(sequential = 'black', independent = 'grey70')) +
-    HydroBOT::theme_werp_toolkit() +
+    galenR::theme_clean() +
     labs(y = 'hectares', x = 'Step',
          fill = 'Life stage', color = 'Stage type')
   
@@ -129,7 +129,7 @@ make_interact_seq_box <- function(species) {
   # geom_point(alpha = 0.5, position = position_dodge(width = 0.1)) +
   scale_fill_manual(values = stage_pal) +
      scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = 'hectares',
        fill = 'Life stage')
 
@@ -161,7 +161,7 @@ new_basin_box_hab <- all_data_basin |>
        scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
   scale_fill_manual(values = stage_pal) +
   scale_color_manual(values = type_pal) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = 'hectares',
        fill = 'Model', color = 'Model type')
 
@@ -192,7 +192,7 @@ make_interact_proc_box <- function(species) {
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
     scale_fill_manual(values = stage_pal) +
     scale_color_manual(values = type_pal) +
-    HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+    galenR::theme_clean(axis.title.x = element_blank()) +
     labs(y = 'hectares',
          fill = 'Model', color = 'Model type')
 
@@ -236,7 +236,7 @@ basin_box_hab2proc <- all_data_basin |>
   scale_fill_manual(values = wetland_type_pal_fill, guide = FALSE) +
   scale_color_manual(values = c(process_cols_seq,
                                 'None (habitat only)' = 'black')) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(),
+  galenR::theme_clean(axis.title.x = element_blank(),
                                axis.text = element_text(color = "black")) +
   labs(y = "Favorable area (ha)",
        color = "Process-based model")
@@ -266,7 +266,7 @@ basin_box_proc2hab <- all_data_basin |>
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
   scale_fill_manual(values = wetland_type_pal_fill) +
   scale_color_manual(values = wetland_type_pal) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank(),
+  galenR::theme_clean(axis.title.x = element_blank(),
                                axis.text = element_text(color = "black")) +
   labs(y = "Favorable area (ha)", fill = "Habitat-based model",
        color = "Habitat-based model")
@@ -383,7 +383,7 @@ ggplot(aes(x = year, y = hectares + 1/10000,
     scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
     scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process, guide = FALSE) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Habitat model",
        shape = "Process model")
   
@@ -437,7 +437,7 @@ hab_basin_area_scaled_ts |>
   ggplot(aes(x = year, y = `Fraction area\ninundated`, color = `Wetland type model`)) +
   geom_point() + geom_line() +
    scale_color_manual(values = wetland_type_pal) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank())
+  galenR::theme_clean(axis.title.x = element_blank())
 ```
 
 ### Process alone
@@ -456,7 +456,7 @@ make_all_process_ts <- function(species) {
 
     scale_shape_manual(values = shape_type) +
     scale_color_manual(values = stage_pal) +
-    HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+    galenR::theme_clean(axis.title.x = element_blank()) +
     labs(y = "Favorable area (ha)", color = "Model",
        linetype = "Stage type", shape = "Model type")
   
@@ -485,7 +485,7 @@ make_seq_process_ts <- function(species) {
 
   scale_color_manual(values = wetland_type_pal, guide = FALSE) +
   scale_shape_manual(values = shape_type_process) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Habitat model", shape = "Process model")
   
   return(proc_basin_seq_ts)
@@ -514,7 +514,7 @@ ggplot(aes(x = year, y = hectares + 1/10000,
             scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
   scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Habitat model", shape = "Process model")
   
   return(inter_basin_named_ts)
@@ -536,7 +536,7 @@ ggplot(aes(x = year, y = hectares + 1/10000,
   scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
             scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Habitat model", shape = "Process model")
   
   return(inter_basin_recorded_ts)
@@ -742,7 +742,7 @@ ggplot(aes(x = year, y = hectares + 1/10000,
   scale_color_manual(values = wetland_type_pal) +
   scale_shape_manual(values = shape_type_process) +
 geom_point() +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = "hectares", color = "Wetland type models", shape = "Process-based models")
 
 # Some other legend orientations for testing
@@ -783,7 +783,7 @@ make_venn_plots <- function(venn_data) {
                                   as.character(wetland_type_pal['All wetland types']))) +
   coord_fixed() + 
   lims(x = c(1988, NA)) +
-  HydroBOT::theme_werp_toolkit(axis.ticks.y = element_blank(),
+  galenR::theme_clean(axis.ticks.y = element_blank(),
                                    axis.text.y = element_blank(),
                                    legend.position = 'none')
   return(vennplot)
@@ -922,7 +922,7 @@ ggplot(aes(y = hectares, x = year, color = stage_name,
   scale_color_manual(values = overlapcolors) +
   # scale_shape_manual(values = shape_type_process) +
             scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Grouping",
        linetype = 'Combination', shape = "Combination")
 
@@ -956,7 +956,7 @@ ggplot(aes(y = hectares, x = year, color = stage_name,
   scale_color_manual(values = overlapcolors) +
   # scale_shape_manual(values = shape_type_process) +
             scale_y_continuous(trans = 'log10', labels = scales::label_log()) +
-  HydroBOT::theme_werp_toolkit(axis.title.x = element_blank()) +
+  galenR::theme_clean(axis.title.x = element_blank()) +
   labs(y = "Favorable area (ha)", color = "Grouping", shape = "Combination",
        linetype = "Combination")
   
@@ -1127,7 +1127,7 @@ ggplot(tolerance_width,
  scale_x_continuous(trans = 'log10') +
   scale_y_continuous(trans = 'log10') +
   scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit()
+  galenR::theme_clean()
 ```
 
 ```{r}
@@ -1137,7 +1137,7 @@ ggplot(tolerance_width,
  scale_x_continuous(trans = 'log10') +
   scale_y_continuous(trans = 'log10') +
   scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit()
+  galenR::theme_clean()
 ```
 
 What we really want is whether the overlap is a consistent fraction of the 'tolerance'. That's only one axis and it captures the main issue that we'd expect both to go up together.
@@ -1150,7 +1150,7 @@ ggplot(aes(y = proportion_overlap_recorded,
   geom_point()  +
   geom_line(aes(group = stage_name)) +
   scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
 prop_named <-  tolerance_width  |> 
@@ -1160,7 +1160,7 @@ ggplot(aes(y = proportion_overlap_named,
   geom_point()   +
   geom_line(aes(group = stage_name)) +
   scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
 prop_record + prop_named + 
@@ -1178,7 +1178,7 @@ ggplot(aes(y = proportion_overlap_recorded,
   geom_point()  +
   geom_line(aes(group = species)) +
   # scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(y = 'Overlap proportion', x = NULL, color = 'Species')
 
 prop_named_s <-  tolerance_width  |> 
@@ -1188,7 +1188,7 @@ ggplot(aes(y = proportion_overlap_named,
   geom_point()   +
   geom_line(aes(group = species)) +
 #  scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(y = 'Overlap proportion', x = NULL, color = 'Species')
 
 prop_record_s + prop_named_s + 
@@ -1207,7 +1207,7 @@ ggplot(aes(y = proportion_overlap_recorded,
   geom_point()  +
   geom_line(aes(group = stage_name)) +
   scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   scale_x_continuous(trans = 'log10')
   # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
@@ -1217,7 +1217,7 @@ ggplot(aes(y = proportion_overlap_named,
   geom_point()   +
   geom_line(aes(group = stage_name)) +
   scale_color_manual(values = process_cols_seq) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   scale_x_continuous(trans = 'log10')
   # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
 
@@ -1251,7 +1251,7 @@ ggplot(aes(y = overlap_proportion,
                      guide = FALSE) +
   scale_color_manual(values = spp_pal, guide = FALSE) +
     scale_x_continuous(trans = 'log10', labels = scales::label_log()) +
-  HydroBOT::theme_werp_toolkit()  +
+  galenR::theme_clean()  +
   labs(y = 'Overlap proportion', x = 'Tolerance (process area in ha)',
        color = 'Species', shape = 'Process', linetype = 'Habitat')
   # labs(y = 'Overlap proportion', x = NULL, color = 'Life stage')
@@ -1272,7 +1272,7 @@ prop_v_tolerance_stages <- tolerance_width  |>
                group = interaction(species, hab_mod))) + 
     geom_point()   +
     geom_line() +
-    HydroBOT::theme_werp_toolkit() +
+    galenR::theme_clean() +
   scale_color_manual(values = spp_pal) +
     scale_x_continuous(trans = 'log10', labels = scales::label_log()) +
   labs(y = 'Overlap proportion', x = 'Tolerance (process area in ha)',
@@ -1311,7 +1311,7 @@ make_ala_record_map <- function(species) {
     geom_sf(data = valleys, fill = 'azure', color = 'grey80') +
     geom_sf(alpha = 0.3) +
   facet_wrap("species_name") +
-  HydroBOT::theme_werp_toolkit(legend.position = 'none')
+  galenR::theme_clean(legend.position = 'none')
 
   
   return(ala_maps)
@@ -1337,7 +1337,7 @@ make_all_record_map <- function(species) {
     scale_color_manual(values = c('burlywood', 'seagreen') ) +
         scale_x_continuous(breaks = c(140, 150)) +
     scale_y_continuous(breaks = c(-28, -32, -36)) +
-  HydroBOT::theme_werp_toolkit(legend.position = 'none')
+  galenR::theme_clean(legend.position = 'none')
 
   
   return(ala_maps)
@@ -1386,7 +1386,7 @@ ala_catch_maps <- catch_ala |>
                        labels = scales::label_log()) + # , limits = (c(0, 22))
       scale_x_continuous(breaks = c(140, 150)) +
     scale_y_continuous(breaks = c(-28, -32, -36)) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(fill = "ALA records")
 
   return(ala_catch_maps)
@@ -1414,7 +1414,7 @@ make_habitat_map <- function(species) {
   scale_fill_viridis_c(option = 'mako',
                        trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(fill = "hectares")
 
   
@@ -1444,7 +1444,7 @@ make_totalhabitat_map <- function(species) {
   facet_grid(.~stage_name, labeller = label_wrap_gen(18)) +
     scale_x_continuous(breaks = c(140, 150)) +
     scale_y_continuous(breaks = c(-28, -32, -36)) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(fill = "Area (ha)")
 
   
@@ -1490,7 +1490,7 @@ make_process_indep_map <- function(species) {
   scale_fill_viridis_c(option = 'mako',
                        trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(fill = "hectares")
 
   
@@ -1507,7 +1507,7 @@ make_process_seq_map <- function(species) {
   scale_fill_viridis_c(option = 'mako',
                        trans = 'log10', labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(fill = "hectares")
 
   
@@ -1550,7 +1550,7 @@ make_process_indepseq_map <- function(species) {
                        trans = 'log10', 
                        labels = scales::label_log()) + # , limits = (c(0, 22))
     facet_grid(is_independent_proc~base_stage) +
-    HydroBOT::theme_werp_toolkit() +
+    galenR::theme_clean() +
     labs(fill = "hectares")
   
   
@@ -1581,7 +1581,7 @@ inter_maps <- all_data_time |>
                        trans = 'log10', 
                        labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(fill = "hectares")
 
   
@@ -1608,7 +1608,7 @@ inter_seq_maps <- all_data_time |>
                        trans = 'log10', 
                        labels = scales::label_log()) + # , limits = (c(0, 22))
   facet_grid(.~stage_name) +
-  HydroBOT::theme_werp_toolkit() +
+  galenR::theme_clean() +
   labs(fill = "hectares")
 
   
@@ -1655,7 +1655,7 @@ make_interact_habseq_map <- function(species) {
                        trans = 'log10', 
                        labels = scales::label_log()) + # , limits = (c(0, 22))
     facet_wrap('stage_name', nrow = 3) +
-    HydroBOT::theme_werp_toolkit() +
+    galenR::theme_clean() +
     labs(fill = "hectares")
   
   return(inter_habseq_maps)
@@ -1694,7 +1694,7 @@ make_interact2d_fig <- function(species, print = TRUE) {
     # panel.spacing = unit(1, "lines")
     scale_x_continuous(breaks = c(140, 150)) +
     scale_y_continuous(breaks = c(-28, -32, -36)) +
-  HydroBOT::theme_werp_toolkit() + 
+  galenR::theme_clean() + 
   labs(fill = 'Favorable\narea (ha)')
 
 
@@ -1875,7 +1875,7 @@ without_color <- ggplot() +
 
 ```{r}
 
-vcols <- HydroBOT::make_pal(c('dummy1', 'dummy2', 'dummy3', 
+vcols <- galenR::make_pal(c('dummy1', 'dummy2', 'dummy3', 
                               HydroBOT::cewo_valleys$ValleyName),
                             # 'grDevices::GnBu')
                             'grDevices::Purple-Yellow')
@@ -1887,7 +1887,7 @@ cvlabel <- ggplot(data = HydroBOT::cewo_valleys) +
   ggrepel::geom_text_repel(mapping = aes(label = ValleyName, geometry = geometry),
                            stat = 'sf_coordinates', force = 0.2) +
   # geom_sf_text(mapping = aes(label = ValleyName)) + 
-  HydroBOT::theme_werp_toolkit(legend.position = 'none') +
+  galenR::theme_clean(legend.position = 'none') +
   scale_fill_manual(values = vcols)
 
 cvlabel
@@ -2057,7 +2057,7 @@ chowillus <- chowstack |>
   #                                   labels = scales::label_log()) +
   scale_x_continuous(breaks = c(140.8, 141)) +
   scale_y_continuous(breaks = c(-34.2, -34.1, -34, -33.9)) +
-  HydroBOT::theme_werp_toolkit(legend.position = 'bottom') + 
+  galenR::theme_clean(legend.position = 'bottom') + 
   labs(fill = 'Favorable\narea (ha)')
 
 chowillus
@@ -2084,7 +2084,7 @@ riverland_loc <- ggplot(data = HydroBOT::basin) + # |> filter(ValleyName == 'Low
                            stat = 'sf_coordinates',
                            nudge_x = 3, nudge_y = 1) +
       scale_x_continuous(breaks = c(140, 145, 150)) +
-  HydroBOT::theme_werp_toolkit(axis.title = element_blank())
+  galenR::theme_clean(axis.title = element_blank())
 
 riverland_loc
 
