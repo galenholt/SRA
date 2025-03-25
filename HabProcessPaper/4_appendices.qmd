@@ -68,11 +68,11 @@ anaes <- readRDS(file.path(datOut, 'anae_simplify', 'all_anae_simplify.rds'))
 #| fig-cap: ANAE wetlands across the Murray-Darling Basin
 anae_map <- 
 ggplot() +
-  geom_sf(data = HydroBOT::basin, fill = 'azure') +
+  geom_sf(data = basin, fill = 'azure') +
   geom_sf(data = anaes, fill = 'grey20', color = NA,
           linewidth = 0.1, stroke = 0.1) +
       scale_x_continuous(breaks = c(140, 145, 150)) +
-  HydroBOT::theme_werp_toolkit()
+  galenR::theme_clean()
 
 anae_map
 
@@ -92,7 +92,7 @@ ala_records_map
 #| fig-cap: ALA records for each species that intersect with ANAE wetlands (green) or do not (brown). The vast majority of ALA records in the Murray-Darling Basin do fall within ANAE wetlands for these species.
 all_records_map
 
-ggsave_multi(file.path(mappath, 'ala_records'), plot = all_records_map,
+galenR::ggsave_multi(file.path(mappath, 'ala_records'), plot = all_records_map,
              device = c('pdf', 'png'),
                      width = 12, height = 12, units = 'cm')
 ```
@@ -109,7 +109,7 @@ allrecords |>
 #| label: fig-ala-catch
 #| fig-cap: Number of ALA records falling within ANAE wetlands in each catchment for each species. Grey catchments have no ALA records for that species.
 
-ggsave_multi(file.path(mappath, 'ala_catchment'), plot = ala_catch_map,
+galenR::ggsave_multi(file.path(mappath, 'ala_catchment'), plot = ala_catch_map,
              device = c('pdf', 'png'),
                      width = 12, height = 12, units = 'cm')
 ```
@@ -216,32 +216,32 @@ galenR::ggsave_multi(file.path(mappath, 'wetland_area'), plot = totalhab_maps,
 
 The main text presents red gum as an example species, here we show the same figures for the other species, noting important deviations from red gum.
 
-When summed over the basin and averaged over time, (@fig-bar-bb, @fig-bar-c, @fig-bar-l).
+When summed over the basin and averaged over time, (@fig-box-bb, @fig-box-c, @fig-box-l).
 
 ```{r}
-#| label: fig-bar-bb
+#| label: fig-box-bb
 #| fig-cap: Favourable area for black box as assessed by wetland type, process-based, and interactive models, as is done for red gum in the main text.
 #| fig-width: 12
 #| fig-height: 9
-all_stacked_bars$black_box
+all_stacked_boxs$black_box
 ```
 
 ```{r}
-#| label: fig-bar-c
+#| label: fig-box-c
 #| fig-cap: Favourable area for coolabah as assessed by wetland type, process-based, and interactive models, as is done for red gum in the main text.
 #| fig-width: 12
 #| fig-height: 9
 #| 
-all_stacked_bars$coolabah
+all_stacked_boxs$coolabah
 ```
 
 ```{r}
-#| label: fig-bar-l
+#| label: fig-box-l
 #| fig-cap: Favourable area for lignum as assessed by wetland type, process-based, and interactive models, as is done for red gum in the main text.
 #| fig-width: 12
 #| fig-height: 9
 #| 
-all_stacked_bars$lignum
+all_stacked_boxs$lignum
 ```
 
 Timeseries of the favourable area at the basin-scale, (@fig-ts-bb, @fig-ts-c, @fig-ts-l).
@@ -311,49 +311,49 @@ This creates the individual plots and develops the story. Then some get glued to
 
 ### Habitat alone
 
-Over the whole basin, mean yearly inundation levels of all wetlands are approximately 10^10^ m^2^. Unsurprisingly, there is more inundation in the sets of Recorded wetland types than the Named wetland types, though the relative amounts varies between species @fig-habitat-bar .
+Over the whole basin, mean yearly inundation levels of all wetlands are approximately 10^10^ m^2^. Unsurprisingly, there is more inundation in the sets of Recorded wetland types than the Named wetland types, though the relative amounts varies between species @fig-habitat-box .
 
 ```{r}
-#| label: fig-habitat-bar
-#| fig-cap: Area of inundation in wetlands associated with each species in the basin, either by *Name* or where that species has been *Recorded* in the ALA, averaged over time. Error bars are standard deviation over time, giving a description of the variability, rather than CI.
+#| label: fig-habitat-box
+#| fig-cap: Area of inundation in wetlands associated with each species in the basin, either by *Name* or where that species has been *Recorded* in the ALA, as boxplots showing the variability over time.
 
 # Should we sort out the facetting by duplicating'All wetlands' across all species? Probably, but this works.
 
-hab_bar_panel <- purrr::imap(hab_basin_bar, \(x, i) 
+hab_box_panel <- purrr::imap(hab_basin_box, \(x, i) 
                    x + ggtitle(stringr::str_replace(i, '_', ' ') |>
                                  stringr::str_to_sentence())) |>  
   wrap_plots() +
   plot_layout(guides = 'collect')
 
-hab_bar_panel
+hab_box_panel
 ```
 
 ### Process alone
 
-Each species shows the largest area of success in the adult life stage, followed by germination and seedlings @fig-process-bar. To understand the importance of each life stage alone as well as the life cycle itself, we examine each stage alone and sequentialy. When considered indepedently (Adult, Germination, Seedling), every species has high adult favourability and low areas of seedling favourability. Note that the decline in favourability for these three stages is not due to the life cycle, because they are considered independently. The consequences of the life cycle are seen in the Regeneration and Recruitment stages, which require favourable conditions in preceding stages. By comparing these stages to their respective independent stage, we can see that requiring adult favourability decreases the area of germination favourability only slightly, while requiring germination success reduces the already-low seedling favourability by multiple orders of magnitude to the overall Recruitment favourability value @fig-process-bar. *For a pinch points paper, we could work this one up, and do two dimensions- through the life cycle, but also across the independent-sequential to get the specific impact of the life cycle itself*.
+Each species shows the largest area of success in the adult life stage, followed by germination and seedlings @fig-process-box. To understand the importance of each life stage alone as well as the life cycle itself, we examine each stage alone and sequentialy. When considered indepedently (Adult, Germination, Seedling), every species has high adult favourability and low areas of seedling favourability. Note that the decline in favourability for these three stages is not due to the life cycle, because they are considered independently. The consequences of the life cycle are seen in the Regeneration and Recruitment stages, which require favourable conditions in preceding stages. By comparing these stages to their respective independent stage, we can see that requiring adult favourability decreases the area of germination favourability only slightly, while requiring germination success reduces the already-low seedling favourability by multiple orders of magnitude to the overall Recruitment favourability value @fig-process-box. *For a pinch points paper, we could work this one up, and do two dimensions- through the life cycle, but also across the independent-sequential to get the specific impact of the life cycle itself*.
 
 ```{r}
-#| label: fig-process-bar
-#| fig-cap: Area of favourability after each stage in the life cycle. We present these for the stages *independently* and *sequentially*, with the difference between the two (e.g. between Germination and Regeneration) being the consequence of requiring success in preceding stages. Error bars are standard deviation over time, giving a description of the variability, rather than CI.
+#| label: fig-process-box
+#| fig-cap: Area of favourability after each stage in the life cycle. We present these for the stages *independently* and *sequentially*, with the difference between the two (e.g. between Germination and Regeneration) being the consequence of requiring success in preceding stages. Boxplots show the variability over time.
 
-proc_bar_panel <- purrr::imap(proc_basin_bar, \(x, i) 
+proc_box_panel <- purrr::imap(proc_basin_box, \(x, i) 
                    x + ggtitle(stringr::str_replace(i, '_', ' ') |>
                                  stringr::str_to_sentence())) |>  
   wrap_plots() +
   plot_layout(guides = 'collect')
 
-proc_bar_panel
+proc_box_panel
 ```
 
 ### Interactive
 
-The simplest way to consider the interactive models is to think of them sequentially; i.e. if we have a series of life cycle stages, then we can ask about a habitat requirement as the next step in the life cycle @fig-interact-seq-bar . This paralells the treatment in (Holt et al. in review) and represents a process-centric approach that limits the processes to a habitat covariate at the final step. Note here that the two wetland restrictions are not nested, and so each follows from the Recruitment life stage. *For a paper on how life cycles and habitats determine pinch points, this one would be really good, and we could easily work it up into a relativized version too*.
+The simplest way to consider the interactive models is to think of them sequentially; i.e. if we have a series of life cycle stages, then we can ask about a habitat requirement as the next step in the life cycle @fig-interact-seq-box . This paralells the treatment in (Holt et al. in review) and represents a process-centric approach that limits the processes to a habitat covariate at the final step. Note here that the two wetland restrictions are not nested, and so each follows from the Recruitment life stage. *For a paper on how life cycles and habitats determine pinch points, this one would be really good, and we could easily work it up into a relativized version too*.
 
 ```{r}
-#| label: fig-interact-seq-bar
-#| fig-cap: Area of favourability after each stage in the life cycle, followed by wetland type restrictions. Error bars are standard deviation over time, giving a description of the variability, rather than CI.
+#| label: fig-interact-seq-box
+#| fig-cap: Area of favourability after each stage in the life cycle, followed by wetland type restrictions. Boxplots show the variability over time.
 
-interact_seq_panel <- purrr::imap(interact_seq_basin_bar, \(x, i) 
+interact_seq_panel <- purrr::imap(interact_seq_basin_box, \(x, i) 
                    x + ggtitle(stringr::str_replace(i, '_', ' ') |>
                                  stringr::str_to_sentence())) |>  
   wrap_plots() +
@@ -362,13 +362,13 @@ interact_seq_panel <- purrr::imap(interact_seq_basin_bar, \(x, i)
 interact_seq_panel
 ```
 
-To examine the impact of wetland type requirements on each life stage, rather than only as a final step, we compare the favourable area for each life stage (as in @fig-process-bar) alone and restricted by wetland requirements. This identifies the life stages that are most sensitive to wetland requirements (and so are the stages with the most favourable area outside designated wetland types) @fig-interact-proc-bar. A subset of this plot with only the sequential life stages, and recolored to accentuate the wetland types, is used in the main bar plot in the text.
+To examine the impact of wetland type requirements on each life stage, rather than only as a final step, we compare the favourable area for each life stage (as in @fig-process-box) alone and restricted by wetland requirements. This identifies the life stages that are most sensitive to wetland requirements (and so are the stages with the most favourable area outside designated wetland types) @fig-interact-proc-box. A subset of this plot with only the sequential life stages, and recolored to accentuate the wetland types, is used in the main box plot in the text.
 
 ```{r}
-#| label: fig-interact-proc-bar
-#| fig-cap: Area of favourability of each stage in the life cycle, both independent and sequential, and the reduction in each stage from wetland requirements. Error bars are standard deviation over time, giving a description of the variability, rather than CI.
+#| label: fig-interact-proc-box
+#| fig-cap: Area of favourability of each stage in the life cycle, both independent and sequential, and the reduction in each stage from wetland requirements. Boxplots show the variability over time.
 
-interact_proc_panel <- purrr::imap(interact_proc_basin_bar, \(x, i) 
+interact_proc_panel <- purrr::imap(interact_proc_basin_box, \(x, i) 
                    x + ggtitle(stringr::str_replace(i, '_', ' ') |>
                                  stringr::str_to_sentence())) |>  
   wrap_plots() +
@@ -377,13 +377,13 @@ interact_proc_panel <- purrr::imap(interact_proc_basin_bar, \(x, i)
 interact_proc_panel
 ```
 
-A similar approach for the wetland type restrictions identifies how requiring processes to occur within them reduces the area of favourability. A subset of this plot, recolored to accentuate the model type, is used in the main bar plot in the text.
+A similar approach for the wetland type restrictions identifies how requiring processes to occur within them reduces the area of favourability. A subset of this plot, recolored to accentuate the model type, is used in the main box plot in the text.
 
 ```{r}
-#| label: fig-interact-hab-bar
-#| fig-cap: Area of favourability of each wetland type group and the reduction in favourable area when successful recruitment is required within that group. Error bars are standard deviation over time, giving a description of the variability, rather than CI.
+#| label: fig-interact-hab-box
+#| fig-cap: Area of favourability of each wetland type group and the reduction in favourable area when successful recruitment is required within that group. Boxplots show the variability over time.
 
-interact_hab_panel <- purrr::imap(interact_hab_basin_bar, \(x, i) 
+interact_hab_panel <- purrr::imap(interact_hab_basin_box, \(x, i) 
                    x + ggtitle(stringr::str_replace(i, '_', ' ') |>
                                  stringr::str_to_sentence())) |>  
   wrap_plots() +
@@ -496,7 +496,7 @@ Both independent (top) and sequential. Going to need to panel this one up differ
 
 ```{r}
 #| label: fig-process-map
-#| fig-cap: Area of favourability after each stage in the life cycle in 25 major catchments across the basin. We present these for the stages *independently* (top) and *sequentially*, as we did in @fig-process-bar. Thus, the top panels are the 'Adult' 'Germination', and 'Seedling' stages as used elsewhere. The difference between the top and bottom (e.g. between Germinaton and Regeneration) being the consequence of requiring success in preceding stages.
+#| fig-cap: Area of favourability after each stage in the life cycle in 25 major catchments across the basin. We present these for the stages *independently* (top) and *sequentially*, as we did in @fig-process-box. Thus, the top panels are the 'Adult' 'Germination', and 'Seedling' stages as used elsewhere. The difference between the top and bottom (e.g. between Germinaton and Regeneration) being the consequence of requiring success in preceding stages.
 
 # Should we sort out the facetting by duplicating'All wetlands' across all species? Probably, but this works.
 
@@ -547,4 +547,4 @@ interact_habseq_maps
 
 ### spatio-temporal (catchment-paneled timeseries)
 
-### Selected catchment-scale bars
+### Selected catchment-scale boxs

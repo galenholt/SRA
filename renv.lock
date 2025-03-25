@@ -1164,12 +1164,15 @@
     },
     "galenR": {
       "Package": "galenR",
-      "Version": "0.0.0.9000",
-      "Source": "git",
-      "RemoteType": "git",
-      "RemoteUrl": "git@github.com:galenholt/galenholt.github.io.git",
-      "RemoteRef": "",
-      "Hash": "09550d6608f673b3182dbb7150575da5"
+      "Version": "0.0.0.9001",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "galenholt",
+      "RemoteRepo": "galenholt.github.io",
+      "RemoteRef": "main",
+      "RemoteSha": "c897b1fdab86f805d06d1a1551d310526ff1d2e5",
+      "Hash": "1862dc0c6d5c47448cc83db6db34595b"
     },
     "gdtools": {
       "Package": "gdtools",
