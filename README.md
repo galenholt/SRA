@@ -1,9 +1,3 @@
----
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 # Habitat vs.Process models
 
 Analyses for the habitat-v-process analyses, which were a subset of the
@@ -113,36 +107,48 @@ renv::status()
 ```
 
 :::::::: {#refs .references .csl-bib-body .hanging-indent entry-spacing="0"}
+
 ::: {#ref-brooks2021 .csl-entry}
+
 Brooks, Shane. 2021. “ANAE Classification of the Murray-Darling Basin
 Technical Report, Revision 3.0.”
+
 :::
 
 ::: {#ref-frost2018 .csl-entry}
+
 Frost, A. J., A. Ramchurn, and A. Smith. 2018. “The Australian Landscape
 Water Balance Model AWRA-l V6. Technical Description of the Australian
 Water Resources Assessment Landscape Model Version 6.”
+
 :::
 
 ::: {#ref-holt2024 .csl-entry}
+
 Holt, Galen, Ashley Macqueen, and Rebecca E. Lester. 2024. “A Flexible
 Consistent Framework for Modelling Multiple Interacting Environmental
 Responses to Management in Space and Time.” *Journal of Environmental
 Management* 367 (September): 122054.
 <https://doi.org/10.1016/j.jenvman.2024.122054>.
+
 :::
 
 ::: {#ref-teng2023 .csl-entry}
+
 Teng, Jin, Dave Penton, Catherine Ticehurst, Ashmita Sengupta, Andrew
 Freebairn, Steve Marvanek, Darran King, and Carmel A. Pollino. 2023.
 “Two-Monthly Maximum Flood Water Depth Spatial Timeseries for the MDB
 V20.” *CSIRO Data Collection*.
 <https://doi.org/><https://doi.org/10.25919/c5ab-h019>.
+
 :::
 
 ::: {#ref-westgate2024 .csl-entry}
+
 Westgate, Martin, Matilda Stevenson, Dax Kellie, and Peggy Newman. 2024.
 *Galah: Biodiversity Data from the GBIF Node Network*.
 <https://CRAN.R-project.org/package=galah>.
+
 :::
+
 ::::::::
