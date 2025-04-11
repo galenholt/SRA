@@ -103,7 +103,6 @@ Valley_to_planningunit <- read.csv(file.path(qaelpath, "Deakin University", "QAE
 
 ```
 
-
 ```{r}
 #This is how i connected planning units to valleys
 #Planning units are already connected to SWSDLName,
@@ -196,7 +195,8 @@ EWRS_df <- left_join(EWRS_df, List_EWRs, by = "ewr_code")
 Timeseries_gauge_EWR <- Timeseries_gauge_EWRversions |>
   dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code_timing)))|> #didnt work - other variables relating to code_timing
   #dplyr::group_by(year, ewr_code, scenario, gauge, planning_unit_name) |>
-  #dplyr::summarise(ewr_achieved = max(ewr_achieved, na.rm = TRUE)) |> #USING MAX
+  #THIS LINE WAS COMMENTED OUT>>>>
+  dplyr::summarise(ewr_achieved = max(ewr_achieved, na.rm = TRUE)) |> #USING MAX
   left_join(EWRS_df, by = "ewr_code", relationship = "many-to-many")|>
   mutate(planning_unit_name = stringr::str_replace(planning_unit_name, pattern = "ï¿½", replacement = "at"))|>
   mutate(planning_unit_name = stringr::str_replace(planning_unit_name, pattern = "Upper and Mid Lachlan Floodplains inc. Bundaburra Creek, Lake Cowal and Jemalong Wyldes Plain floodplain", replacement = "Upper and Mid Lachlan Floodplains inc. Bundaburra Creek_Lake Cowal and Jemalong Wyldes Plain floodplain"))
@@ -275,13 +275,15 @@ Timeseries_valley_LATERALgroup <- Timeseries_gauge_EWR |>
   dplyr::select(-gauge,
                 -Lateral_connectivity_including_SF, -Lateral_connectivity_above_BK, -Lateral_connectivity_including_BK,
                 -Longitudinal_connectivity_CF, -Longitudinal_connectivity_FD)|>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, - ewr_code, -ewr_group, -ewr_code_timing)))|>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, - ewr_code, -ewr_group
+                                  #, -ewr_code_timing
+                                  )))|>
   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
                  n_EWRs = n())
 
 #"year"         "scenario"    "ValleyName"   "name_clean"   "ewr_achieved" n_EWRs
 
-##GAUGE level -  agregate to EWR groups
+
 Timeseries_valley_LONGITUDINALgroup <- Timeseries_gauge_EWR |>
   dplyr::mutate(ValleyName = ifelse(ValleyName == "Nebine", "Condamine Balonne", ValleyName),
                 name_clean = ifelse(name_clean == "Nebine", "CondamineBalonne", name_clean))|>
@@ -289,7 +291,9 @@ Timeseries_valley_LONGITUDINALgroup <- Timeseries_gauge_EWR |>
   dplyr::select(-gauge,
                 -Longitudinal_connectivity_CF, -Longitudinal_connectivity_FD, -Lateral_connectivity_above_BK,
                 -Lateral_connectivity_including_BK, -Lateral_connectivity_including_SF)|>
-  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code, -ewr_group, -ewr_code_timing)))|>
+  dplyr::group_by(dplyr::across(c(-ewr_achieved, -ewr_code, -ewr_group
+                                  #, -ewr_code_timing
+                                  )))|>
   dplyr::reframe(ewr_achieved = mean(ewr_achieved, na.rm = TRUE),
                  n_EWRs = n())
 
@@ -485,16 +489,16 @@ Lateral_EWRS <- Timeseries_gauge_EWR |>
     summarise(`Number of EWRs relating to Lateral connectivity` = n(),
               `Number of gauges` = length(unique(gauge)))
 
-Lat_and_Long_EWRS <- full_join(Lat_EWRS, Long_EWRS, by = join_by(ValleyName, `Number of gauges`))
+# Lat_and_Long_EWRS <- full_join(Lateral_EWRS, Longitudinal_EWRS, by = join_by(ValleyName, `Number of gauges`))
 
 write.csv(
   Longitudinal_EWRS,
-  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/DraftReport_plots",
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Report_plots_2025/EWR_summary_data",
             paste0("Longitudinal_connectivity_EWRS", "_", Sys.Date(), ".csv")))
 
 write.csv(
   Lateral_EWRS,
-  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/DraftReport_plots", 
+  file.path(qaelpath, "Deakin University/QAEL - SRA - SRA/data_out/SRA_analysis/Report_plots_2025/EWR_summary_data", 
             paste0("Lateral_connectivity_EWRS", "_", Sys.Date(), ".csv")))
 
 ```

@@ -234,8 +234,8 @@ Timeseries_Basin_Hydrology <- filter(Timeseries_Basin_Hydrology, year > 1987 & y
 # Read in data
 #redgum_connectivity - Valley
 Timeseries_Valley_redgum_connectivity <- catch_cat_sf('anae_inun_anae_name_catchment', outerdir = 'red_gum')
-Timeseries_Valley_redgum_connectivity$Indicator <- "Managed floodplain connectivity"
-Timeseries_Valley_redgum_connectivity$Label <- "Managed floodplain connectivity (Red gum area)"
+Timeseries_Valley_redgum_connectivity$Indicator <- "Lower floodplain connectivity"
+Timeseries_Valley_redgum_connectivity$Label <- "Lower floodplain connectivity (Red gum area)"
 Timeseries_Valley_redgum_connectivity$Scale <- "Valley"
 
 Timeseries_Valley_redgum_connectivity <- Timeseries_Valley_redgum_connectivity |>
@@ -266,8 +266,8 @@ Timeseries_Basin_redgum_connectivity <- Timeseries_Valley_redgum_connectivity |>
   bind_cols(basin) |> 
   st_as_sf()
 
-Timeseries_Basin_redgum_connectivity$Indicator <- "Managed floodplain connectivity"
-Timeseries_Basin_redgum_connectivity$Label <- "Managed floodplain connectivity (Red gum area)"
+Timeseries_Basin_redgum_connectivity$Indicator <- "Lower floodplain connectivity"
+Timeseries_Basin_redgum_connectivity$Label <- "Lower floodplain connectivity (Red gum area)"
 Timeseries_Basin_redgum_connectivity$Scale <- "Basin"
 
 Timeseries_Basin_redgum_connectivity <- Timeseries_Basin_redgum_connectivity |>
@@ -280,8 +280,8 @@ Timeseries_Basin_redgum_connectivity <- Timeseries_Basin_redgum_connectivity |>
 
 #blackbox_connectivity - Valley
 Timeseries_Valley_blackbox_connectivity <- catch_cat_sf('anae_inun_anae_name_catchment', outerdir = 'black_box')
-Timeseries_Valley_blackbox_connectivity$Indicator <- "Managed floodplain connectivity"
-Timeseries_Valley_blackbox_connectivity$Label <- "Managed floodplain connectivity (Black box area)"
+Timeseries_Valley_blackbox_connectivity$Indicator <- "Higher floodplain connectivity"
+Timeseries_Valley_blackbox_connectivity$Label <- "Higher floodplain connectivity (Black box area)"
 Timeseries_Valley_blackbox_connectivity$Scale <- "Valley"
 
 Timeseries_Valley_blackbox_connectivity <- Timeseries_Valley_blackbox_connectivity |>
@@ -316,8 +316,8 @@ Timeseries_Basin_blackbox_connectivity <- Timeseries_Valley_blackbox_connectivit
   bind_cols(basin) |> 
   st_as_sf()
 
-Timeseries_Basin_blackbox_connectivity$Indicator <- "Managed floodplain connectivity"
-Timeseries_Basin_blackbox_connectivity$Label <- "Managed floodplain connectivity (Black box area)"
+Timeseries_Basin_blackbox_connectivity$Indicator <- "Higher floodplain connectivity"
+Timeseries_Basin_blackbox_connectivity$Label <- "Higher floodplain connectivity (Black box area)"
 Timeseries_Basin_blackbox_connectivity$Scale <- "Basin"
 
 Timeseries_Basin_blackbox_connectivity <- Timeseries_Basin_blackbox_connectivity |>
@@ -402,7 +402,7 @@ Timeseries_Valley_ANAEinundation <- diversity_anae_summary |>
   st_as_sf()
 
 Timeseries_Valley_ANAEinundation$Indicator <- "ANAE inundation"
-Timeseries_Valley_ANAEinundation$Label <- "ANAE inundation (area)" 
+Timeseries_Valley_ANAEinundation$Label <- "ANAE inundation (Ha)" 
 Timeseries_Valley_ANAEinundation$Scale <- "Valley"
 
 Timeseries_Valley_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
@@ -422,7 +422,7 @@ Timeseries_Basin_ANAEinundation <- Timeseries_Valley_ANAEinundation |>
   st_as_sf()
 
 Timeseries_Basin_ANAEinundation$Indicator <- "ANAE inundation"
-Timeseries_Basin_ANAEinundation$Label <- "ANAE inundation (area)"
+Timeseries_Basin_ANAEinundation$Label <- "ANAE inundation (Ha)"
 Timeseries_Basin_ANAEinundation$Scale <- "Basin"
 
 Timeseries_Basin_ANAEinundation <- Timeseries_Basin_ANAEinundation |>
@@ -567,7 +567,7 @@ all_strictures <- bind_rows(germ_and_seed, adult)
 
 all_strictures <- all_strictures |>
   mutate(Indicator = paste(sub("_", " ", species), stage, sep = " "),
-         Label = paste(Indicator, "(area)", sep = " "),
+         Label = paste(Indicator, "(Ha)", sep = " "),
          Scale = "Valley")
 
 Timeseries_Valley_ANAEvegetation <- all_strictures |>
@@ -640,7 +640,7 @@ Timeseries_Valley_ANAEwaterbirds <- Timeseries_Valley_ANAEwaterbirds |>
   mutate(ValleyName =  Wetland,
          Indicator = "waterbirds",
          Scale = "Wetland",
-         Label = "Bird breeding inundation (area)",
+         Label = "Bird breeding inundation (Ha)",
          breeding_area = breeding_area/10000)
 
 
@@ -1909,7 +1909,7 @@ Plot_Timeseries <- function(IndicatorX, ValleyNameY, data) {
     theme(axis.text.x = element_text(angle = 90))
   
  ggsave(plot = plot1, 
-         filename = file.path(plot_path, "Timeseries", paste0("Plot_Timeseries_", 
+         filename = file.path(plot_path, "Timeseries_180225", paste0("Plot_Timeseries_", 
                                                               stringr::str_remove_all(unique(data1$ValleyName), ' '), "_",
                                                               stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
          device = "tiff", width = 5, height = 3)
@@ -1946,7 +1946,7 @@ Plot_Boxplots <- function(IndicatorX, ValleyNameY, data) {
   theme(axis.text.x = element_text(angle = 90))
 
  ggsave(plot = plot1, 
-         filename = file.path(plot_path, "Boxplots", paste0("Boxplot_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
+         filename = file.path(plot_path, "Boxplots_180225", paste0("Boxplot_Timeseries_", stringr::str_remove_all(unique(data1$ValleyName), ' '), "_", stringr::str_remove_all(unique(data1$Indicator), ' '), "_", Sys.Date(), ".tiff")), 
          device = "tiff", width = 5, height = 3)
  
 }
@@ -2302,3 +2302,29 @@ ggsave(plot = Map_Tagg_PrePostBP_Basin_COOLABAH, filename = file.path(plot_path,
 nrow(Valley_indicator_list)*3 + nrow(Valley_indicator_list_subset)
 
 ```
+
+```{r}
+Timeseries_Basin_ANAEinundation |>
+  ungroup()|>
+  filter(area_inundated == max(area_inundated) | area_inundated == min(area_inundated))
+
+Timeseries_Basin_ANAEinundation |>
+  ungroup()|>
+  mutate(over_800000 = ifelse(area_inundated >= 800000, 1, 0),
+         over_1030000 = ifelse(area_inundated >= 1030000, 1, 0))|>
+  reframe(p_over_800000 = sum(over_800000)/n(),
+          over_1030000 = sum(over_1030000)/n())
+
+Timeseries_Basin_ANAEdiversity |>
+  ungroup()|>
+  filter(diversity_shannon_area == max(diversity_shannon_area) | diversity_shannon_area == min(diversity_shannon_area))
+
+```
+```{r}
+temp <- Timeseries_Valley_ANAEconnectivity |>
+  group_by(ValleyName, Indicator)|>
+  filter(area_inundated == max(area_inundated))
+```
+
+
+## END 
